@@ -55,7 +55,10 @@ pip_line::pip_line(ros::NodeHandle & n):nh(n)
     planes_polygon_pub = nh.advertise<visualization_msgs::MarkerArray>("planes_polygon", 1);
     planes_polygon_cutted_pub = nh.advertise<visualization_msgs::MarkerArray>("planes_polygon_cutted", 1);
     footsteps_pub = nh.advertise<diy_msgs::footSteps>("footsteps", 1);
+    footsteps_visual_pub = nh.advertise<visualization_msgs::MarkerArray>("footsteps_visual", 1);
+
     avoid_points_pub = nh.advertise<diy_msgs::avoidPointsMsg>("avoid_points", 1);
+    avoid_points_visual_pub = nh.advertise<visualization_msgs::MarkerArray>("avoid_points_visual", 1);
 
     timer = nh.createTimer(ros::Duration(1), &pip_line::timerCallback, this);
 
@@ -618,6 +621,70 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
             LOG(INFO)<<"planning error";
         }
         
+        // 由于咱们这里是在首次规划，所以需要在规划得的第一步之前再加一步
+        Footstep tmp_step;
+        tmp_step.robot_side = steps.front().getInverseRobotSide();
+        tmp_step.x          = 0;
+        tmp_step.y          = tmp_step.robot_side == LEFT ? 0.1 : -0.1;
+        tmp_step.z          = 0;
+        tmp_step.roll       = 0;
+        tmp_step.pitch      = 0;
+        tmp_step.yaw        = 0;
+        steps.insert(steps.begin(), tmp_step);
+
+        // 转成MarkerArray来显示步态点
+        visualization_msgs::MarkerArray visual_steps;
+        int index_visual_step = 0;
+        for (auto & step : steps)
+        {
+            visualization_msgs::Marker visual_step;
+            visual_step.action = visualization_msgs::Marker::ADD;
+            visual_step.header.frame_id = "map";  // 设置坐标系
+            visual_step.id = index_visual_step;
+            index_visual_step++;
+            visual_step.type = visualization_msgs::Marker::MESH_RESOURCE;  // 表示网格模型
+            Eigen::AngleAxisd ad_roll(step.roll, Eigen::Vector3d::UnitX());
+            Eigen::AngleAxisd ad_pitch(step.pitch, Eigen::Vector3d::UnitY());
+            Eigen::AngleAxisd ad_yaw(step.yaw, Eigen::Vector3d::UnitZ());
+            Eigen::Matrix3d r = ad_roll.toRotationMatrix() * ad_pitch.toRotationMatrix() * ad_yaw.toRotationMatrix();
+            // Eigen::Matrix3d r_stl;
+            // r_stl<<1, 0, 0, 0, -1, 0, 0, 0, -1;
+            // Eigen::Quaterniond qd(r_stl * r);
+            Eigen::Quaterniond qd(r);
+            visual_step.pose.orientation.w = qd.w();
+            visual_step.pose.orientation.x = qd.x();
+            visual_step.pose.orientation.y = qd.y();
+            visual_step.pose.orientation.z = qd.z();
+            visual_step.pose.position.x = step.x;
+            visual_step.pose.position.y = step.y;
+            visual_step.pose.position.z = step.z;
+
+            visual_step.scale.x = 1.0;  // 调整模型大小
+            visual_step.scale.y = 1.0;
+            visual_step.scale.z = 1.0;
+            visual_step.color.a = 1.0;
+            // 获取包的路径
+            std::string package_path = ros::package::getPath("pip_line");
+
+            // 设置模型的相对路径
+            // mesh_resource_marker.mesh_resource = "file://" + package_path + "/path/to/your/model.stl";
+            if (step.is_left)
+            {
+                visual_step.mesh_resource = "file://" + package_path + "/foot_visual/leftfoot4.STL";  // 设置STL文件路径
+                // model_marker.mesh_resource = "file://" + package_path + "/data/left_foot.STL";  // 设置STL文件路径
+            }
+            else
+            {
+                visual_step.mesh_resource = "file://" + package_path + "/foot_visual/rightfoot4.STL";  // 设置STL文件路径
+                // model_marker.mesh_resource = "file://" + package_path + "/data/right_foot.STL";  // 设置STL文件路径
+            }
+            // 220,223,227
+            visual_step.color.r = 220.0/255.0;
+            visual_step.color.g = 223.0/255.0;
+            visual_step.color.b = 227.0/255.0;
+            visual_steps.markers.emplace_back(visual_step);
+        }
+        
         diy_msgs::footSteps steps_pub;
         steps_pub.header.frame_id = "map";
         for (auto & s : steps)
@@ -632,6 +699,32 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
             tmp_step.yaw = s.yaw;
             steps_pub.footsteps.emplace_back(tmp_step);
         }
+
+        visualization_msgs::MarkerArray visual_avoid_points;
+        int index_avoid_points = 0;
+        for (auto & points : avoid_points)
+        {
+            visualization_msgs::Marker visual_points;
+            visual_points.action = visualization_msgs::Marker::ADD;
+            visual_points.header.frame_id = "map";  // 设置坐标系
+            visual_points.id = index_avoid_points;
+            index_avoid_points ++;
+            visual_step.type = visualization_msgs::Marker::POINTS;
+            visual_points.color.r = 0.0f;
+            visual_points.color.g = 1.0f;
+            visual_points.color.b = 0.0f;
+            visual_points.color.a = 1.0f;
+            for (auto & point : points)
+            {
+                geometry_msgs::Point p;
+                p.x = point.x();
+                p.y = point.y();
+                p.z = point.z();
+                visual_points.points.emplace_back(p);
+            }
+            visual_avoid_points.markers.emplace_back(visual_points);
+        }
+
         diy_msgs::avoidPointsMsg points_pub;
         points_pub.header.frame_id = "map";
         for (auto & points : avoid_points)
@@ -649,8 +742,9 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
             points_pub.avoidPointsMsg.emplace_back(ps);
         }
         footsteps_pub.publish(steps_pub);
+        footsteps_visual_pub.publish(visual_steps);
         avoid_points_pub.publish(points_pub);
-
+        avoid_points_visual_pub.publish(visual_avoid_points);
     }
 }
 
