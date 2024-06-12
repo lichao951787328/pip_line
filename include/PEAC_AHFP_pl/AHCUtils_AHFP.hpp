@@ -5,7 +5,7 @@
 
 #include<string>
 #include "opencv2/opencv.hpp"
-namespace AHFP{
+namespace AHFP_pl{
 namespace ahc {
 namespace utils {
 

@@ -26,7 +26,7 @@
 
 // #include "matplotlib/matplotlibcpp.h"
 // namespace plt = matplotlibcpp;
-namespace AHFP{
+namespace AHFP_pl{
 // #define TEST_IDEAL_POINTCLOUD
 // #define DEBUG_CONTOURS
 namespace ahc {
@@ -133,7 +133,7 @@ namespace ahc {
 		/* Public Class Functions                                               */
 		/************************************************************************/
 		PlaneFitter() : points(0), width(0), height(0),
-			maxStep(100000), minSupport(100),
+			maxStep(100000), minSupport(20),
 			windowWidth(5), windowHeight(5),
 			doRefine(true), erodeType(ERODE_ALL_BORDER),
 			dirtyBlkMbship(true), drawCoarseBorder(false)

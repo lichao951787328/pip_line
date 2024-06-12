@@ -8,18 +8,33 @@ project(pip_line)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  grid_map_core
-  grid_map_msgs
-  grid_map_ros
+  # grid_map_core
+  # grid_map_msgs
+  # grid_map_ros
   roscpp
   sensor_msgs
   std_msgs
+  diy_msgs
 )
+
+set(grid_map_core_DIR "/home/bhr/catkin_gridmap/install/share")
+find_package(grid_map_core REQUIRED)
+
+set(grid_map_msgs_DIR "/home/bhr/catkin_gridmap/install/share")
+find_package(grid_map_msgs REQUIRED)
+
+set(grid_map_ros_DIR "/home/bhr/catkin_gridmap/install/share")
+find_package(grid_map_ros REQUIRED)
+
+set(grid_map_filters_DIR "/home/bhr/catkin_gridmap/install/share")
+find_package(grid_map_filters REQUIRED)
+
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
-
-
+find_package(PCL REQUIRED)
+find_package(glog REQUIRED)
+find_package(OpenCV REQUIRED)
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
 ## See http://ros.org/doc/api/catkin/html/user_guide/setup_dot_py.html
@@ -119,8 +134,15 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-# include
+include
   ${catkin_INCLUDE_DIRS}
+  ${PCL_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS}
+  ${grid_map_core_INCLUDE_DIRS}
+  ${grid_map_msgs_INCLUDE_DIRS}
+  ${grid_map_ros_INCLUDE_DIRS}
+  ${grid_map_filters_INCLUDE_DIRS}
+  /home/bhr/catkin_beijing4th/src/elevation_mapping/AstarHierarchicalFootstepPlanner/include
 )
 
 ## Declare a C++ library
@@ -136,7 +158,11 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-# add_executable(${PROJECT_NAME}_node src/pip_line_node.cpp)
+add_executable(${PROJECT_NAME}_node 
+src/main.cpp 
+src/pip_line.cpp
+/home/bhr/catkin_beijing4th/src/elevation_mapping/AstarHierarchicalFootstepPlanner/src/AstarHierarchicalFootstepPlanner.cpp
+)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -149,9 +175,16 @@ include_directories(
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-# target_link_libraries(${PROJECT_NAME}_node
-#   ${catkin_LIBRARIES}
-# )
+target_link_libraries(${PROJECT_NAME}_node
+  ${catkin_LIBRARIES}
+  ${PCL_LIBRARIES}
+  ${grid_map_core_LIBRARIES}
+  ${OpenCV_LIBRARIES}
+  ${grid_map_msgs_LIBRARIES}
+  ${grid_map_ros_LIBRARIES}
+  ${grid_map_filters_LIBRARIES}
+  glog::glog
+)
 
 #############
 ## Install ##

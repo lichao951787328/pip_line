@@ -16,7 +16,7 @@
 #include <glog/logging.h>
 #include "AHCPlaneFitter_AHFP.hpp"
 
-namespace AHFP{
+namespace AHFP_pl{
 // #include <polytopic/polytopic.h>
 using ahc::utils::Timer;
 

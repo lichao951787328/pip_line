@@ -1,0 +1,12 @@
+<launch>
+
+  <!-- Elevation mapping node -->
+  <node pkg="pip_line" type="pip_line_node" name="pip_line_node" output="screen" />
+
+  <!-- Launch visualizations for the resulting elevation map -->
+  <!-- <include file="$(find elevation_mapping_ours)/launch/visualization.launch" /> -->
+
+  <!-- Launch RViz with the demo configuration -->
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find pip_line)/rviz/elevationMap.rviz" />
+
+</launch>

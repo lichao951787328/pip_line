@@ -8,7 +8,7 @@
 #else
 #include <boost/shared_ptr.hpp>
 #endif
-namespace AHFP{
+namespace AHFP_pl{
 namespace ahc {
 #ifndef USE_BOOST_SHARED_PTR
 	using std::shared_ptr;
