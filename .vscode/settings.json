@@ -96,6 +96,7 @@
         "csignal": "cpp",
         "codecvt": "cpp",
         "future": "cpp",
-        "shared_mutex": "cpp"
+        "shared_mutex": "cpp",
+        "filesystem": "cpp"
     }
 }

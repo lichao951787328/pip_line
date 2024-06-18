@@ -2,7 +2,7 @@
  * @Author: lichao951787328 951787328@qq.com
  * @Date: 2024-06-07 11:01:20
  * @LastEditors: lichao951787328 951787328@qq.com
- * @LastEditTime: 2024-06-12 19:00:46
+ * @LastEditTime: 2024-06-18 23:41:52
  * @FilePath: /pip_line/src/pip_line.cpp
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -216,7 +216,7 @@ void preprocessing(pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_in, pcl::PointClou
     voxel_grid_filter.setInputCloud(stable_points.makeShared());
 
     // 设置体素大小（体素的边长）这个值不能设成0.01，否则太耗时
-    voxel_grid_filter.setLeafSize(0.008f, 0.008f, 0.008f);  // 设置为0.01米
+    voxel_grid_filter.setLeafSize(0.01f, 0.01f, 0.01f);  // 设置为0.01米
 
     // 执行体素滤波
     pcl::PointCloud<pcl::PointXYZ>::Ptr filtered_cloud(new pcl::PointCloud<pcl::PointXYZ>);
@@ -308,7 +308,6 @@ pcl::PointCloud<pcl::PointXYZ> pip_line::gridMap2Pointcloud(grid_map::GridMap & 
 
 void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
 {
-    
     // 构建高程图
     pcl::PointCloud<pcl::PointXYZ>::Ptr pc(new pcl::PointCloud<pcl::PointXYZ>);
     pcl::fromROSMsg(*msg, *pc);
@@ -348,310 +347,379 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     
     // 使用地图转成有序点云
     pcl::PointCloud<pcl::PointXYZ> org_pc = gridMap2Pointcloud(map);
-    // 平面检测
-    AHFP_pl::PlanarContourExtraction pce(org_pc);
-    pce.run();
-    cv::Mat plane_image = pce.getSegImage();
-    // cv::imshow("seg 1", plane_image);
-    // cv::waitKey(0);
-    // LOG(INFO)<<"...";
-    vector<cv::Mat> planes = pce.getSegPlanes();
 
-    vector<Eigen::Vector3d> obstacle, plane_points;
-    pcl::PointCloud<pcl::PointXYZ> pcl_obstacle, pcl_plane_points;
+    // 替换
 
-    for (int i = 0; i < plane_image.rows; i++)
+    orginazed_points raw_points;
+    raw_points.initialByPCL(*pc);
+    size_t width = pc->width;
+    size_t height = pc->height;
+
+    string package_path;
+    initial_package_path("plane_detection", package_path);
+    parameter param;
+    load_parameter(param, package_path + "/config/parameter.xml");
+    std::cout<<"load parameter finish"<<std::endl;
+    param.initial(raw_points.width);
+    // // param.showParameter();
+    quatree::node::setStaticMember(width, height, param.quatree_width, ROBOTWORLD_T_CAMERA, raw_points, param);
+
+    quatree::quatree qq(raw_points, param);
+    
+    plane_segmentation ps(height, width, &qq, raw_points, param);
+    vector<plane_info> planes = ps.getPlaneResult();
+    cv::Mat result = ps.getSegResult();
+    vector<cv::Mat> single_results = ps.getSegResultSingle();
+
+    vector<cv::Mat> collision_free_images;
+    // 地图膨胀层
+    double resolution = map.getResolution();
+    double inflation_radius = 0.5;
+    int inflation_pixel = 0.5/resolution;
+    for (int i = 0; i < single_results.size(); i++)
     {
-        for (int j = 0; j < plane_image.cols; j++)
-        {
-            if (plane_image.at<cv::Vec3b>(i, j) ==  cv::Vec3b(0, 0, 0))
-            {
-                grid_map::Position3 p3;
-                if (map.getPosition3("elevation", grid_map::Index(i, j), p3))
-                {
-                    if (!std::isnan(p3.z()))
-                    {
-                        obstacle.emplace_back(p3);
-                        pcl_obstacle.emplace_back(pcl::PointXYZ(p3.x(), p3.y(), p3.z()));
-                    }
-                }
-            }
-            else
-            {
-                grid_map::Position3 p3;
-                if (map.getPosition3("elevation", grid_map::Index(i, j), p3))
-                {
-                    if (!std::isnan(p3.z()))
-                    {
-                        plane_points.emplace_back(p3);
-                        pcl_plane_points.emplace_back(pcl::PointXYZ(p3.x(), p3.y(), p3.z()));
-                    }
-                }
-            }
-        }
-    }
-    pcl::io::savePCDFileASCII("/home/bhr/TCDS/src/pip_line/data/obstacle.pcd", pcl_obstacle);
-    pcl::io::savePCDFileASCII("/home/bhr/TCDS/src/pip_line/data/plane.pcd", pcl_plane_points);
+        cv::Mat image = single_results.at(i);
+        int kernel_size = inflation_pixel;
+        cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(kernel_size, kernel_size));
 
-    for (auto & image : planes)
-    {
-        Eigen::Vector3d center = Eigen::Vector3d::Zero();
-        vector<Eigen::Vector3d> points;
-        for (int i = 0; i < image.rows; i++)
+        // 对图像进行膨胀操作
+        cv::Mat dilated_image;
+        cv::dilate(image, dilated_image, kernel);
+
+        // 计算膨胀后的边缘
+        cv::Mat collision_layer = dilated_image - image;
+        cv::Mat upper_body = cv::Mat::zeros(collision_layer.size(), CV_8UC1);
+        cv::Mat knee = cv::Mat::zeros(collision_layer.size(), CV_8UC1);
+        for (int y = 0; y < collision_layer.rows; ++y) 
         {
-            for (int j = 0; j < image.cols; j++)
+            for (int x = 0; x < collision_layer.cols; ++x) 
             {
-                if (image.at<uchar>(i, j) == 255)
+                if (collision_layer.at<uchar>(y, x) == 255) 
                 {
+                    // 获取膝盖层和上半身层
                     grid_map::Position3 p3;
-                    if (map.getPosition3("elevation", grid_map::Index(i, j), p3))
+                    if (map.getPosition3("elevation", grid_map::Index(y, x), p3))
                     {
-                        points.emplace_back(p3);
-                        center += p3;
+                        if (!std::isnan(p3.z()))
+                        {
+                            double dis = (p3 - planes.at(i).center).dot(planes.at(i).normal);
+                            if (dis > 0.5)// 上半身
+                            {
+                                upper_body.at<uchar>(y,x) = 255;
+                            }
+                            else if (dis > 0.3) // 膝盖
+                            {
+                                knee.at<uchar>(y,x) = 255;
+                            }
+                        }
                     }
                 }
             }
         }
-        center = center/points.size();
-        if (center.z() > 0.5)
-        {
-            LOG(INFO)<<"INSERT";
-            obstacle.insert(obstacle.end(), points.begin(), points.end());
-            continue;
-        }
-        
-        Eigen::Matrix3d M = Eigen::Matrix3d::Zero();
-        for (auto & point : points)
-        {
-            M += (point - center) * (point - center).transpose();
-        }
-        Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eigensolver(M);
-        auto eigenvectors = eigensolver.eigenvectors();
-        Eigen::Vector3d minEigenvector = eigenvectors.col(0);
-        if (abs(minEigenvector.z()) < 0.9)
-        {
-            LOG(INFO)<<"INSERT";
-            obstacle.insert(obstacle.end(), points.begin(), points.end());
-        }
-    }
+        // 进行不同半径的膨胀
+        double upper_inflation = 0.5;
+        double knee_inflation = 0.1;
+        int inflation_radius_upper = upper_inflation/resolution;
+        int inflation_radius_knee = knee_inflation/resolution;
+
+        cv::Mat kernel_upper = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(inflation_radius_upper, inflation_radius_upper));
+        cv::Mat kernel_knee = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(inflation_radius_knee, inflation_radius_knee));
+
+        // 对图像进行膨胀操作
+        cv::Mat dilated_image_upper;
+        cv::dilate(upper_body, dilated_image_upper, kernel_upper);
+
+        cv::Mat dilated_image_knee;
+        cv::dilate(knee, dilated_image_knee, kernel_knee);
     
-    LOG(INFO)<<height_map_upper.getSize().transpose();
-    cv::Mat height_map_upper_image = cv::Mat::zeros(height_map_upper.getSize().x(), height_map_upper.getSize().y(), CV_8UC1);
-    // LOG(INFO)<<height_map_upper_image.rows<<" "<<height_map_upper_image.cols;
-    cv::Mat height_map_lower_image = cv::Mat::zeros(height_map_lower.getSize().x(), height_map_lower.getSize().y(), CV_8UC1);
-    // LOG(INFO)<<height_map_lower_image.rows<<" "<<height_map_lower_image.cols;
-    cv::Mat height_map_foot_image = cv::Mat::zeros(height_map_foot.getSize().x(), height_map_foot.getSize().y(), CV_8UC1);
-    
-    // 构建不可落脚区域的高程图
-    for (auto & point : obstacle)
-    {
-        if (point.z() > 0.6)
-        {
-            grid_map::Index index;
-            if (height_map_upper.getIndex(point.head(2), index))
-            {
-                height_map_upper["elevation"](index.x(), index.y()) = point.z();
-                height_map_upper_image.at<uchar>(index.x(), index.y()) = 255;
-            }
-        }
-        else if (point.z() < 0.15)
-        {
-            grid_map::Index index;
-            if (height_map_lower.getIndex(point.head(2), index))
-            {
-                height_map_foot["elevation"](index.x(), index.y()) = point.z();
-                height_map_foot_image.at<uchar>(index.x(), index.y()) = 255;
-            }
-        }
-        else
-        {
-            grid_map::Index index;
-            if (height_map_lower.getIndex(point.head(2), index))
-            {
-                height_map_lower["elevation"](index.x(), index.y()) = point.z();
-                height_map_lower_image.at<uchar>(index.x(), index.y()) = 255;
-            }
-        }
+        // 计算膨胀后的边缘
+        cv::Mat collision_layer1 = image - dilated_image_upper;
+        cv::Mat collision_layer2 = collision_layer1 - dilated_image_knee;
+        collision_free_images.emplace_back(collision_layer2);
     }
-    // LOG(INFO)<<"...";
-    
-    // cv::imshow("seg 2", height_map_upper_image);
-    cv::imwrite("/home/bhr/TCDS/src/pip_line/data/height_map_upper_image.png", height_map_upper_image);
-    // cv::waitKey(0);
-    // LOG(INFO)<<"...";
+    // 落脚点规划
 
-    // cv::imshow("seg 3", height_map_lower_image);
-    cv::imwrite("/home/bhr/TCDS/src/pip_line/data/height_map_lower_image.png", height_map_lower_image);
-    // cv::waitKey(0);
-    // LOG(INFO)<<"...";
-
-    // cv::imshow("seg 4", height_map_foot_image);
-    cv::imwrite("/home/bhr/TCDS/src/pip_line/data/height_map_foot_image.png", height_map_foot_image);
-    // cv::waitKey(0);
-
-    // LOG(INFO)<<"...";
-    
-
-    for (auto & point : plane_points)
-    {
-        grid_map::Index index;
-        if (plane_map.getIndex(point.head(2), index))
-        {
-            plane_map["elevation"](index.x(), index.y()) = point.z();
-        }
-    }
-
-    // 下半身图像扩展
-    int lower_pixel = 0.1/height_map_lower.getResolution();
-    int upper_pixel = 0.3/height_map_upper.getResolution();
-
-    // Define the structuring element (3x3 square kernel)
-    cv::Mat kernel_lower = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(lower_pixel, lower_pixel));
-
-    // Perform erosion
-    cv::Mat eroded_image_lower;
-
-    // cv::dilate(image, dilatedImage, kernel);
-    // LOG(INFO)<<"...";
-
-    cv::dilate(height_map_lower_image, eroded_image_lower, kernel_lower);
-    cv::imwrite("/home/bhr/TCDS/src/pip_line/data/eroded_image_lower.png", eroded_image_lower);
-    // cv::imshow("seg 4", eroded_image_lower);
-    // cv::waitKey(0);
-    // LOG(INFO)<<"...";
-
-    // Define the structuring element (3x3 square kernel)
-    cv::Mat kernel_upper = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(upper_pixel, upper_pixel));
-
-    // Perform erosion
-    cv::Mat eroded_image_upper;
-    cv::dilate(height_map_upper_image, eroded_image_upper, kernel_upper);
-    cv::imwrite("/home/bhr/TCDS/src/pip_line/data/eroded_image_upper.png", eroded_image_upper);
-    // cv::imshow("seg 5", eroded_image_lower);
-    // cv::waitKey(0);
-    // LOG(INFO)<<"...";
-    plane_cutted = plane_map;
-    // 根据高程图对平面高程图进行切割
-    for (int i = 0; i < height_map_upper_image.rows; i++)
-    {
-        for (int j = 0; j < height_map_upper_image.cols; j++)
-        {
-            if (eroded_image_lower.at<uchar>(i, j) == 255 || eroded_image_upper.at<uchar>(i, j) == 255)
-            {
-                plane_cutted["elevation"](i, j) = NAN;
-            }
-        }
-    }
-    // 创建中值滤波器
-    // grid_map::filters::MedianFillFilter median_fill_filter("eleation", "eleation", 0.1);
-    // // 应用滤波器
-    // if (!median_fill_filter.configure()) {
-    //     ROS_ERROR("无法配置中值滤波器！");
-    //     return -1;
+    // // 平面检测
+    // AHFP_pl::PlanarContourExtraction pce(org_pc);
+    // pce.run();
+    // cv::Mat plane_image = pce.getSegImage();
+    // // cv::imshow("seg 1", plane_image);
+    // // cv::waitKey(0);
+    // // LOG(INFO)<<"...";
+    // vector<cv::Mat> planes = pce.getSegPlanes();
+    // vector<Eigen::Vector3d> obstacle, plane_points;
+    // pcl::PointCloud<pcl::PointXYZ> pcl_obstacle, pcl_plane_points;
+    // for (int i = 0; i < plane_image.rows; i++)
+    // {
+    //     for (int j = 0; j < plane_image.cols; j++)
+    //     {
+    //         if (plane_image.at<cv::Vec3b>(i, j) ==  cv::Vec3b(0, 0, 0))
+    //         {
+    //             grid_map::Position3 p3;
+    //             if (map.getPosition3("elevation", grid_map::Index(i, j), p3))
+    //             {
+    //                 if (!std::isnan(p3.z()))
+    //                 {
+    //                     obstacle.emplace_back(p3);
+    //                     pcl_obstacle.emplace_back(pcl::PointXYZ(p3.x(), p3.y(), p3.z()));
+    //                 }
+    //             }
+    //         }
+    //         else
+    //         {
+    //             grid_map::Position3 p3;
+    //             if (map.getPosition3("elevation", grid_map::Index(i, j), p3))
+    //             {
+    //                 if (!std::isnan(p3.z()))
+    //                 {
+    //                     plane_points.emplace_back(p3);
+    //                     pcl_plane_points.emplace_back(pcl::PointXYZ(p3.x(), p3.y(), p3.z()));
+    //                 }
+    //             }
+    //         }
+    //     }
     // }
-    // grid_map::GridMap output_map, output_map2;
-    // if (!median_fill_filter.update(plane_map, output_map)) {
-    //     ROS_ERROR("无法应用中值滤波器！");
-    //     return -1;
+    // pcl::io::savePCDFileASCII("/home/bhr/TCDS/src/pip_line/data/obstacle.pcd", pcl_obstacle);
+    // pcl::io::savePCDFileASCII("/home/bhr/TCDS/src/pip_line/data/plane.pcd", pcl_plane_points);
+    // for (auto & image : planes)
+    // {
+    //     Eigen::Vector3d center = Eigen::Vector3d::Zero();
+    //     vector<Eigen::Vector3d> points;
+    //     for (int i = 0; i < image.rows; i++)
+    //     {
+    //         for (int j = 0; j < image.cols; j++)
+    //         {
+    //             if (image.at<uchar>(i, j) == 255)
+    //             {
+    //                 grid_map::Position3 p3;
+    //                 if (map.getPosition3("elevation", grid_map::Index(i, j), p3))
+    //                 {
+    //                     points.emplace_back(p3);
+    //                     center += p3;
+    //                 }
+    //             }
+    //         }
+    //     }
+    //     center = center/points.size();
+    //     if (center.z() > 0.5)
+    //     {
+    //         LOG(INFO)<<"INSERT";
+    //         obstacle.insert(obstacle.end(), points.begin(), points.end());
+    //         continue;
+    //     }
+    //     Eigen::Matrix3d M = Eigen::Matrix3d::Zero();
+    //     for (auto & point : points)
+    //     {
+    //         M += (point - center) * (point - center).transpose();
+    //     }
+    //     Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eigensolver(M);
+    //     auto eigenvectors = eigensolver.eigenvectors();
+    //     Eigen::Vector3d minEigenvector = eigenvectors.col(0);
+    //     if (abs(minEigenvector.z()) < 0.9)
+    //     {
+    //         LOG(INFO)<<"INSERT";
+    //         obstacle.insert(obstacle.end(), points.begin(), points.end());
+    //     }
     // }
-    // if (!median_fill_filter.update(plane_cutted, output_map2)) {
-    //     ROS_ERROR("无法应用中值滤波器！");
-    //     return -1;
+    // LOG(INFO)<<height_map_upper.getSize().transpose();
+    // cv::Mat height_map_upper_image = cv::Mat::zeros(height_map_upper.getSize().x(), height_map_upper.getSize().y(), CV_8UC1);
+    // // LOG(INFO)<<height_map_upper_image.rows<<" "<<height_map_upper_image.cols;
+    // cv::Mat height_map_lower_image = cv::Mat::zeros(height_map_lower.getSize().x(), height_map_lower.getSize().y(), CV_8UC1);
+    // // LOG(INFO)<<height_map_lower_image.rows<<" "<<height_map_lower_image.cols;
+    // cv::Mat height_map_foot_image = cv::Mat::zeros(height_map_foot.getSize().x(), height_map_foot.getSize().y(), CV_8UC1);
+    
+    // // 构建不可落脚区域的高程图
+    // for (auto & point : obstacle)
+    // {
+    //     if (point.z() > 0.6)
+    //     {
+    //         grid_map::Index index;
+    //         if (height_map_upper.getIndex(point.head(2), index))
+    //         {
+    //             height_map_upper["elevation"](index.x(), index.y()) = point.z();
+    //             height_map_upper_image.at<uchar>(index.x(), index.y()) = 255;
+    //         }
+    //     }
+    //     else if (point.z() < 0.15)
+    //     {
+    //         grid_map::Index index;
+    //         if (height_map_lower.getIndex(point.head(2), index))
+    //         {
+    //             height_map_foot["elevation"](index.x(), index.y()) = point.z();
+    //             height_map_foot_image.at<uchar>(index.x(), index.y()) = 255;
+    //         }
+    //     }
+    //     else
+    //     {
+    //         grid_map::Index index;
+    //         if (height_map_lower.getIndex(point.head(2), index))
+    //         {
+    //             height_map_lower["elevation"](index.x(), index.y()) = point.z();
+    //             height_map_lower_image.at<uchar>(index.x(), index.y()) = 255;
+    //         }
+    //     }
     // }
-    draw_planes(plane_map, planes_msg, 1, 0, 0);
-    draw_planes(plane_cutted, planes_cutted_msg, 0, 1, 0);
+    // // LOG(INFO)<<"...";
+    // // cv::imshow("seg 2", height_map_upper_image);
+    // cv::imwrite("/home/bhr/TCDS/src/pip_line/data/height_map_upper_image.png", height_map_upper_image);
+    // // cv::waitKey(0);
+    // // LOG(INFO)<<"...";
+    // // cv::imshow("seg 3", height_map_lower_image);
+    // cv::imwrite("/home/bhr/TCDS/src/pip_line/data/height_map_lower_image.png", height_map_lower_image);
+    // // cv::waitKey(0);
+    // // LOG(INFO)<<"...";
+    // // cv::imshow("seg 4", height_map_foot_image);
+    // cv::imwrite("/home/bhr/TCDS/src/pip_line/data/height_map_foot_image.png", height_map_foot_image);
+    // // cv::waitKey(0);
+    // // LOG(INFO)<<"...";
+    // for (auto & point : plane_points)
+    // {
+    //     grid_map::Index index;
+    //     if (plane_map.getIndex(point.head(2), index))
+    //     {
+    //         plane_map["elevation"](index.x(), index.y()) = point.z();
+    //     }
+    // }
+    // // 下半身图像扩展
+    // int lower_pixel = 0.1/height_map_lower.getResolution();
+    // int upper_pixel = 0.3/height_map_upper.getResolution();
+    // // Define the structuring element (3x3 square kernel)
+    // cv::Mat kernel_lower = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(lower_pixel, lower_pixel));
+    // // Perform erosion
+    // cv::Mat eroded_image_lower;
+    // // cv::dilate(image, dilatedImage, kernel);
+    // // LOG(INFO)<<"...";
+    // cv::dilate(height_map_lower_image, eroded_image_lower, kernel_lower);
+    // cv::imwrite("/home/bhr/TCDS/src/pip_line/data/eroded_image_lower.png", eroded_image_lower);
+    // // cv::imshow("seg 4", eroded_image_lower);
+    // // cv::waitKey(0);
+    // // LOG(INFO)<<"...";
+    // // Define the structuring element (3x3 square kernel)
+    // cv::Mat kernel_upper = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(upper_pixel, upper_pixel));
+    // // Perform erosion
+    // cv::Mat eroded_image_upper;
+    // cv::dilate(height_map_upper_image, eroded_image_upper, kernel_upper);
+    // cv::imwrite("/home/bhr/TCDS/src/pip_line/data/eroded_image_upper.png", eroded_image_upper);
+    // // cv::imshow("seg 5", eroded_image_lower);
+    // // cv::waitKey(0);
+    // // LOG(INFO)<<"...";
+    // plane_cutted = plane_map;
+    // // 根据高程图对平面高程图进行切割
+    // for (int i = 0; i < height_map_upper_image.rows; i++)
+    // {
+    //     for (int j = 0; j < height_map_upper_image.cols; j++)
+    //     {
+    //         if (eroded_image_lower.at<uchar>(i, j) == 255 || eroded_image_upper.at<uchar>(i, j) == 255)
+    //         {
+    //             plane_cutted["elevation"](i, j) = NAN;
+    //         }
+    //     }
+    // }
+    // // 创建中值滤波器
+    // // grid_map::filters::MedianFillFilter median_fill_filter("eleation", "eleation", 0.1);
+    // // // 应用滤波器
+    // // if (!median_fill_filter.configure()) {
+    // //     ROS_ERROR("无法配置中值滤波器！");
+    // //     return -1;
+    // // }
+    // // grid_map::GridMap output_map, output_map2;
+    // // if (!median_fill_filter.update(plane_map, output_map)) {
+    // //     ROS_ERROR("无法应用中值滤波器！");
+    // //     return -1;
+    // // }
+    // // if (!median_fill_filter.update(plane_cutted, output_map2)) {
+    // //     ROS_ERROR("无法应用中值滤波器！");
+    // //     return -1;
+    // // }
+    // draw_planes(plane_map, planes_msg, 1, 0, 0);
+    // draw_planes(plane_cutted, planes_cutted_msg, 0, 1, 0);
+    // is_finish = true;
+    // // return;
+    // // 再在切割后的高程图下进行规划
+    // if (get_goal)
+    // {
+    //     // 获得终点
+    //     LOG(INFO)<<"start planning -------------------------";
+    //     grid_map::Index left_top_index;
+    //     if (plane_cutted.getIndex(grid_map::Position(0.5, 1), left_top_index))
+    //     {
+    //         const int lengthInXSubmapI = static_cast<int>(0.8/plane_cutted.getResolution());
+    //         const int lengthInYSubmapI = static_cast<int>(2/plane_cutted.getResolution());
+    //         for (int i = 0; i < lengthInXSubmapI; i++)
+    //         {
+    //             for (int j = 0; j < lengthInYSubmapI; j++)
+    //             {
+    //                 if (std::isnan(plane_cutted["elevation"](left_top_index.x() + i, left_top_index.y() + j)))
+    //                 {
+    //                    plane_cutted["elevation"](left_top_index.x() + i, left_top_index.y() + j) = 0;
+    //                 }
+    //             }
+    //         }
+    //     }
+    //     FootParam footparam(0.13, 0.11, 0.065, 0.065);
+    //     AstarHierarchicalFootstepPlanner planner(plane_cutted, footparam, 0.2);
+    //     Eigen::Vector3d left_foot(0, 0.1, 0);
+    //     Eigen::Vector3d right_foot(0, -0.1, 0);
+    //     Eigen::Vector3d goal_p;
+    //     goal_p.x() = goal.position.x;
+    //     goal_p.y() = goal.position.y;
+    //     Eigen::Quaterniond qd(goal.orientation.w, goal.orientation.x, goal.orientation.y, goal.orientation.z);
+    //     Eigen::Vector3d v_t = qd.toRotationMatrix() * Eigen::Vector3d::UnitX();
+    //     double yaw = atan(v_t.y()/v_t.x());
+    //     goal_p.z() = yaw;
+    //     vector<Footstep> steps;
+    //     vector<vector<Eigen::Vector3d>> avoid_points;
+    //     if (planner.initial(left_foot, right_foot, 0, goal_p))// 先迈右脚
+    //     {
+    //         LOG(INFO)<<"set start and goal";
+    //         if (planner.plan())
+    //         {
+    //             steps = planner.getResultSteps();
+    //             avoid_points = planner.computeAvoidPoints();
+    //             for (auto & step : steps)
+    //             {
+    //                 cout<<setw(8)<<step.x<<" "<<step.y<<" "<<step.z<<" "<<step.roll<<" "<<step.pitch<<" "<<step.yaw*57.3<<" "<<step.robot_side<<endl;
+    //             }
+    //         }
+    //     }
+    //     else
+    //     {
+    //         LOG(INFO)<<"planning error";
+    //     }
+    //     diy_msgs::footSteps steps_pub;
+    //     steps_pub.header.frame_id = "map";
+    //     for (auto & s : steps)
+    //     {
+    //         diy_msgs::footStep tmp_step;
+    //         tmp_step.is_left = s.robot_side == 0 ? true : false;
+    //         tmp_step.x = s.x;
+    //         tmp_step.y = s.y;
+    //         tmp_step.z = s.z;
+    //         tmp_step.roll = s.roll;
+    //         tmp_step.pitch = s.pitch;
+    //         tmp_step.yaw = s.yaw;
+    //         steps_pub.footsteps.emplace_back(tmp_step);
+    //     }
+    //     diy_msgs::avoidPointsMsg points_pub;
+    //     points_pub.header.frame_id = "map";
+    //     for (auto & points : avoid_points)
+    //     {
+    //         diy_msgs::avoidPoints ps;
+    //         // ps.terrainType
+    //         for (auto & point : points)
+    //         {
+    //             geometry_msgs::Point p;
+    //             p.x = point.x();
+    //             p.y = point.y();
+    //             p.z = point.z();
+    //             ps.avoidPoints.emplace_back(p);
+    //         }
+    //         points_pub.avoidPointsMsg.emplace_back(ps);
+    //     }
+    //     footsteps_pub.publish(steps_pub);
+    //     avoid_points_pub.publish(points_pub);
+    // }
 
-    is_finish = true;
-    // return;
-    // 再在切割后的高程图下进行规划
-    if (get_goal)
-    {
-        // 获得终点
-        LOG(INFO)<<"start planning -------------------------";
-
-        grid_map::Index left_top_index;
-        if (plane_cutted.getIndex(grid_map::Position(0.5, 1), left_top_index))
-        {
-            const int lengthInXSubmapI = static_cast<int>(0.8/plane_cutted.getResolution());
-            const int lengthInYSubmapI = static_cast<int>(2/plane_cutted.getResolution());
-            for (int i = 0; i < lengthInXSubmapI; i++)
-            {
-                for (int j = 0; j < lengthInYSubmapI; j++)
-                {
-                    if (std::isnan(plane_cutted["elevation"](left_top_index.x() + i, left_top_index.y() + j)))
-                    {
-                       plane_cutted["elevation"](left_top_index.x() + i, left_top_index.y() + j) = 0;
-                    }
-                }
-            }
-        }
-        
-
-        FootParam footparam(0.13, 0.11, 0.065, 0.065);
-        AstarHierarchicalFootstepPlanner planner(plane_cutted, footparam, 0.2);
-        Eigen::Vector3d left_foot(0, 0.1, 0);
-        Eigen::Vector3d right_foot(0, -0.1, 0);
-        Eigen::Vector3d goal_p;
-        goal_p.x() = goal.position.x;
-        goal_p.y() = goal.position.y;
-        Eigen::Quaterniond qd(goal.orientation.w, goal.orientation.x, goal.orientation.y, goal.orientation.z);
-        Eigen::Vector3d v_t = qd.toRotationMatrix() * Eigen::Vector3d::UnitX();
-        double yaw = atan(v_t.y()/v_t.x());
-        goal_p.z() = yaw;
-        vector<Footstep> steps;
-        vector<vector<Eigen::Vector3d>> avoid_points;
-        if (planner.initial(left_foot, right_foot, 0, goal_p))// 先迈右脚
-        {
-            LOG(INFO)<<"set start and goal";
-            if (planner.plan())
-            {
-                steps = planner.getResultSteps();
-                avoid_points = planner.computeAvoidPoints();
-                for (auto & step : steps)
-                {
-                    cout<<setw(8)<<step.x<<" "<<step.y<<" "<<step.z<<" "<<step.roll<<" "<<step.pitch<<" "<<step.yaw*57.3<<" "<<step.robot_side<<endl;
-                }
-            }
-        }
-        else
-        {
-            LOG(INFO)<<"planning error";
-        }
-        
-        diy_msgs::footSteps steps_pub;
-        steps_pub.header.frame_id = "map";
-        for (auto & s : steps)
-        {
-            diy_msgs::footStep tmp_step;
-            tmp_step.is_left = s.robot_side == 0 ? true : false;
-            tmp_step.x = s.x;
-            tmp_step.y = s.y;
-            tmp_step.z = s.z;
-            tmp_step.roll = s.roll;
-            tmp_step.pitch = s.pitch;
-            tmp_step.yaw = s.yaw;
-            steps_pub.footsteps.emplace_back(tmp_step);
-        }
-        diy_msgs::avoidPointsMsg points_pub;
-        points_pub.header.frame_id = "map";
-        for (auto & points : avoid_points)
-        {
-            diy_msgs::avoidPoints ps;
-            // ps.terrainType
-            for (auto & point : points)
-            {
-                geometry_msgs::Point p;
-                p.x = point.x();
-                p.y = point.y();
-                p.z = point.z();
-                ps.avoidPoints.emplace_back(p);
-            }
-            points_pub.avoidPointsMsg.emplace_back(ps);
-        }
-        footsteps_pub.publish(steps_pub);
-        avoid_points_pub.publish(points_pub);
-
-    }
 }
 
 void pip_line::timerCallback(const ros::TimerEvent & event)
