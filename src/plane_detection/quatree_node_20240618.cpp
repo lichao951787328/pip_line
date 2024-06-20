@@ -129,6 +129,7 @@ node::node(size_t start_rows_, size_t start_cols_, size_t width_, size_t start_r
     // 可以是一个改进点，如果不是平面可以放到refine环节，使用像素来腐蚀来获取点的信息
     // 如果是平面，则直接记录，不需要把点都记录下来
     valid_points = raw_points.getRectPoint(start_rows, start_cols, width, width);
+
     // raw_points.getRectPointAndIndex(start_rows, start_cols, width, width, valid_points, valid_points_index);
     // valid_points = raw_points.getRectPoint(start_rows, start_cols, width, width);// 需要再次确定
     valid_points_size = valid_points.size();
@@ -195,6 +196,7 @@ node::node(size_t start_rows_, size_t start_cols_, size_t width_, size_t start_r
     }
     else
     {
+      // 证明此区块没有有效点
       is_validnode = false;
     }
   }
@@ -229,13 +231,23 @@ node::node(size_t start_rows_, size_t start_cols_, size_t width_, size_t start_r
       {
         // 行起始，列起始，宽度，深度
         children.at(i) = new node(child_start_rows, child_start_cols, child_width, child_start_rows_2d, child_start_cols_2d, child_width_2d, /* child_binary_code, */ depth + 1, this);
-        // 对叶子节点的处理方式
-        // if (!children.at(i)->is_validnode && children.at(i)->is_leafnode)
-        // {
-        //   LOG(INFO)<<"child "<<i<<" is not valid."<<std::endl;
-        //   delete children.at(i);
-        //   children.at(i) = nullptr;
-        // }
+        // 此情况下也应设为nullptr
+        if (children.at(i)->is_leafnode)
+        {
+          if (children.at(i)->valid_points_size == 0)
+          {
+            for (int j = 0; j < 4; j++)
+            {
+              if (children.at(i)->parent->children.at(j) == children.at(i))
+              {
+                children.at(i)->parent->children.at(j) = nullptr;
+                delete children.at(i);
+                children.at(i) = nullptr;
+                break;
+              }
+            }
+          }
+        }
       }
     }
 
@@ -298,7 +310,6 @@ node::node(size_t start_rows_, size_t start_cols_, size_t width_, size_t start_r
     //       is_plane = false;
     //     }
     //   }
-      
     // }
   
   }
@@ -331,10 +342,10 @@ void node::showNodeFrame()
       LOG(INFO)<<iter_node<<" ";
     }
     
-    LOG(INFO)<<"mse "<<tmpnode->mse;
-    LOG(INFO)<<"center "<<tmpnode->center.transpose();
+    // LOG(INFO)<<"mse "<<tmpnode->mse;
+    // LOG(INFO)<<"center "<<tmpnode->center.transpose();
     LOG(INFO)<<"normal "<<tmpnode->normal.transpose();
-    LOG(INFO)<<"J "<<tmpnode->J;
+    // LOG(INFO)<<"J "<<tmpnode->J;
     LOG(INFO)<<"valid_points_size "<<tmpnode->valid_points_size;
     
     L.pop_front();
@@ -351,16 +362,23 @@ void node::showNodeFrame()
 
 void deleteNodeInQuatree(node* p)
 {
+  // LOG(INFO)<<p;
+  cout<<"p: "<<p<<endl;
+  cout<<"p->parent: "<<p->parent<<endl;
   if (p->parent)
   {
+    cout<<"yyy"<<endl;
     // LOG(INFO)<<"CHECK CHILDREN"<<endl;
-    LOG(INFO)<<"node parent is: "<<p->parent<<endl;
+    // LOG(INFO)<<"node parent is: "<<p->parent<<endl;
     for (size_t i = 0; i < 4; i++)
     {
+      cout<<"p->parent->children.at "<<i<<" "<<p->parent->children.at(i)<<endl;
+      // LOG(INFO)<<p->parent->children.at(i);
       // LOG(INFO)<<"at "<<i<<" child"<<endl;
       if (p->parent->children.at(i) == p)
       {
-        LOG(INFO)<<"at "<<i<<"child, need delete"<<endl;
+        cout<<"ghjkl"<<endl;
+        // LOG(INFO)<<"at "<<i<<"child, need delete"<<endl;
         p->parent->children.at(i) = nullptr;
         delete p;
         p = nullptr;
@@ -370,6 +388,7 @@ void deleteNodeInQuatree(node* p)
   }
   else// 表明p是根节点
   {
+    cout<<"nnnn"<<endl;
     // LOG(INFO)<<"the delete node is root";
     delete p;
     p = nullptr;

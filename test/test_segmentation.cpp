@@ -172,8 +172,8 @@ int main(int argc, char** argv)
   //   cv::waitKey(0);
   // }
   
-  cv::imshow("seg result", result);
-  cv::waitKey(0);
+  // cv::imshow("seg result", result);
+  // cv::waitKey(0);
   // std::cout<<planes.size()<<std::endl;
   // std::cout<<"construct quatree costs "<<(double)(clock() - start_time_true) / CLOCKS_PER_SEC <<" s. "<<std::endl;
   // clock_t end_time = clock();

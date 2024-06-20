@@ -1,4 +1,12 @@
 /*
+ * @Author: lichao951787328 951787328@qq.com
+ * @Date: 2024-06-18 22:26:10
+ * @LastEditors: lichao951787328 951787328@qq.com
+ * @LastEditTime: 2024-06-20 10:21:25
+ * @FilePath: /pip_line/include/plane_detection/quadtree_new.h
+ * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+ */
+/*
  * @description: 
  * @param : 
  * @return: 
@@ -61,7 +69,7 @@ public:
 
 
   void getQuatreeNeighbors();
-
+  void printfNeighbors();
   void showLeafNodeImage();
   void showMergeLeafNodeImage();
   void showSeedNodeAndNeighbors();

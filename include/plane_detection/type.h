@@ -65,6 +65,7 @@ struct index2D
       if (tmpnode->is_plane || (!tmpnode->is_plane && tmpnode->is_leafnode))// 混合区域增长算法需要考虑所有不为nullptr的点
       {
         std::vector<std::vector<quatree::node*>>::iterator rows_iter = index2d.begin() + tmpnode->start_rows_2d;
+        // tmpnode->width_2d tmpnode->height_2d 是一样大的
         for (size_t i = 0; i < tmpnode->width_2d; i++)
         {
           std::vector<quatree::node*>::iterator rows_cols_iter = rows_iter->begin() + tmpnode->start_cols_2d;
@@ -184,6 +185,18 @@ struct index2D
     // {
     //   // LOG(INFO)<<iter_neighbor;
     // }
+  }
+
+  void pritfIndex()
+  {
+    for (int i = 0; i < rows; i++)
+    {
+      for (int j = 0; j < cols; j++)
+      {
+        cout<<index2d.at(i).at(j)<<" ";
+      }
+      cout<<endl;
+    }
   }
 };
 

@@ -3,7 +3,8 @@ project(pip_line)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
-
+# set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_BUILD_TYPE Release)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
@@ -35,6 +36,11 @@ find_package(grid_map_filters REQUIRED)
 find_package(PCL REQUIRED)
 find_package(glog REQUIRED)
 find_package(OpenCV REQUIRED)
+set(tinyxml2_DIR /usr/local/lib/cmake/tinyxml2)
+find_package(tinyxml2 REQUIRED)
+find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
+find_package(Python3 COMPONENTS NumPy)
+find_package(PythonLibs REQUIRED)
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
 ## See http://ros.org/doc/api/catkin/html/user_guide/setup_dot_py.html
@@ -136,6 +142,7 @@ catkin_package(
 include_directories(
 include
   ${catkin_INCLUDE_DIRS}
+  ${PYTHON_INCLUDE_DIRS}
   ${PCL_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
   ${grid_map_core_INCLUDE_DIRS}
@@ -162,6 +169,11 @@ add_executable(${PROJECT_NAME}_node
 src/main.cpp 
 src/pip_line.cpp
 /home/bhr/catkin_beijing4th/src/elevation_mapping/AstarHierarchicalFootstepPlanner/src/AstarHierarchicalFootstepPlanner.cpp
+src/plane_detection/quatree_node_20240618.cpp
+src/plane_detection/type.cpp
+src/plane_detection/quadtree_new.cpp
+src/plane_detection/plane_new.cpp 
+src/plane_detection/plane_segmentation.cpp 
 )
 
 
@@ -180,15 +192,15 @@ src/pip_line.cpp
 target_link_libraries(${PROJECT_NAME}_node
   ${catkin_LIBRARIES}
   ${PCL_LIBRARIES}
+  ${OpenCV_LIBRARIES} 
   ${grid_map_core_LIBRARIES}
   ${OpenCV_LIBRARIES}
   ${grid_map_msgs_LIBRARIES}
   ${grid_map_ros_LIBRARIES}
   ${grid_map_filters_LIBRARIES}
   glog::glog
+  tinyxml2::tinyxml2
 )
-
-
 
 #############
 ## Install ##

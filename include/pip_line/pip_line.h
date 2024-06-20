@@ -2,7 +2,7 @@
  * @Author: lichao951787328 951787328@qq.com
  * @Date: 2024-06-07 11:01:20
  * @LastEditors: lichao951787328 951787328@qq.com
- * @LastEditTime: 2024-06-09 16:44:07
+ * @LastEditTime: 2024-06-19 21:28:37
  * @FilePath: /pip_line/include/pip_line/pip_line.h
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -28,11 +28,14 @@ private:
     ros::Subscriber pointcloud_sub;
     ros::Subscriber goal_point_sub;
     ros::Publisher raw_heightmap_pub;
+    ros::Publisher raw_heightmap_pc_pub;
     ros::Publisher height_map_upper_pub;
     ros::Publisher height_map_lower_pub;
     ros::Publisher height_map_foot_pub;
     ros::Publisher planes_all;
     ros::Publisher planes_cutted;
+    ros::Publisher sub_map_pub;
+    
 
     ros::Publisher planes_polygon_pub;
     ros::Publisher planes_polygon_cutted_pub;

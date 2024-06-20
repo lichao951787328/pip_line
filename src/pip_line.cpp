@@ -2,7 +2,7 @@
  * @Author: lichao951787328 951787328@qq.com
  * @Date: 2024-06-07 11:01:20
  * @LastEditors: lichao951787328 951787328@qq.com
- * @LastEditTime: 2024-06-18 23:44:00
+ * @LastEditTime: 2024-06-20 21:33:16
  * @FilePath: /pip_line/src/pip_line.cpp
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -19,7 +19,7 @@
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
-#include <PEAC_AHFP_pl/plane_fitter_pcl_AHFP.hpp>
+// #include <PEAC_AHFP_pl/plane_fitter_pcl_AHFP.hpp>
 #include <opencv2/opencv.hpp>
 #include <AstarHierarchicalFootstepPlanner/AstarHierarchicalFootstepPlanner.h>
 #include <tf2/buffer_core.h>
@@ -41,12 +41,28 @@
 #include <grid_map_filters/MedianFillFilter.hpp>
 #include <diy_msgs/footSteps.h>
 #include <diy_msgs/avoidPointsMsg.h>
+#include "plane_detection/load_parameter.h"
+#include <plane_detection/plane_segmentation.h>
+#include <ros/package.h>
+#include <ctime>
+void initial_package_path(string package_name, string & package_path)
+{
+  package_path = ros::package::getPath(package_name);
+  // 检查是否成功找到包路径
+  if (package_path.empty()) {
+      std::cerr << "Error: Could not find package " << package_name << std::endl;
+  }
+  cout<<"package path: "<<package_path<<endl;
+}
+
 pip_line::pip_line(ros::NodeHandle & n):nh(n)
 {
     pointcloud_sub = nh.subscribe("/trigger_points", 1, &pip_line::pointcloud_callback, this);
     string goal_point_topic = "/move_base_simple/goal";
     goal_point_sub = nh.subscribe(goal_point_topic, 1, &pip_line::goal_point_callback, this);
     raw_heightmap_pub = nh.advertise<grid_map_msgs::GridMap>("raw_heightmap", 1);
+    sub_map_pub = nh.advertise<grid_map_msgs::GridMap>("sub_map", 1);
+    raw_heightmap_pc_pub = nh.advertise<sensor_msgs::PointCloud2>("raw_heightmap_pc", 1);
     height_map_upper_pub = nh.advertise<grid_map_msgs::GridMap>("height_map_upper", 1);
     height_map_lower_pub = nh.advertise<grid_map_msgs::GridMap>("height_map_lower", 1);
     height_map_foot_pub = nh.advertise<grid_map_msgs::GridMap>("height_map_foot", 1);
@@ -188,18 +204,23 @@ void GaussPointCloud(const pcl::PointCloud<pcl::PointXYZ>::Ptr &ptCloudRaw, cons
 // int cloud_index = 0;
 void preprocessing(pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_in, pcl::PointCloud<pcl::PointXYZ> &cloud_out)
 {
+    clock_t start1 = clock();
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
     *cloud = *cloud_in;
     
-    GaussPointCloud(cloud_in, cloud);
+    // 去除这个过程
+    // GaussPointCloud(cloud_in, cloud);
     // pcl::io::savePCDFile("/home/bhr/catkin_beijing4th/src/elevation_mapping/triggerHelios/debug_data/" + std::to_string(cloud_index) + ".pcd", *cloud);
     // cloud_index++;
     std::cout<<cloud->width<<" "<<cloud->height<<std::endl;
+    clock_t end1 = clock();
+    cout<<"preprocess1 cost: "<<(double)(end1 - start1)/CLOCKS_PER_SEC<<std::endl;
 
     // 去掉顶上一部分
-    pcl::io::savePCDFile("/home/bhr/TCDS/src/pip_line/data/raw_points.pcd", *cloud);
+    // pcl::io::savePCDFile("/home/bhr/TCDS/src/pip_line/data/raw_points.pcd", *cloud);
     pcl::PointCloud<pcl::PointXYZ> stable_points;
     // 注意相机方向
+    clock_t start2 = clock();
     for (int i = 120; i < cloud->width - 50; i++)
     {
         for (int j = 30; j < cloud->height - 30; j++)
@@ -210,8 +231,11 @@ void preprocessing(pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_in, pcl::PointClou
             }
         }
     }
-    pcl::io::savePCDFile("/home/bhr/TCDS/src/pip_line/data/stable_points.pcd", stable_points);
+    clock_t end2 = clock();
+    cout<<"preprocess2 cost: "<<(double)(end2 - start2)/CLOCKS_PER_SEC<<std::endl;
+    // pcl::io::savePCDFile("/home/bhr/TCDS/src/pip_line/data/stable_points.pcd", stable_points);
 
+    clock_t start3 = clock();
     pcl::VoxelGrid<pcl::PointXYZ> voxel_grid_filter;
 
     // 设置体素滤波器的输入点云
@@ -219,12 +243,17 @@ void preprocessing(pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_in, pcl::PointClou
     voxel_grid_filter.setInputCloud(stable_points.makeShared());
 
     // 设置体素大小（体素的边长）这个值不能设成0.01，否则太耗时
-    voxel_grid_filter.setLeafSize(0.01f, 0.01f, 0.01f);  // 设置为0.01米
+    voxel_grid_filter.setLeafSize(0.018f, 0.018f, 0.018f);  // 设置为0.01米
 
     // 执行体素滤波
     pcl::PointCloud<pcl::PointXYZ>::Ptr filtered_cloud(new pcl::PointCloud<pcl::PointXYZ>);
     voxel_grid_filter.filter(*filtered_cloud);
+
+    clock_t end3 = clock();
+    cout<<"preprocess3 cost: "<<(double)(end3 - start3)/CLOCKS_PER_SEC<<std::endl;
     // cout<<"after filter: "<<filtered_cloud->size()<<endl;
+
+    clock_t start4 = clock();
     pcl::PassThrough<pcl::PointXYZ> pass;
 
     pass.setInputCloud(filtered_cloud);
@@ -237,34 +266,38 @@ void preprocessing(pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_in, pcl::PointClou
     // // 执行直通滤波
     pcl::PointCloud<pcl::PointXYZ>::Ptr pass_filtered_cloud(new pcl::PointCloud<pcl::PointXYZ>);
     pass.filter(*pass_filtered_cloud);
-
+    clock_t end4 = clock();
+    cout<<"preprocess4 cost: "<<(double)(end4 - start4)/CLOCKS_PER_SEC<<std::endl;
+    // 飞点去除
     // cout<<"after pass filter: "<<pass_filtered_cloud->size()<<endl;
-    pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
-    ne.setInputCloud(pass_filtered_cloud);// 注意衔接的输入输出
+    // pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
+    // ne.setInputCloud(pass_filtered_cloud);// 注意衔接的输入输出
 
-    // 创建KdTree用于法向量估计
-    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
-    ne.setSearchMethod(tree);
+    // // 创建KdTree用于法向量估计
+    // pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
+    // ne.setSearchMethod(tree);
 
-    // 设置搜索半径，用于确定每个点的邻域
-    ne.setRadiusSearch(0.08);  // 设置为0.03米
+    // // 设置搜索半径，用于确定每个点的邻域
+    // ne.setRadiusSearch(0.08);  // 设置为0.03米
 
-    // 计算法向量
-    pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
-    ne.compute(*normals);
-    pcl::PointCloud<pcl::PointXYZ> result;
-    for (size_t i = 0; i < pass_filtered_cloud->size(); i++)
-    {
-        Eigen::Vector3d p(pass_filtered_cloud->at(i).x, pass_filtered_cloud->at(i).y, pass_filtered_cloud->at(i).z);
-        Eigen::Vector3d n(normals->at(i).normal_x, normals->at(i).normal_y, normals->at(i).normal_z);
-        if (std::abs(p.normalized().dot(n)) > 0.3)// 虽然这是一个阈值，但应该能满足要求
-        {
-            result.emplace_back(pass_filtered_cloud->at(i));
-        }
-    }
+    // // 计算法向量
+    // pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
+    // ne.compute(*normals);
+    // pcl::PointCloud<pcl::PointXYZ> result;
+    // for (size_t i = 0; i < pass_filtered_cloud->size(); i++)
+    // {
+    //     Eigen::Vector3d p(pass_filtered_cloud->at(i).x, pass_filtered_cloud->at(i).y, pass_filtered_cloud->at(i).z);
+    //     Eigen::Vector3d n(normals->at(i).normal_x, normals->at(i).normal_y, normals->at(i).normal_z);
+    //     if (std::abs(p.normalized().dot(n)) > 0.3)// 虽然这是一个阈值，但应该能满足要求
+    //     {
+    //         result.emplace_back(pass_filtered_cloud->at(i));
+    //     }
+    // }
     // cout<<"after Normal filter: "<<result.size()<<endl;
+    clock_t start5 = clock();
     pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sor;
-    sor.setInputCloud(result.makeShared());
+    // sor.setInputCloud(result.makeShared());
+    sor.setInputCloud(pass_filtered_cloud);
     
     // 设置统计滤波器参数
     sor.setMeanK(50);  // 设置邻域中点的数量
@@ -273,6 +306,8 @@ void preprocessing(pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_in, pcl::PointClou
     // 应用统计滤波器
     // pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZ>);
     sor.filter(cloud_out);
+    clock_t end5 = clock();
+    cout<<"preprocess5 cost: "<<(double)(end5 - start5)/CLOCKS_PER_SEC<<std::endl;
     // LOG(INFO)<<"after StatisticalOutlierRemoval filter: "<<cloud_out.size();
 
 }
@@ -315,10 +350,11 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     pcl::PointCloud<pcl::PointXYZ>::Ptr pc(new pcl::PointCloud<pcl::PointXYZ>);
     pcl::fromROSMsg(*msg, *pc);
     LOG(INFO)<<pc->size();
-
+    clock_t start = clock();
     pcl::PointCloud<pcl::PointXYZ> pub_cloud;
     preprocessing(pc, pub_cloud);
-
+    clock_t end_preprocess = clock();
+    cout<<"preprocess cost: "<<(double)(end_preprocess - start)/CLOCKS_PER_SEC<<std::endl;
     LOG(INFO)<<pub_cloud.size();
     for (auto & point : pub_cloud)
     {
@@ -330,6 +366,10 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
         }
     }
 
+    grid_map_msgs::GridMap raw_map_msg;
+    grid_map::GridMapRosConverter::toMessage(map, raw_map_msg);
+    raw_map_msg.info.header.frame_id = "map";
+    raw_heightmap_pub.publish(raw_map_msg);
     // cv::Mat raw_image = cv::Mat::zeros(map.getSize().x(), map.getSize().y(), CV_8UC1);
     // for (int i = 0; i < map.getSize().x(); i++)
     // {
@@ -347,99 +387,163 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     // }
     // cv::imwrite("/home/bhr/TCDS/src/pip_line/data/raw_image.png", raw_image);
 
+    // 使用原地图的子图
+    bool is_success;
+    grid_map::GridMap submap = map.getSubmap(grid_map::Position(0.3, 0.3), grid_map::Length(0.45, 0.25), is_success);
+    if (is_success)
+    {
+        grid_map_msgs::GridMap submap_msg;
+        grid_map::GridMapRosConverter::toMessage(submap, submap_msg);
+        submap_msg.info.header.frame_id = "map";
+        sub_map_pub.publish(submap_msg);
+    }
+
+    // 设置新的点
+    // for (int i = 0; i < submap.getSize().x(); i++)
+    // {
+    //     for (int j = 0; j < submap.getSize().y(); j++)
+    //     {
+    //         if (i < submap.getSize().x() * 0.5)
+    //         {
+    //             submap["elevation"](i, j) = 0;
+    //         }
+    //         else if (i < submap.getSize().x() * 0.75)
+    //         {
+    //             submap["elevation"](i, j) = 0.1;
+    //         }
+    //         else
+    //         {
+    //             submap["elevation"](i, j) = NAN;
+    //         }
+    //     }
+    // }
     
     // 使用地图转成有序点云
     pcl::PointCloud<pcl::PointXYZ> org_pc = gridMap2Pointcloud(map);
+    sensor_msgs::PointCloud2 raw_heightmap_pc;
+    pcl::toROSMsg(org_pc, raw_heightmap_pc);
+    raw_heightmap_pc.header.frame_id = "map";
+    raw_heightmap_pc_pub.publish(raw_heightmap_pc);
 
-    // 替换
+    // 确定无效点和有效点的个数
+    // int valid_points = 0;
+    // int nonvalid_points = 0;
+    // for (auto & point : org_pc)
+    // {
+    //     if (std::isnan(point.x) || std::isnan(point.y) || std::isnan(point.z))
+    //     {
+    //         nonvalid_points++;
+    //     }
+    //     else
+    //     {
+    //         valid_points++;
+    //     }
+    // }
+    // LOG(INFO)<<nonvalid_points<<" "<<valid_points;
 
+    // pcl::io::savePCDFileASCII("/home/bhr/TCDS/src/pip_line/data/height_map_points.pcd", org_pc);
+    // LOG(INFO)<<org_pc.width<<" "<<org_pc.height;
     orginazed_points raw_points;
-    raw_points.initialByPCL(*pc);
-    size_t width = pc->width;
-    size_t height = pc->height;
-
-    string package_path;
-    initial_package_path("plane_detection", package_path);
+    raw_points.initialByPCL(org_pc);
+    size_t width = org_pc.width;
+    size_t height = org_pc.height;
+    // LOG(INFO)<<width<<" "<<height;
+    LOG(INFO)<<raw_points.width<<" "<<raw_points.height;
+    string package_path = "/home/bhr/TCDS/src/pip_line";
+    // initial_package_path("pip_line", package_path);
     parameter param;
     load_parameter(param, package_path + "/config/parameter.xml");
     std::cout<<"load parameter finish"<<std::endl;
-    param.initial(raw_points.width);
-    // // param.showParameter();
-    quatree::node::setStaticMember(width, height, param.quatree_width, ROBOTWORLD_T_CAMERA, raw_points, param);
-
+    param.initial(std::max(raw_points.height, raw_points.width));
+    // // // // param.showParameter();
+    // // // 这个的点云已经转到了机器人的世界坐标系下
+    Eigen::Matrix4f T_I = Eigen::Matrix4f::Identity();
+    quatree::node::setStaticMember(width, height, param.quatree_width, T_I, raw_points, param);
     quatree::quatree qq(raw_points, param);
-    
+    // // qq.showMergeLeafNodeImage();
     plane_segmentation ps(height, width, &qq, raw_points, param);
+    // LOG(INFO)<<"---";
     vector<plane_info> planes = ps.getPlaneResult();
     cv::Mat result = ps.getSegResult();
     vector<cv::Mat> single_results = ps.getSegResultSingle();
-
-    vector<cv::Mat> collision_free_images;
-    // 地图膨胀层
-    double resolution = map.getResolution();
-    double inflation_radius = 0.5;
-    int inflation_pixel = 0.5/resolution;
-    for (int i = 0; i < single_results.size(); i++)
-    {
-        cv::Mat image = single_results.at(i);
-        int kernel_size = inflation_pixel;
-        cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(kernel_size, kernel_size));
-
-        // 对图像进行膨胀操作
-        cv::Mat dilated_image;
-        cv::dilate(image, dilated_image, kernel);
-
-        // 计算膨胀后的边缘
-        cv::Mat collision_layer = dilated_image - image;
-        cv::Mat upper_body = cv::Mat::zeros(collision_layer.size(), CV_8UC1);
-        cv::Mat knee = cv::Mat::zeros(collision_layer.size(), CV_8UC1);
-        for (int y = 0; y < collision_layer.rows; ++y) 
-        {
-            for (int x = 0; x < collision_layer.cols; ++x) 
-            {
-                if (collision_layer.at<uchar>(y, x) == 255) 
-                {
-                    // 获取膝盖层和上半身层
-                    grid_map::Position3 p3;
-                    if (map.getPosition3("elevation", grid_map::Index(y, x), p3))
-                    {
-                        if (!std::isnan(p3.z()))
-                        {
-                            double dis = (p3 - planes.at(i).center).dot(planes.at(i).normal);
-                            if (dis > 0.5)// 上半身
-                            {
-                                upper_body.at<uchar>(y,x) = 255;
-                            }
-                            else if (dis > 0.3) // 膝盖
-                            {
-                                knee.at<uchar>(y,x) = 255;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        // 进行不同半径的膨胀
-        double upper_inflation = 0.5;
-        double knee_inflation = 0.1;
-        int inflation_radius_upper = upper_inflation/resolution;
-        int inflation_radius_knee = knee_inflation/resolution;
-
-        cv::Mat kernel_upper = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(inflation_radius_upper, inflation_radius_upper));
-        cv::Mat kernel_knee = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(inflation_radius_knee, inflation_radius_knee));
-
-        // 对图像进行膨胀操作
-        cv::Mat dilated_image_upper;
-        cv::dilate(upper_body, dilated_image_upper, kernel_upper);
-
-        cv::Mat dilated_image_knee;
-        cv::dilate(knee, dilated_image_knee, kernel_knee);
+    // LOG(INFO)<<"...";
+    // LOG(INFO)<<single_results.size();
+    // for (int i = 0; i < single_results.size(); i++)
+    // {
+    //     cv::imwrite("/home/bhr/TCDS/src/pip_line/data/result" + std::to_string(i) + ".png", single_results.at(i));
+    // }
     
-        // 计算膨胀后的边缘
-        cv::Mat collision_layer1 = image - dilated_image_upper;
-        cv::Mat collision_layer2 = collision_layer1 - dilated_image_knee;
-        collision_free_images.emplace_back(collision_layer2);
-    }
+    // cv::imwrite("/home/bhr/TCDS/src/pip_line/data/result.png", result);
+    // cv::imshow("result", result);
+    // cv::waitKey(0);
+
+    // vector<cv::Mat> collision_free_images;
+    // // 地图膨胀层
+    // double resolution = map.getResolution();
+    // double inflation_radius = 0.5;
+    // int inflation_pixel = 0.5/resolution;
+    // for (int i = 0; i < single_results.size(); i++)
+    // {
+    //     cv::Mat image = single_results.at(i);
+    //     int kernel_size = inflation_pixel;
+    //     cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(kernel_size, kernel_size));
+
+    //     // 对图像进行膨胀操作
+    //     cv::Mat dilated_image;
+    //     cv::dilate(image, dilated_image, kernel);
+
+    //     // 计算膨胀后的边缘
+    //     cv::Mat collision_layer = dilated_image - image;
+    //     cv::Mat upper_body = cv::Mat::zeros(collision_layer.size(), CV_8UC1);
+    //     cv::Mat knee = cv::Mat::zeros(collision_layer.size(), CV_8UC1);
+    //     for (int y = 0; y < collision_layer.rows; ++y) 
+    //     {
+    //         for (int x = 0; x < collision_layer.cols; ++x) 
+    //         {
+    //             if (collision_layer.at<uchar>(y, x) == 255) 
+    //             {
+    //                 // 获取膝盖层和上半身层
+    //                 grid_map::Position3 p3;
+    //                 if (map.getPosition3("elevation", grid_map::Index(y, x), p3))
+    //                 {
+    //                     if (!std::isnan(p3.z()))
+    //                     {
+    //                         double dis = (p3 - planes.at(i).center).dot(planes.at(i).normal);
+    //                         if (dis > 0.5)// 上半身
+    //                         {
+    //                             upper_body.at<uchar>(y,x) = 255;
+    //                         }
+    //                         else if (dis > 0.3) // 膝盖
+    //                         {
+    //                             knee.at<uchar>(y,x) = 255;
+    //                         }
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //     }
+    //     // 进行不同半径的膨胀
+    //     double upper_inflation = 0.5;
+    //     double knee_inflation = 0.1;
+    //     int inflation_radius_upper = upper_inflation/resolution;
+    //     int inflation_radius_knee = knee_inflation/resolution;
+
+    //     cv::Mat kernel_upper = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(inflation_radius_upper, inflation_radius_upper));
+    //     cv::Mat kernel_knee = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(inflation_radius_knee, inflation_radius_knee));
+
+    //     // 对图像进行膨胀操作
+    //     cv::Mat dilated_image_upper;
+    //     cv::dilate(upper_body, dilated_image_upper, kernel_upper);
+
+    //     cv::Mat dilated_image_knee;
+    //     cv::dilate(knee, dilated_image_knee, kernel_knee);
+    
+    //     // 计算膨胀后的边缘
+    //     cv::Mat collision_layer1 = image - dilated_image_upper;
+    //     cv::Mat collision_layer2 = collision_layer1 - dilated_image_knee;
+    //     collision_free_images.emplace_back(collision_layer2);
+    // }
+    
     // 落脚点规划
 
     // // 平面检测
@@ -722,191 +826,192 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     //     footsteps_pub.publish(steps_pub);
     //     avoid_points_pub.publish(points_pub);
     // }
-    draw_planes(plane_map, planes_msg, 1, 0, 0);
-    draw_planes(plane_cutted, planes_cutted_msg, 0, 1, 0);
+    // draw_planes(plane_map, planes_msg, 1, 0, 0);
+    // draw_planes(plane_cutted, planes_cutted_msg, 0, 1, 0);
 
-    is_finish = true;
+    // is_finish = true;
     // return;
     // 再在切割后的高程图下进行规划
-    if (get_goal)
-    {
-        // 获得终点
-        LOG(INFO)<<"start planning -------------------------";
+    // if (get_goal)
+    // {
+    //     // 获得终点
+    //     LOG(INFO)<<"start planning -------------------------";
 
-        grid_map::Index left_top_index;
-        if (plane_cutted.getIndex(grid_map::Position(0.5, 1), left_top_index))
-        {
-            const int lengthInXSubmapI = static_cast<int>(0.8/plane_cutted.getResolution());
-            const int lengthInYSubmapI = static_cast<int>(2/plane_cutted.getResolution());
-            for (int i = 0; i < lengthInXSubmapI; i++)
-            {
-                for (int j = 0; j < lengthInYSubmapI; j++)
-                {
-                    if (std::isnan(plane_cutted["elevation"](left_top_index.x() + i, left_top_index.y() + j)))
-                    {
-                       plane_cutted["elevation"](left_top_index.x() + i, left_top_index.y() + j) = 0;
-                    }
-                }
-            }
-        }
+    //     grid_map::Index left_top_index;
+    //     if (plane_cutted.getIndex(grid_map::Position(0.5, 1), left_top_index))
+    //     {
+    //         const int lengthInXSubmapI = static_cast<int>(0.8/plane_cutted.getResolution());
+    //         const int lengthInYSubmapI = static_cast<int>(2/plane_cutted.getResolution());
+    //         for (int i = 0; i < lengthInXSubmapI; i++)
+    //         {
+    //             for (int j = 0; j < lengthInYSubmapI; j++)
+    //             {
+    //                 if (std::isnan(plane_cutted["elevation"](left_top_index.x() + i, left_top_index.y() + j)))
+    //                 {
+    //                    plane_cutted["elevation"](left_top_index.x() + i, left_top_index.y() + j) = 0;
+    //                 }
+    //             }
+    //         }
+    //     }
         
 
-        FootParam footparam(0.13, 0.11, 0.065, 0.065);
-        AstarHierarchicalFootstepPlanner planner(plane_cutted, footparam, 0.2);
-        Eigen::Vector3d left_foot(0, 0.1, 0);
-        Eigen::Vector3d right_foot(0, -0.1, 0);
-        Eigen::Vector3d goal_p;
-        goal_p.x() = goal.position.x;
-        goal_p.y() = goal.position.y;
-        Eigen::Quaterniond qd(goal.orientation.w, goal.orientation.x, goal.orientation.y, goal.orientation.z);
-        Eigen::Vector3d v_t = qd.toRotationMatrix() * Eigen::Vector3d::UnitX();
-        double yaw = atan(v_t.y()/v_t.x());
-        goal_p.z() = yaw;
-        vector<Footstep> steps;
-        vector<vector<Eigen::Vector3d>> avoid_points;
-        if (planner.initial(left_foot, right_foot, 0, goal_p))// 先迈右脚
-        {
-            LOG(INFO)<<"set start and goal";
-            if (planner.plan())
-            {
-                steps = planner.getResultSteps();
-                avoid_points = planner.computeAvoidPoints();
-                for (auto & step : steps)
-                {
-                    cout<<setw(8)<<step.x<<" "<<step.y<<" "<<step.z<<" "<<step.roll<<" "<<step.pitch<<" "<<step.yaw*57.3<<" "<<step.robot_side<<endl;
-                }
-            }
-        }
-        else
-        {
-            LOG(INFO)<<"planning error";
-        }
+    //     FootParam footparam(0.13, 0.11, 0.065, 0.065);
+    //     AstarHierarchicalFootstepPlanner planner(plane_cutted, footparam, 0.2);
+    //     Eigen::Vector3d left_foot(0, 0.1, 0);
+    //     Eigen::Vector3d right_foot(0, -0.1, 0);
+    //     Eigen::Vector3d goal_p;
+    //     goal_p.x() = goal.position.x;
+    //     goal_p.y() = goal.position.y;
+    //     Eigen::Quaterniond qd(goal.orientation.w, goal.orientation.x, goal.orientation.y, goal.orientation.z);
+    //     Eigen::Vector3d v_t = qd.toRotationMatrix() * Eigen::Vector3d::UnitX();
+    //     double yaw = atan(v_t.y()/v_t.x());
+    //     goal_p.z() = yaw;
+    //     vector<Footstep> steps;
+    //     vector<vector<Eigen::Vector3d>> avoid_points;
+    //     if (planner.initial(left_foot, right_foot, 0, goal_p))// 先迈右脚
+    //     {
+    //         LOG(INFO)<<"set start and goal";
+    //         if (planner.plan())
+    //         {
+    //             steps = planner.getResultSteps();
+    //             avoid_points = planner.computeAvoidPoints();
+    //             for (auto & step : steps)
+    //             {
+    //                 cout<<setw(8)<<step.x<<" "<<step.y<<" "<<step.z<<" "<<step.roll<<" "<<step.pitch<<" "<<step.yaw*57.3<<" "<<step.robot_side<<endl;
+    //             }
+    //         }
+    //     }
+    //     else
+    //     {
+    //         LOG(INFO)<<"planning error";
+    //     }
         
-        // 由于咱们这里是在首次规划，所以需要在规划得的第一步之前再加一步
-        Footstep tmp_step;
-        tmp_step.robot_side = steps.front().getInverseRobotSide();
-        tmp_step.x          = 0;
-        tmp_step.y          = tmp_step.robot_side == LEFT ? 0.1 : -0.1;
-        tmp_step.z          = 0;
-        tmp_step.roll       = 0;
-        tmp_step.pitch      = 0;
-        tmp_step.yaw        = 0;
-        steps.insert(steps.begin(), tmp_step);
+    //     // 由于咱们这里是在首次规划，所以需要在规划得的第一步之前再加一步
+    //     Footstep tmp_step;
+    //     tmp_step.robot_side = steps.front().getInverseRobotSide();
+    //     tmp_step.x          = 0;
+    //     tmp_step.y          = tmp_step.robot_side == LEFT ? 0.1 : -0.1;
+    //     tmp_step.z          = 0;
+    //     tmp_step.roll       = 0;
+    //     tmp_step.pitch      = 0;
+    //     tmp_step.yaw        = 0;
+    //     steps.insert(steps.begin(), tmp_step);
 
-        // 转成MarkerArray来显示步态点
-        visualization_msgs::MarkerArray visual_steps;
-        int index_visual_step = 0;
-        for (auto & step : steps)
-        {
-            visualization_msgs::Marker visual_step;
-            visual_step.action = visualization_msgs::Marker::ADD;
-            visual_step.header.frame_id = "map";  // 设置坐标系
-            visual_step.id = index_visual_step;
-            index_visual_step++;
-            visual_step.type = visualization_msgs::Marker::MESH_RESOURCE;  // 表示网格模型
-            Eigen::AngleAxisd ad_roll(step.roll, Eigen::Vector3d::UnitX());
-            Eigen::AngleAxisd ad_pitch(step.pitch, Eigen::Vector3d::UnitY());
-            Eigen::AngleAxisd ad_yaw(step.yaw, Eigen::Vector3d::UnitZ());
-            Eigen::Matrix3d r = ad_roll.toRotationMatrix() * ad_pitch.toRotationMatrix() * ad_yaw.toRotationMatrix();
-            // Eigen::Matrix3d r_stl;
-            // r_stl<<1, 0, 0, 0, -1, 0, 0, 0, -1;
-            // Eigen::Quaterniond qd(r_stl * r);
-            Eigen::Quaterniond qd(r);
-            visual_step.pose.orientation.w = qd.w();
-            visual_step.pose.orientation.x = qd.x();
-            visual_step.pose.orientation.y = qd.y();
-            visual_step.pose.orientation.z = qd.z();
-            visual_step.pose.position.x = step.x;
-            visual_step.pose.position.y = step.y;
-            visual_step.pose.position.z = step.z;
+    //     // 转成MarkerArray来显示步态点
+    //     visualization_msgs::MarkerArray visual_steps;
+    //     int index_visual_step = 0;
+    //     for (auto & step : steps)
+    //     {
+    //         visualization_msgs::Marker visual_step;
+    //         visual_step.action = visualization_msgs::Marker::ADD;
+    //         visual_step.header.frame_id = "map";  // 设置坐标系
+    //         visual_step.id = index_visual_step;
+    //         index_visual_step++;
+    //         visual_step.type = visualization_msgs::Marker::MESH_RESOURCE;  // 表示网格模型
+    //         Eigen::AngleAxisd ad_roll(step.roll, Eigen::Vector3d::UnitX());
+    //         Eigen::AngleAxisd ad_pitch(step.pitch, Eigen::Vector3d::UnitY());
+    //         Eigen::AngleAxisd ad_yaw(step.yaw, Eigen::Vector3d::UnitZ());
+    //         Eigen::Matrix3d r = ad_roll.toRotationMatrix() * ad_pitch.toRotationMatrix() * ad_yaw.toRotationMatrix();
+    //         // Eigen::Matrix3d r_stl;
+    //         // r_stl<<1, 0, 0, 0, -1, 0, 0, 0, -1;
+    //         // Eigen::Quaterniond qd(r_stl * r);
+    //         Eigen::Quaterniond qd(r);
+    //         visual_step.pose.orientation.w = qd.w();
+    //         visual_step.pose.orientation.x = qd.x();
+    //         visual_step.pose.orientation.y = qd.y();
+    //         visual_step.pose.orientation.z = qd.z();
+    //         visual_step.pose.position.x = step.x;
+    //         visual_step.pose.position.y = step.y;
+    //         visual_step.pose.position.z = step.z;
 
-            visual_step.scale.x = 1.0;  // 调整模型大小
-            visual_step.scale.y = 1.0;
-            visual_step.scale.z = 1.0;
-            visual_step.color.a = 1.0;
-            // 获取包的路径
-            std::string package_path = ros::package::getPath("pip_line");
+    //         visual_step.scale.x = 1.0;  // 调整模型大小
+    //         visual_step.scale.y = 1.0;
+    //         visual_step.scale.z = 1.0;
+    //         visual_step.color.a = 1.0;
+    //         // 获取包的路径
+    //         std::string package_path = ros::package::getPath("pip_line");
 
-            // 设置模型的相对路径
-            // mesh_resource_marker.mesh_resource = "file://" + package_path + "/path/to/your/model.stl";
-            if (step.is_left)
-            {
-                visual_step.mesh_resource = "file://" + package_path + "/foot_visual/leftfoot4.STL";  // 设置STL文件路径
-                // model_marker.mesh_resource = "file://" + package_path + "/data/left_foot.STL";  // 设置STL文件路径
-            }
-            else
-            {
-                visual_step.mesh_resource = "file://" + package_path + "/foot_visual/rightfoot4.STL";  // 设置STL文件路径
-                // model_marker.mesh_resource = "file://" + package_path + "/data/right_foot.STL";  // 设置STL文件路径
-            }
-            // 220,223,227
-            visual_step.color.r = 220.0/255.0;
-            visual_step.color.g = 223.0/255.0;
-            visual_step.color.b = 227.0/255.0;
-            visual_steps.markers.emplace_back(visual_step);
-        }
+    //         // 设置模型的相对路径
+    //         // mesh_resource_marker.mesh_resource = "file://" + package_path + "/path/to/your/model.stl";
+    //         if (step.is_left)
+    //         {
+    //             visual_step.mesh_resource = "file://" + package_path + "/foot_visual/leftfoot4.STL";  // 设置STL文件路径
+    //             // model_marker.mesh_resource = "file://" + package_path + "/data/left_foot.STL";  // 设置STL文件路径
+    //         }
+    //         else
+    //         {
+    //             visual_step.mesh_resource = "file://" + package_path + "/foot_visual/rightfoot4.STL";  // 设置STL文件路径
+    //             // model_marker.mesh_resource = "file://" + package_path + "/data/right_foot.STL";  // 设置STL文件路径
+    //         }
+    //         // 220,223,227
+    //         visual_step.color.r = 220.0/255.0;
+    //         visual_step.color.g = 223.0/255.0;
+    //         visual_step.color.b = 227.0/255.0;
+    //         visual_steps.markers.emplace_back(visual_step);
+    //     }
         
-        diy_msgs::footSteps steps_pub;
-        steps_pub.header.frame_id = "map";
-        for (auto & s : steps)
-        {
-            diy_msgs::footStep tmp_step;
-            tmp_step.is_left = s.robot_side == 0 ? true : false;
-            tmp_step.x = s.x;
-            tmp_step.y = s.y;
-            tmp_step.z = s.z;
-            tmp_step.roll = s.roll;
-            tmp_step.pitch = s.pitch;
-            tmp_step.yaw = s.yaw;
-            steps_pub.footsteps.emplace_back(tmp_step);
-        }
+    //     diy_msgs::footSteps steps_pub;
+    //     steps_pub.header.frame_id = "map";
+    //     for (auto & s : steps)
+    //     {
+    //         diy_msgs::footStep tmp_step;
+    //         tmp_step.is_left = s.robot_side == 0 ? true : false;
+    //         tmp_step.x = s.x;
+    //         tmp_step.y = s.y;
+    //         tmp_step.z = s.z;
+    //         tmp_step.roll = s.roll;
+    //         tmp_step.pitch = s.pitch;
+    //         tmp_step.yaw = s.yaw;
+    //         steps_pub.footsteps.emplace_back(tmp_step);
+    //     }
 
-        visualization_msgs::MarkerArray visual_avoid_points;
-        int index_avoid_points = 0;
-        for (auto & points : avoid_points)
-        {
-            visualization_msgs::Marker visual_points;
-            visual_points.action = visualization_msgs::Marker::ADD;
-            visual_points.header.frame_id = "map";  // 设置坐标系
-            visual_points.id = index_avoid_points;
-            index_avoid_points ++;
-            visual_step.type = visualization_msgs::Marker::POINTS;
-            visual_points.color.r = 0.0f;
-            visual_points.color.g = 1.0f;
-            visual_points.color.b = 0.0f;
-            visual_points.color.a = 1.0f;
-            for (auto & point : points)
-            {
-                geometry_msgs::Point p;
-                p.x = point.x();
-                p.y = point.y();
-                p.z = point.z();
-                visual_points.points.emplace_back(p);
-            }
-            visual_avoid_points.markers.emplace_back(visual_points);
-        }
+    //     visualization_msgs::MarkerArray visual_avoid_points;
+    //     int index_avoid_points = 0;
+    //     for (auto & points : avoid_points)
+    //     {
+    //         visualization_msgs::Marker visual_points;
+    //         visual_points.action = visualization_msgs::Marker::ADD;
+    //         visual_points.header.frame_id = "map";  // 设置坐标系
+    //         visual_points.id = index_avoid_points;
+    //         index_avoid_points ++;
+    //         visual_step.type = visualization_msgs::Marker::POINTS;
+    //         visual_points.color.r = 0.0f;
+    //         visual_points.color.g = 1.0f;
+    //         visual_points.color.b = 0.0f;
+    //         visual_points.color.a = 1.0f;
+    //         for (auto & point : points)
+    //         {
+    //             geometry_msgs::Point p;
+    //             p.x = point.x();
+    //             p.y = point.y();
+    //             p.z = point.z();
+    //             visual_points.points.emplace_back(p);
+    //         }
+    //         visual_avoid_points.markers.emplace_back(visual_points);
+    //     }
 
-        diy_msgs::avoidPointsMsg points_pub;
-        points_pub.header.frame_id = "map";
-        for (auto & points : avoid_points)
-        {
-            diy_msgs::avoidPoints ps;
-            // ps.terrainType
-            for (auto & point : points)
-            {
-                geometry_msgs::Point p;
-                p.x = point.x();
-                p.y = point.y();
-                p.z = point.z();
-                ps.avoidPoints.emplace_back(p);
-            }
-            points_pub.avoidPointsMsg.emplace_back(ps);
-        }
-        footsteps_pub.publish(steps_pub);
-        footsteps_visual_pub.publish(visual_steps);
-        avoid_points_pub.publish(points_pub);
-        avoid_points_visual_pub.publish(visual_avoid_points);
-    }
+    //     diy_msgs::avoidPointsMsg points_pub;
+    //     points_pub.header.frame_id = "map";
+    //     for (auto & points : avoid_points)
+    //     {
+    //         diy_msgs::avoidPoints ps;
+    //         // ps.terrainType
+    //         for (auto & point : points)
+    //         {
+    //             geometry_msgs::Point p;
+    //             p.x = point.x();
+    //             p.y = point.y();
+    //             p.z = point.z();
+    //             ps.avoidPoints.emplace_back(p);
+    //         }
+    //         points_pub.avoidPointsMsg.emplace_back(ps);
+    //     }
+    //     footsteps_pub.publish(steps_pub);
+    //     footsteps_visual_pub.publish(visual_steps);
+    //     avoid_points_pub.publish(points_pub);
+    //     avoid_points_visual_pub.publish(visual_avoid_points);
+    // }
+
 }
 
 void pip_line::timerCallback(const ros::TimerEvent & event)
@@ -991,110 +1096,102 @@ void getPlaneInfo(grid_map::GridMap & map, cv::Mat & image, Eigen::Vector3d & no
 }
 
 // 使用平面地形高程图检测平面，获取轮廓，在根据像素轮廓，获取平面点，再根据三维点画出多边形
-void pip_line::draw_planes(grid_map::GridMap map, visualization_msgs::MarkerArray & msg, double r, double g, double b)
-{
-    pcl::PointCloud<pcl::PointXYZ> org_pc = gridMap2Pointcloud(map);
-    AHFP_pl::PlanarContourExtraction pce(org_pc);
-    pce.run();
-    vector<cv::Mat> planes = pce.getSegPlanes();
-    visualization_msgs::MarkerArray polygons;
-    int index = 0;
-    for (auto & image : planes)
-    {
-        visualization_msgs::Marker polygon;
-        polygon.header.frame_id = "map";
-        polygon.header.stamp = ros::Time::now();
-        polygon.ns = "polygons";
-        polygon.id = index;
-        index++;
-        polygon.type = visualization_msgs::Marker::LINE_LIST;
-        polygon.action = visualization_msgs::Marker::ADD;
-        polygon.pose.orientation.w = 1.0;
-        polygon.scale.x = 0.03;  // 线条的宽度
-        polygon.color.r = r;
-        polygon.color.g = g;
-        polygon.color.b = b;
-        polygon.color.a = 1.0;
-
-        Eigen::Vector3d normal; 
-        double d;
-        getPlaneInfo(map, image, normal, d);
-
-        // cv::Mat blurred;
-        // cv::GaussianBlur(gray, blurred, cv::Size(5, 5), 0);
-
-        std::vector<std::vector<cv::Point>> contours;
-        std::vector<cv::Vec4i> hierarchy;
-        cv::findContours(image, contours, hierarchy, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
-
-        auto itr = contours.begin();    //使用迭代器去除噪声轮廓
-        while (itr != contours.end())
-        {
-            auto area = cv::contourArea(*itr);  //获得轮廓面积
-            if (area < 8)    //删除较小面积的轮廓
-            {
-                itr = contours.erase(itr); //itr一旦erase，需要重新赋值
-            }
-            else
-            {
-                itr++;
-            }
-        }
-
-        std::vector<std::vector<cv::Point>> approxContours(contours.size());
-        for (size_t i = 0; i < contours.size(); i++) {
-            double epsilon = 0.01 * cv::arcLength(contours[i], true);
-            cv::approxPolyDP(contours[i], approxContours[i], epsilon, true);
-        }
-        // 根据像素坐标系求轮廓点的xy值，在根据平面信息求z值
-        
-        // vector<Eigen::Vector3d> contour;
-        for (auto & contour : approxContours)
-        {
-            for (int i = 0; i < contour.size(); i++)
-            {
-                grid_map::Position position;
-                if (map.getPosition(grid_map::Index(contour.at(i%contour.size()).y, contour.at(i%contour.size()).x), position))
-                {
-                    double z = (d - normal(0) * position.x() - normal(1)*position.y())/normal(2);
-                    geometry_msgs::Point p;
-                    p.x = position.x();
-                    p.y = position.y();
-                    p.z = z;
-                    polygon.points.emplace_back(p);
-                }
-                if (map.getPosition(grid_map::Index(contour.at((i+1)%contour.size()).y, contour.at((i+1)%contour.size()).x), position))
-                {
-                    double z = (d - normal(0) * position.x() - normal(1)*position.y())/normal(2);
-                    geometry_msgs::Point p;
-                    p.x = position.x();
-                    p.y = position.y();
-                    p.z = z;
-                    polygon.points.emplace_back(p);
-                }
+// void pip_line::draw_planes(grid_map::GridMap map, visualization_msgs::MarkerArray & msg, double r, double g, double b)
+// {
+//     pcl::PointCloud<pcl::PointXYZ> org_pc = gridMap2Pointcloud(map);
+//     AHFP_pl::PlanarContourExtraction pce(org_pc);
+//     pce.run();
+//     vector<cv::Mat> planes = pce.getSegPlanes();
+//     visualization_msgs::MarkerArray polygons;
+//     int index = 0;
+//     for (auto & image : planes)
+//     {
+//         visualization_msgs::Marker polygon;
+//         polygon.header.frame_id = "map";
+//         polygon.header.stamp = ros::Time::now();
+//         polygon.ns = "polygons";
+//         polygon.id = index;
+//         index++;
+//         polygon.type = visualization_msgs::Marker::LINE_LIST;
+//         polygon.action = visualization_msgs::Marker::ADD;
+//         polygon.pose.orientation.w = 1.0;
+//         polygon.scale.x = 0.03;  // 线条的宽度
+//         polygon.color.r = r;
+//         polygon.color.g = g;
+//         polygon.color.b = b;
+//         polygon.color.a = 1.0;
+//         Eigen::Vector3d normal; 
+//         double d;
+//         getPlaneInfo(map, image, normal, d);
+//         // cv::Mat blurred;
+//         // cv::GaussianBlur(gray, blurred, cv::Size(5, 5), 0);
+//         std::vector<std::vector<cv::Point>> contours;
+//         std::vector<cv::Vec4i> hierarchy;
+//         cv::findContours(image, contours, hierarchy, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
+//         auto itr = contours.begin();    //使用迭代器去除噪声轮廓
+//         while (itr != contours.end())
+//         {
+//             auto area = cv::contourArea(*itr);  //获得轮廓面积
+//             if (area < 8)    //删除较小面积的轮廓
+//             {
+//                 itr = contours.erase(itr); //itr一旦erase，需要重新赋值
+//             }
+//             else
+//             {
+//                 itr++;
+//             }
+//         }
+//         std::vector<std::vector<cv::Point>> approxContours(contours.size());
+//         for (size_t i = 0; i < contours.size(); i++) {
+//             double epsilon = 0.01 * cv::arcLength(contours[i], true);
+//             cv::approxPolyDP(contours[i], approxContours[i], epsilon, true);
+//         }
+//         // 根据像素坐标系求轮廓点的xy值，在根据平面信息求z值  
+//         // vector<Eigen::Vector3d> contour;
+//         for (auto & contour : approxContours)
+//         {
+//             for (int i = 0; i < contour.size(); i++)
+//             {
+//                 grid_map::Position position;
+//                 if (map.getPosition(grid_map::Index(contour.at(i%contour.size()).y, contour.at(i%contour.size()).x), position))
+//                 {
+//                     double z = (d - normal(0) * position.x() - normal(1)*position.y())/normal(2);
+//                     geometry_msgs::Point p;
+//                     p.x = position.x();
+//                     p.y = position.y();
+//                     p.z = z;
+//                     polygon.points.emplace_back(p);
+//                 }
+//                 if (map.getPosition(grid_map::Index(contour.at((i+1)%contour.size()).y, contour.at((i+1)%contour.size()).x), position))
+//                 {
+//                     double z = (d - normal(0) * position.x() - normal(1)*position.y())/normal(2);
+//                     geometry_msgs::Point p;
+//                     p.x = position.x();
+//                     p.y = position.y();
+//                     p.z = z;
+//                     polygon.points.emplace_back(p);
+//                 }
                 
-            }
-        }
-        
-        
-        // for (auto & Po_cv : approxContours.at(0))
-        // {
-        //     grid_map::Position position;
-        //     if (map.getPosition(grid_map::Index(Po_cv.y, Po_cv.x), position))
-        //     {
-        //         double z = (d - normal(0) * position.x() - normal(1)*position.y())/normal(2);
-        //         contour.emplace_back(Eigen::Vector3d(position.x(), position.y(), z));
-        //         geometry_msgs::Point p;
-        //         p.x = position.x();
-        //         p.y = position.y();
-        //         p.z = z;
-        //         polygon.points.emplace_back(p);
-        //     }
-        //     polygon.points.emplace_back(*polygon.points.begin());
-        // }
-        msg.markers.emplace_back(polygon);
-    }
-}
+//             }
+//         }   
+//         // for (auto & Po_cv : approxContours.at(0))
+//         // {
+//         //     grid_map::Position position;
+//         //     if (map.getPosition(grid_map::Index(Po_cv.y, Po_cv.x), position))
+//         //     {
+//         //         double z = (d - normal(0) * position.x() - normal(1)*position.y())/normal(2);
+//         //         contour.emplace_back(Eigen::Vector3d(position.x(), position.y(), z));
+//         //         geometry_msgs::Point p;
+//         //         p.x = position.x();
+//         //         p.y = position.y();
+//         //         p.z = z;
+//         //         polygon.points.emplace_back(p);
+//         //     }
+//         //     polygon.points.emplace_back(*polygon.points.begin());
+//         // }
+//         msg.markers.emplace_back(polygon);
+//     }
+// }
 
 
 pip_line::~pip_line()

@@ -18,12 +18,18 @@ namespace quatree
 quatree::quatree(orginazed_points & org_points_, parameter & param_):raw_points(org_points_),param(param_)
 {
   root = new node(0, 0, param.quatree_width, 0, 0, param.quatree_width/param.leafnode_width, 0, nullptr);
+  refreshTree();// 去除子节点全部为nullptr的点
+  // root->showNodeFrame();
   // showLeafNodeImage();
   mergePatchsForSeeds();
+  // root->showNodeFrame();
   // showMergeLeafNodeImage();
   refreshIndex2D();
+  // pindex2d->pritfIndex();
   getQuatreeNeighbors();
+  // showPatchInfo();
   // showSeedNodeAndNeighbors();
+  // LOG(INFO)<<"merged: ";
 }
 
 quatree::~quatree()
@@ -50,6 +56,9 @@ void quatree::mergePatchsForSeeds()
   mergePatchs(root);
 }
 
+
+
+// 需要把所有为nullptr子节点的父节点也全部合并，不仅仅是平面节点
 void quatree::mergePatchs(node* p)
 {
   // LOG(INFO)<<"in mergePatchs function."<<endl;
@@ -68,6 +77,43 @@ void quatree::mergePatchs(node* p)
 
 bool quatree::checkNodeChildrenIsPlaneMean(node* p)
 {
+  // if (p->valid_points_size == 0)
+  // {
+  //   for (size_t i = 0; i < 4; i++)
+  //   {
+  //     // LOG(INFO)<<"at "<<i<<" child"<<endl;
+  //     if (p->parent->children.at(i) == p)
+  //     {
+  //       // LOG(INFO)<<"at "<<i<<"child, need delete"<<endl;
+  //       p->parent->children.at(i) = nullptr;
+  //       delete p;
+  //       p = nullptr;
+  //       break;
+  //     }
+  //   }
+  //   // delete p;
+  //   // p = nullptr;
+  // }
+  
+  // if (p->children.at(0) == nullptr && 
+  //   p->children.at(1) == nullptr && 
+  //   p->children.at(2) == nullptr &&
+  //   p->children.at(3) == nullptr)
+  // {
+  //   for (int j = 0; j < 4; j++)
+  //   {
+  //     if (p->parent->children.at(j) == p)
+  //     {
+  //       p->parent->children.at(j) = nullptr;
+  //       delete p;
+  //       p = nullptr;
+  //       break;
+  //     }
+  //   }
+  // }
+  
+  
+
   for (size_t i = 0; i < 4; i++)
   {
     if (p->children.at(i) == nullptr || !p->children.at(i)->is_plane)
@@ -198,6 +244,7 @@ void quatree::refreshNodeParam(node* p)
     }
     p->children = {nullptr, nullptr, nullptr, nullptr};
   }
+  // 虽然属于同一平面
   else // 在判断属于同一平面的前提下进行
   {
     p->stats.clear();
@@ -223,10 +270,11 @@ bool quatree::check(node * p)
   if (!p->is_leafnode)
   {
     // LOG(INFO)<<"not leaf node"<<std::endl;
-    if (p->is_plane)
-    {
-      return true;
-    }
+    // if (p->is_plane)
+    // {
+    //   return true;
+    // }
+
     std::array<bool, 4> children_flag = {false};
     for (size_t i = 0; i < 4; i++)
     {
@@ -245,7 +293,7 @@ bool quatree::check(node * p)
       // LOG(INFO)<<"now the node is true"<<std::endl;
       return true;
     }
-    else
+    else // 所有子结点都为false，
     {
       // LOG(INFO)<<"now the node is false"<<std::endl;
       // LOG(INFO)<<"delete some points"<<std::endl;
@@ -289,7 +337,16 @@ bool quatree::check(node * p)
   {
     // return p->is_plane;
     // 对于节点虽然不是平面，但是依然是不可舍弃的节点
-    return p != nullptr;
+    if (p->valid_points_size != 0)
+    {
+      return true;
+    }
+    else
+    {
+      return false;
+    }
+    
+    // return p != nullptr;
   }
   // LOG(INFO)<<"is a valid leaf node"<<std::endl;
   return true;
@@ -482,6 +539,7 @@ void quatree::refreshTree()
 // 合并四叉树之后，获取节点的邻近节点
 void quatree::getQuatreeNeighbors()
 {
+  // list是一个双端队列，不是一个优先队列
   std::list<node*> l;
   l.emplace_back(root);
   while (!l.empty())
@@ -643,7 +701,10 @@ void quatree::showLeafNodeImage()
 
 void quatree::showMergeLeafNodeImage()
 {
-  cv::Mat color_image = cv::imread("/home/lichao/catkin_plane_detection/src/my_plane_detection_ros-master/bag/color_part_align.png");
+  // 如果有彩色图时
+  // cv::Mat color_image = cv::imread("/home/lichao/catkin_plane_detection/src/my_plane_detection_ros-master/bag/color_part_align.png");
+  // 如果没有彩色图时
+  cv::Mat color_image = cv::Mat::zeros(raw_points.height, raw_points.width, CV_8UC3);
   // 对于是平面节点的点画点，对于非平面节点画叉叉，节点边界用细线画
   std::list<node*> Q;
   Q.emplace_back(root);
@@ -676,7 +737,7 @@ void quatree::showMergeLeafNodeImage()
       }
     }
   }
-  cv::imwrite("/home/lichao/catkin_plane_detection/src/my_plane_detection_ros-master/bag/leaf_node_merge.png", color_image);
+  cv::imwrite("/home/bhr/TCDS/src/pip_line/data/leaf_node_merge.png", color_image);
   cv::imshow("leaf node", color_image);
   cv::waitKey(0);
 }
@@ -696,6 +757,48 @@ void quatree::showSeedNodeAndNeighbors()
   cv::imshow("merge step", color_image);
   cv::imwrite("/home/lichao/catkin_plane_detection/src/my_plane_detection_ros-master/bag/merge_step.png", color_image);
   cv::waitKey(0);
+}
+
+void quatree::printfNeighbors()
+{
+  std::list<node*> Q;
+  Q.emplace_back(root);
+  while (!Q.empty())
+  {
+    node* tmpnode = Q.front();
+    Q.pop_front();
+    if (tmpnode->is_leafnode)
+    {
+      LOG(INFO)<<"node: "<<tmpnode;
+      for (auto & nei : tmpnode->neighbors)
+      {
+        cout<<nei<<" ";
+      }
+      cout<<endl;
+    }
+    else
+    {
+      if (tmpnode->is_plane)
+      {
+        LOG(INFO)<<"node: "<<tmpnode;
+        for (auto & nei : tmpnode->neighbors)
+        {
+          cout<<nei<<" ";
+        }
+        cout<<endl;
+      }
+      else
+      {
+        for (auto & child : tmpnode->children)
+        {
+          if (child)
+          {
+            Q.emplace_back(child);
+          }
+        }
+      }
+    }
+  }
 }
 
 }

@@ -13,7 +13,7 @@
 #include "matplotlibcpp.h"
 namespace plt = matplotlibcpp;
 // #define DEBUG
-#define SHOWIMAGE
+// #define SHOWIMAGE
 // extern parameter param;
 // extern double test_double;
 // extern ros::Publisher pointcloudPub;
@@ -28,16 +28,17 @@ namespace plt = matplotlibcpp;
 plane::plane(size_t x, size_t y, /* index2D & index_node_2d_ */quatree::node* seed, orginazed_points & raw_points_, parameter & param_):raw_points(raw_points_),param(param_)
 {
   // 加上要
-  contour_image = cv::Mat(x, y, CV_8UC1, cv::Scalar(0));//
+  // contour_image = cv::Mat(x, y, CV_8UC1, cv::Scalar(0));//
+  contour_image = cv::Mat::zeros(x, y, CV_8UC1);
   // index_node_2d = index_node_2d_;
   // LOG(INFO)<<"plane index image: "<<index_image.rows<<" "<<index_image.cols<<std::endl;
   addNode2Plane(seed);
-  nodesHadChecked.insert(seed);
+  // nodesHadChecked.insert(seed);
 }
 
 void plane::regionGrowing()
 {
-  while (!neighbors.empty())
+  while (!p_queue.empty())
   {
     // std::cout<<"test double "<<test_double;
     // showInfo();
@@ -53,30 +54,43 @@ void plane::regionGrowing()
     // output.header.stamp = ros::Time::now();
     // pointcloudPub.publish(output);
     // 为什么不选择最大的节点，而是直接使用排序？
-    quatree::node* tmpnode = *(--neighbors.end());
+    // quatree::node* tmpnode = *(--neighbors.end());
+    quatree::node* tmpnode = p_queue.top();
+    p_queue.pop();
+    if (close_set.find(node2string(tmpnode)) != close_set.end())// 表示之前添加过
+    {
+      continue;
+    }
+    
+
     // LOG(INFO)<<"node info: "<<tmpnode<<" "<<tmpnode->valid_points_size<<" "<<tmpnode->valid_points.size()<<" "<<tmpnode->mse;
-    neighbors.erase(tmpnode);
+    // neighbors.erase(tmpnode);
+
+    // 已经加入了的，就不再考虑
+
+
     // 表示tmpnode已经检查过了，不论其是否在平面中，都已经检查过了
     // 那会不会随着节点的加入，导致平面信息改变，即使开始不满足，后来又满足了呢？？
     // if (nodesHadChecked.count(tmpnode) != 0)
     // {
     //   continue;
     // }
-    
-    if (tmpnode->is_plane)
+    // 这种情况只会把平面节点加入，其他情况下均把点加入
+    if (tmpnode->is_plane && tmpnode->is_validnode)
     {
-      
+      cout<<"is plane node"<<endl;
       if (checkInPlane(tmpnode))
       {
+        cout<<"in plane"<<endl;
         addNode2Plane(tmpnode);
       }
-      nodesHadChecked.insert(tmpnode);
+      // nodesHadChecked.insert(tmpnode);
       // cv::imshow("contour image", contour_image);
       // cv::waitKey(0);
       // 如果一个节点不满足checkInPlane，但是你并不能在neighbors内每个元素的邻近节点集中删除该节点，因为这样会破坏本身存在的邻近关系，影响下一个regiongrowing过程。
     }
     else //这就直接开始逐点添加了吗？不太合理
-    {
+    {  
       IndexPoints points;
       IndexPoints::iterator iter_point = tmpnode->valid_points.begin();
       while (iter_point != tmpnode->valid_points.end())
@@ -92,29 +106,35 @@ void plane::regionGrowing()
           iter_point++;
         }
       }
-      if (points.size() == tmpnode->initial_size)
+      // 把某个节点的一部分点加进取，并且节点作为边界点，其邻近节点不再加入
+      cout<<"points size: "<<points.size()<<endl;
+      addPoints2Plane(points);
+      close_set.insert(node2string(tmpnode));
+      // nodesHadChecked.insert(tmpnode);
+      // for (auto & iter_node : tmpnode->neighbors)
+      // {
+      //   iter_node->neighbors.erase(tmpnode);
+      // }
+      tmpnode->valid_points_size = tmpnode->valid_points.size();
+      if (tmpnode->valid_points_size == 0)
       {
-        addNode2Plane(tmpnode);
-        nodesHadChecked.insert(tmpnode);
-        // cv::imshow("contour image", contour_image);
-        // cv::waitKey(0);
+        cout<<"need delete"<<endl;
+        quatree::deleteNodeInQuatree(tmpnode);
+        tmpnode = nullptr;
       }
-      else
-      {
-        addPoints2Plane(points);
-        // cv::imshow("contour image", contour_image);
-        // cv::waitKey(0);
-        if (tmpnode->valid_points.size() == 0)
-        {
-          nodesHadChecked.insert(tmpnode);
-          for (auto & iter_node : tmpnode->neighbors)
-          {
-            iter_node->neighbors.erase(tmpnode);
-          }
-          quatree::deleteNodeInQuatree(tmpnode);
-          tmpnode = nullptr;
-        }
-      }
+
+      // 这里的逻辑不对，因为即使每个点都在里面，但是node的点比较少此时不能以node加入
+      // 
+      // if (points.size() == tmpnode->initial_size)
+      // {
+      //   addNode2Plane(tmpnode);
+      //   nodesHadChecked.insert(tmpnode);
+      //   // cv::imshow("contour image", contour_image);
+      //   // cv::waitKey(0);
+      // }
+      // else
+      // {
+      // }
     }
   }
 }
@@ -145,8 +165,14 @@ bool plane::checkInPlane(quatree::node* p)
   return false;
 }
 
+string plane::node2string(quatree::node* n)
+{
+  return (std::to_string(n->start_rows_2d) + "_" + std::to_string(n->start_cols_2d));
+}
+
 bool plane::addNode2Plane(quatree::node* p)
 {
+  cout<<"add node to plane"<<endl;
   assert(p != nullptr && "node is nullptr");
   // assert(p->is_plane && "node is not a plane, please do not add it in a plane");
   if (valid_points_size == 0)
@@ -203,17 +229,22 @@ bool plane::addNode2Plane(quatree::node* p)
 #endif
     patchs.emplace_back(p);
     // std::cout<<"11111111111"<<std::endl;
-    neighbors = p->neighbors;
+    for (auto & p_node : p->neighbors)
+    {
+      p_queue.push(p_node);
+    }
+    close_set.insert(node2string(p));
     // std::cout<<"222222222222"<<std::endl;
     // std::cout<<"erase 1"<<std::endl;
     // 这是不是可以删除，初次时肯定没有
     // neighbors.erase(p);
-    for (auto & iter_node : neighbors)
-    {
-      // std::cout<<"erase 2"<<std::endl;
-      iter_node->neighbors.erase(p);
-    }
+    // for (auto & iter_node : neighbors)
+    // {
+    //   // std::cout<<"erase 2"<<std::endl;
+    //   iter_node->neighbors.erase(p);
+    // }
     // LOG(INFO)<<"delete some info"<<endl;
+    cout<<"need delteddddd"<<endl;
     quatree::deleteNodeInQuatree(p);
     // LOG(INFO)<<"return "<<endl;
     return true;
@@ -267,17 +298,22 @@ bool plane::addNode2Plane(quatree::node* p)
     // {
     //   LOG(INFO)<<iter_node;
     // }
-
+    close_set.insert(node2string(p));
     for (auto & iter_node : p->neighbors)
     {
-      // LOG(INFO)<<"iter node "<<iter_node;
-      iter_node->neighbors.erase(p);
-      // 虽然nodesHadChecked已经包含了某节点，但是当对该节点进行count时，任然为0，说明这个红黑树查找存在问题
-      if (nodesHadChecked.count(iter_node) == 0)
+      if (close_set.find(node2string(iter_node)) == close_set.end())// 没有找到
       {
-        // LOG(INFO)<<"add nei "<<iter_node;
-        neighbors.insert(iter_node);
+        p_queue.push(iter_node);
       }
+      
+      // LOG(INFO)<<"iter node "<<iter_node;
+      // iter_node->neighbors.erase(p);
+      // // 虽然nodesHadChecked已经包含了某节点，但是当对该节点进行count时，任然为0，说明这个红黑树查找存在问题
+      // if (nodesHadChecked.count(iter_node) == 0)
+      // {
+      //   // LOG(INFO)<<"add nei "<<iter_node;
+      //   neighbors.insert(iter_node);
+      // }
     }
     
     // for (auto & iter_node : neighbors)
@@ -316,7 +352,9 @@ bool plane::addNode2Plane(quatree::node* p)
     // }
     patchs.emplace_back(p);// 这个有没有用？？？
     // LOG(INFO)<<"add to patchs"<<endl;
+    cout<<"need delete****"<<endl;
     quatree::deleteNodeInQuatree(p);
+    cout<<"need delete======="<<endl;
     // LOG(INFO)<<"RETURN TRUE"<<endl;
     return true;
   }
@@ -530,16 +568,15 @@ void plane::showInfo()
   }
 
   LOG(INFO)<<"nodes had checked: ";
-  for (auto & iter_node : nodesHadChecked)
-  {
-    LOG(INFO)<<iter_node;
-  }
-
-  LOG(INFO)<<"neighbors: ";
-  for (auto & iter_node : neighbors)
-  {
-    LOG(INFO)<<iter_node;
-  }
+  // for (auto & iter_node : nodesHadChecked)
+  // {
+  //   LOG(INFO)<<iter_node;
+  // }
+  // LOG(INFO)<<"neighbors: ";
+  // for (auto & iter_node : neighbors)
+  // {
+  //   LOG(INFO)<<iter_node;
+  // }
 }
 
 

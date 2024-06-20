@@ -1,4 +1,12 @@
 /*
+ * @Author: lichao951787328 951787328@qq.com
+ * @Date: 2024-06-18 22:26:10
+ * @LastEditors: lichao951787328 951787328@qq.com
+ * @LastEditTime: 2024-06-20 11:46:02
+ * @FilePath: /pip_line/include/plane_detection/plane_new.h
+ * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+ */
+/*
  * @description: 
  * @param : 
  * @return: 
@@ -30,7 +38,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include "plane_detection/type.h"
 #include <queue>
-
+#include <unordered_set>
 #define GRAPH
 
 
@@ -53,8 +61,12 @@ public:
   // IndexPoints valid_points;
   // index2D index_node_2d;
   std::pair<std::vector<Eigen::Vector3f>, Eigen::Vector3f> plane_params;
-  std::set<quatree::node*, quatree::compnode> neighbors;
-  std::set<quatree::node*, quatree::compnode> nodesHadChecked;
+
+  std::priority_queue<quatree::node*, std::vector<quatree::node*>, quatree::compnode> p_queue;
+  std::unordered_set<std::string> close_set;
+
+  // std::set<quatree::node*, quatree::compnode> neighbors;
+  // std::set<quatree::node*, quatree::compnode> nodesHadChecked;
   // void deleteNodeInQuatree(quatree::node* p);
 public:
   plane(size_t x, size_t y, /* index2D & index_node_2d_ */quatree::node* seed, orginazed_points & raw_points_, parameter & param_);
@@ -70,6 +82,7 @@ public:
   // void showImage();
   void showInfo();
   bool isEmpty();
+  string node2string(quatree::node* n);
   plane_info calculatePlaneParamNofilter();
   plane_info calculatePlaneParammedianBlur();
   plane_info calculatePlaneParamtestGaussianBlur();// 发现高斯平滑的效果更好

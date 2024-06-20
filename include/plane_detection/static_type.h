@@ -450,7 +450,7 @@ struct parameter
 
   void initial(size_t raw_points_width)
   {
-    LOG(INFO)<<"raw_points_width: "<<raw_points_width<<std::endl;
+    // LOG(INFO)<<"raw_points_width: "<<raw_points_width<<std::endl;
     std::cout<<"raw_points_width: "<<raw_points_width<<std::endl;
     patch_num_th = patch_num_percent_th * leafnode_width * leafnode_width;
     // std::cout<<leafnode_width<<std::endl;

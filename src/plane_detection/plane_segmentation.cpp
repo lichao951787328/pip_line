@@ -40,17 +40,21 @@ plane_segmentation::plane_segmentation(size_t rows, size_t cols, quatree::quatre
   {
     // index_node_2d = index2D(x, y, pqq->getRoot());// 用于使用index获取节点
     quatree::node* seed = pqq->getSeedNode();
-    // std::cout<<"seed: "<<seed<<std::endl;
-    if (seed && seed->valid_points_size >= 400)
+    // LOG(INFO)<<seed->start_rows<<" "<<seed->start_cols;
+    std::cout<<"seed: "<<seed<<std::endl;
+    if (seed && seed->valid_points_size >= 12)
     {
       plane tmpplane(rows, cols, seed, raw_points, param);
       // cout<<"tmp plane"<<endl;
       // getPlane(tmpplane);
       tmpplane.regionGrowing();
-      if (tmpplane.stats.N < 10000)
+      LOG(INFO)<<"N: "<<tmpplane.stats.N;
+      if (tmpplane.stats.N < 180)// 0.26/0.02 * 0.28/0.02
       {
         continue;
       }
+      // cv::imshow("contour_image", tmpplane.contour_image);
+      // cv::waitKey(0);
       // 遍历灰度图像的每个像素
       // 指定一种颜色 (例如红色)
       int color_index = segmented_index%(colors_.size()/3);
@@ -59,7 +63,8 @@ plane_segmentation::plane_segmentation(size_t rows, size_t cols, quatree::quatre
       // 创建掩码 (只保留白色区域)
       cv::Mat mask;
       cv::inRange(tmpplane.contour_image, cv::Scalar(255), cv::Scalar(255), mask);
-
+      // cv::imshow("mask", mask);
+      // cv::waitKey(0);
       // 高斯也是一个比较耗时的操作，这里先不加了
       // 高斯模糊减少噪声
       // cv::Mat blurred;
@@ -72,15 +77,17 @@ plane_segmentation::plane_segmentation(size_t rows, size_t cols, quatree::quatre
 
       // 创建一个与彩色图像相同大小的全色图像，填充为指定颜色
       cv::Mat colorMask(segmented_result.size(), segmented_result.type(), color);
-
+      // cv::imshow("colorMask", colorMask);
+      // cv::waitKey(0);
       // 使用掩码将白色区域赋值为指定颜色
       colorMask.copyTo(segmented_result, mask);
+      // cv::imshow("segmented_result", segmented_result);
+      // cv::waitKey(0);
+      // cv::Mat single_result(segmented_result.size(), segmented_result.type(), cv::Vec3b(0, 0, 0));
 
-      cv::Mat single_result(segmented_result.size(), segmented_result.type(), cv::Vec3b(0, 0, 0));
+      // colorMask.copyTo(single_result, mask);
 
-      colorMask.copyTo(single_result, mask);
-
-      seg_images.emplace_back(single_result);
+      seg_images.emplace_back(tmpplane.contour_image);
       // cv::imshow("segmented image", tmpplane.contour_image);
       // cv::waitKey(0);
       // if (tmpplane.isEmpty())
@@ -193,11 +200,13 @@ plane_segmentation::plane_segmentation(size_t rows, size_t cols, quatree::quatre
       pqq->refreshTree();
       // refresh_quatree += (double)(clock() - start)/CLOCKS_PER_SEC;
       // std::cout<<"refresh quatree costs "<<refresh_quatree <<" s."<<std::endl;
+
+      segmented_index++;
+      std::cout<<"segmented_index: "<<segmented_index<<std::endl;
     }
     else
       break;
-    segmented_index++;
-    std::cout<<"segmented_index: "<<segmented_index<<std::endl;
+    
     // std::cout<<"after check tree"<<std::endl;
     // pqq->showFrame();
   }
