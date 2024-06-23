@@ -62,6 +62,20 @@ private:
     visualization_msgs::MarkerArray planes_cutted_msg;
 
     bool is_finish = false;
+
+    unsigned char default_colors[10][3] =
+    {
+        {255, 0, 0},
+        {255, 255, 0},
+        {100, 20, 50},
+        {0, 30, 255},
+        {10, 255, 60},
+        {80, 10, 100},
+        {0, 255, 200},
+        {10, 60, 60},
+        {255, 0, 128},
+        {60, 128, 128}
+    };
 public:
     pip_line(ros::NodeHandle & n);
     void pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg);

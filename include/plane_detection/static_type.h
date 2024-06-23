@@ -87,12 +87,7 @@ struct orginazed_points
         i_row.emplace_back(Eigen::Vector3f(start_iter->x, start_iter->y, start_iter->z));
         start_iter++;
       }
-      // {}只表示了其内部的两个数字，并没有表示中间所有的
-      // for (auto & iter_point:std::range{pc.begin() + i * width, pc.begin() + (i + 1) * width})
-      // {
-      //   i_row.emplace_back(Eigen::Vector3f(iter_point->x, iter_point->y, iter_point->z));
-      // }
-      // std::cout<<i_row.size()<<std::endl;
+      
       assert(i_row.size() == width);
       points.emplace_back(i_row);
     }

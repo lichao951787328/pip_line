@@ -39,16 +39,16 @@ plane_segmentation::plane_segmentation(size_t rows, size_t cols, quatree::quatre
   while (1)
   {
     // index_node_2d = index2D(x, y, pqq->getRoot());// 用于使用index获取节点
-    quatree::node* seed = pqq->getSeedNode();
+    std::shared_ptr<quatree::node> seed = pqq->getSeedNode();
     // LOG(INFO)<<seed->start_rows<<" "<<seed->start_cols;
-    std::cout<<"seed: "<<seed<<std::endl;
+    // std::cout<<"seed: "<<seed<<std::endl;
     if (seed && seed->valid_points_size >= 12)
     {
       plane tmpplane(rows, cols, seed, raw_points, param);
       // cout<<"tmp plane"<<endl;
       // getPlane(tmpplane);
       tmpplane.regionGrowing();
-      LOG(INFO)<<"N: "<<tmpplane.stats.N;
+      // LOG(INFO)<<"N: "<<tmpplane.stats.N;
       if (tmpplane.stats.N < 180)// 0.26/0.02 * 0.28/0.02
       {
         continue;
@@ -73,8 +73,6 @@ plane_segmentation::plane_segmentation(size_t rows, size_t cols, quatree::quatre
       // // 二值化
       // cv::Mat mask;
       // cv::threshold(blurred, mask, 180, 255, cv::THRESH_BINARY);
-
-
       // 创建一个与彩色图像相同大小的全色图像，填充为指定颜色
       cv::Mat colorMask(segmented_result.size(), segmented_result.type(), color);
       // cv::imshow("colorMask", colorMask);
@@ -197,7 +195,14 @@ plane_segmentation::plane_segmentation(size_t rows, size_t cols, quatree::quatre
       cv::waitKey(0);
 #endif
       // clock_t start = clock();
+      // 更新树及邻近关系
       pqq->refreshTree();
+      if (!pqq->getRoot())
+      {
+          break;
+      }
+      pqq->PreRefreshIndex2D();
+      pqq->getQuatreeNeighbors();
       // refresh_quatree += (double)(clock() - start)/CLOCKS_PER_SEC;
       // std::cout<<"refresh quatree costs "<<refresh_quatree <<" s."<<std::endl;
 
@@ -206,10 +211,12 @@ plane_segmentation::plane_segmentation(size_t rows, size_t cols, quatree::quatre
     }
     else
       break;
-    
+      
+    // cout<<"++++"<<endl;
     // std::cout<<"after check tree"<<std::endl;
     // pqq->showFrame();
   }
+  cout<<"end detection"<<endl;
 }
 void plane_segmentation::getSinglePlaneResult()
 {
@@ -218,7 +225,7 @@ void plane_segmentation::getSinglePlaneResult()
 
 // void plane_segmentation::getPlane(plane & plane)
 // {
-//   quatree::node* seed = pqq->getSeedNode();
+//   std::shared_ptr<quatree::node> seed = pqq->getSeedNode();
 //   LOG(INFO)<<"SEED: "<<seed<<endl;
 //   if (seed == nullptr)
 //   {
@@ -240,10 +247,10 @@ void plane_segmentation::getSinglePlaneResult()
 //   pointcloudPub.publish(output);
 //   usleep(10000);
 // #endif
-//   std::priority_queue<quatree::node*, std::vector<quatree::node*>, quatree::compnode>  neighbors;
+//   std::priority_queue<std::shared_ptr<quatree::node>, std::vector<std::shared_ptr<quatree::node>>, quatree::compnode>  neighbors;
 //   plane.getNeighborNode(neighbors);
 // #ifdef DEBUG
-//   std::priority_queue<quatree::node*, std::vector<quatree::node*>, quatree::compnode >  tmpneighbors = neighbors;
+//   std::priority_queue<std::shared_ptr<quatree::node>, std::vector<std::shared_ptr<quatree::node>>, quatree::compnode >  tmpneighbors = neighbors;
 //   cout<<"now the neighbor is:"<<endl;
 //   while (!tmpneighbors.empty())
 //   {
@@ -254,7 +261,7 @@ void plane_segmentation::getSinglePlaneResult()
 // #endif
 //   while (!neighbors.empty())
 //   {
-//     quatree::node* tmpnode = neighbors.top();
+//     std::shared_ptr<quatree::node> tmpnode = neighbors.top();
 //     neighbors.pop();
 //     if(!tmpnode)
 //       continue;
@@ -287,7 +294,7 @@ void plane_segmentation::getSinglePlaneResult()
 //           }
 //           plane.getNeighborNode(neighbors);
 // #ifdef DEBUG
-//           std::priority_queue<quatree::node*, std::vector<quatree::node*>, quatree::compnode >  tmpneighbors = neighbors;
+//           std::priority_queue<std::shared_ptr<quatree::node>, std::vector<std::shared_ptr<quatree::node>>, quatree::compnode >  tmpneighbors = neighbors;
 //           while (!tmpneighbors.empty())
 //           {
 //             cout<<tmpneighbors.top()<<" ";
@@ -422,10 +429,10 @@ void plane_segmentation::getSinglePlaneResult()
 //       tmpnode->valid_points_size = tmpnode->valid_points.size();
 //       if (tmpnode->valid_points.size() == 0)
 //       {
-//         std::vector<std::vector<quatree::node*>>::iterator iter_rows = index_node_2d.index2d.begin() + tmpnode->start_rows_2d;
+//         std::vector<std::vector<std::shared_ptr<quatree::node>>>::iterator iter_rows = index_node_2d.index2d.begin() + tmpnode->start_rows_2d;
 //         for (size_t i = 0; i < tmpnode->width_2d; i++)
 //         {
-//           std::for_each(iter_rows->begin() + tmpnode->start_cols_2d, iter_rows->begin() + tmpnode->start_cols_2d + tmpnode->width_2d, [](quatree::node* & p){ p = nullptr;});
+//           std::for_each(iter_rows->begin() + tmpnode->start_cols_2d, iter_rows->begin() + tmpnode->start_cols_2d + tmpnode->width_2d, [](std::shared_ptr<quatree::node> & p){ p = nullptr;});
 //           iter_rows++;
 //         }
 //         quatree::deleteNodeInQuatree(tmpnode);

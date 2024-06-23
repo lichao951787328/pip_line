@@ -38,13 +38,13 @@ namespace quatree
 class quatree
 {
 protected:
-  node* root;
+  std::shared_ptr<node> root;
   
-  void mergePatchs(node* p);
-  void clear(node* p);
+  void mergePatchs(std::shared_ptr<node> p);
+  void clear(std::shared_ptr<node> p);
   
   // void refreshNodeParam(node* p);
-  bool check(node * p);
+  bool check(std::shared_ptr<node> p);
 public:
   index2D* pindex2d;
   
@@ -57,37 +57,38 @@ public:
    * @description: get seed node
    * @return {*}
    */  
-  node* getSeedNode();
+  std::shared_ptr<node> getSeedNode();
   void refreshIndex2D();
-  std::priority_queue<node*, std::vector<node*>, compnode> getPatchs(); 
-  std::list<node*> getPatchsList();
+  std::priority_queue<std::shared_ptr<node>, std::vector<std::shared_ptr<node>>, reverseComnode> getPatchs(); 
+  std::list<std::shared_ptr<node>> getPatchsList();
   /**
    * @description: if some node in quatree has deleted, check the tree and refresh it
    * @return {*}
    */  
   void refreshTree();
 
-
+  void PreRefreshIndex2D();
   void getQuatreeNeighbors();
   void printfNeighbors();
   void showLeafNodeImage();
   void showMergeLeafNodeImage();
   void showSeedNodeAndNeighbors();
-  bool checkNodeChildrenIsPlaneMean(node* p);
-  bool checkNodeChildrenIsPlane(node* p);
-  void refreshNodeParam(node* p);
-  std::vector<node*> getLeafnodes();
-  void showFrame();
+  bool checkNodeChildrenIsPlaneMean(std::shared_ptr<node> p);
+  bool checkNodeChildrenIsPlane(std::shared_ptr<node> p);
+  void refreshNodeParam(std::shared_ptr<node> p);
+  std::vector<std::shared_ptr<node>> getLeafnodes();
+  // void showFrame();
   // void saveAsExcel(string filePath);
   void showPatchInfo();
-  inline node* getRoot()
+  inline std::shared_ptr<node> getRoot()
   {
     return root;
+
   }
 
 };
-bool checkNodeChildrenIsPlane(node* p);
-bool checkNodeChildrenIsPlaneMean(node* p);
-void refreshNodeParam(node* p);
+bool checkNodeChildrenIsPlane(std::shared_ptr<node> p);
+bool checkNodeChildrenIsPlaneMean(std::shared_ptr<node> p);
+void refreshNodeParam(std::shared_ptr<node> p);
 }// end nameapce
 #endif

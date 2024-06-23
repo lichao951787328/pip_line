@@ -16,12 +16,22 @@
 namespace quatree
 {
   class node;
+
+// 这是在创建邻近队列时使用，保证邻近队列的优先元素为大平面元素
 struct compnode
 {
-  bool operator() (node const * const &  a, node const * const & b) const;
+  bool operator() (std::shared_ptr<node> a, std::shared_ptr<node> b) const;
 };
 
-class node
+// 这是在区域增长阶段使用，保证在区域增长的优先队列中大平面在前面
+struct reverseComnode
+{
+  compnode baseCom;
+  bool operator()(std::shared_ptr<node> a, std::shared_ptr<node> b) const;
+};
+
+// typedef std::shared_ptr<node> NodePtr;
+class node : public std::enable_shared_from_this<node>
 {
 public:
   static size_t data_width;
@@ -33,6 +43,8 @@ public:
 
   static orginazed_points raw_points;
   static parameter param;
+
+  static std::shared_ptr<node> create(size_t start_rows_, size_t start_cols_, size_t width_, size_t start_rows_2d_, size_t start_cols_2d_, size_t width_2d_, size_t depth_, std::shared_ptr<node> parent_);
 public:
   size_t start_rows, start_cols, width, depth;
   size_t start_rows_2d, start_cols_2d, width_2d;
@@ -42,8 +54,11 @@ public:
   bool is_validnode = false;
   bool is_leafnode = false;
   float mse = FLT_MAX;
-  size_t initial_size;
-  std::set<node*, compnode> neighbors;
+  size_t initial_size = 0;
+
+  // 改成vector
+  std::set<std::shared_ptr<node>, compnode> neighbors;
+  // std::set<node*, compnode> neighbors;
   // uint32_t binary_code = 0;
 
   // 需要加一个点的mse的最大值，以确定是否满足条件，可能有几个点不是属于平面，但平均值很小。这个方法可不是用特征值间的大小来进行确定，不然遍历计算会增加计算量
@@ -66,15 +81,22 @@ public:
    * @param {node*} parent_
    * @return {*}
    */
-  node(size_t start_rows_, size_t start_cols_, size_t width_, size_t start_rows_2d_, size_t start_cols_2d_, size_t width_2d_, size_t depth_, /* uint32_t binary_code_,  */node* parent_);
+  node(size_t start_rows_, size_t start_cols_, size_t width_, size_t start_rows_2d_, size_t start_cols_2d_, size_t width_2d_, size_t depth_, /* uint32_t binary_code_,  */std::shared_ptr<node> parent_);
+
+  void initialize();
+  void resetNode();
+  void createChildren();
   static void setStaticMember(size_t width_, size_t height_, size_t quatree_width_, Eigen::Matrix4f & ROBOTWORLD_T_CAMERA, orginazed_points & raw_points_, parameter & param_);
   ~node();
-  std::array<node*, 4> children = {nullptr};
-  node* parent = nullptr;
-  void showNodeFrame();
+  std::array<std::shared_ptr<node>, 4> children = {nullptr, nullptr, nullptr, nullptr};
+  std::shared_ptr<node> parent = nullptr;
+  // void showNodeFrame();
+  // std::shared_ptr<node> create(size_t start_rows_, size_t start_cols_, size_t width_, size_t start_rows_2d_, size_t start_cols_2d_, size_t width_2d_, size_t depth_, std::shared_ptr<node> parent_);
 };
 
-void deleteNodeInQuatree(node* p);
+// typedef std::shared_ptr<node> NodePtr;
+
+void deleteNodeInQuatree(std::shared_ptr<node> p);
 
 
 }

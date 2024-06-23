@@ -25,11 +25,12 @@ namespace plt = matplotlibcpp;
  * @param {index2D &} index_node_2d_ 图像对应的节点地址编号
  * @return {*}
  */
-plane::plane(size_t x, size_t y, /* index2D & index_node_2d_ */quatree::node* seed, orginazed_points & raw_points_, parameter & param_):raw_points(raw_points_),param(param_)
+plane::plane(size_t x, size_t y, /* index2D & index_node_2d_ */std::shared_ptr<quatree::node> seed, orginazed_points & raw_points_, parameter & param_):raw_points(raw_points_),param(param_)
 {
   // 加上要
   // contour_image = cv::Mat(x, y, CV_8UC1, cv::Scalar(0));//
   contour_image = cv::Mat::zeros(x, y, CV_8UC1);
+  // std::cout<<"initial: "<<contour_image.rows<<" "<<contour_image.cols<<endl;
   // index_node_2d = index_node_2d_;
   // LOG(INFO)<<"plane index image: "<<index_image.rows<<" "<<index_image.cols<<std::endl;
   addNode2Plane(seed);
@@ -54,8 +55,9 @@ void plane::regionGrowing()
     // output.header.stamp = ros::Time::now();
     // pointcloudPub.publish(output);
     // 为什么不选择最大的节点，而是直接使用排序？
-    // quatree::node* tmpnode = *(--neighbors.end());
-    quatree::node* tmpnode = p_queue.top();
+    // std::shared_ptr<quatree::node> tmpnode = *(--neighbors.end());
+
+    std::shared_ptr<quatree::node> tmpnode = p_queue.top();
     p_queue.pop();
     if (close_set.find(node2string(tmpnode)) != close_set.end())// 表示之前添加过
     {
@@ -67,8 +69,6 @@ void plane::regionGrowing()
     // neighbors.erase(tmpnode);
 
     // 已经加入了的，就不再考虑
-
-
     // 表示tmpnode已经检查过了，不论其是否在平面中，都已经检查过了
     // 那会不会随着节点的加入，导致平面信息改变，即使开始不满足，后来又满足了呢？？
     // if (nodesHadChecked.count(tmpnode) != 0)
@@ -78,10 +78,10 @@ void plane::regionGrowing()
     // 这种情况只会把平面节点加入，其他情况下均把点加入
     if (tmpnode->is_plane && tmpnode->is_validnode)
     {
-      cout<<"is plane node"<<endl;
+      // cout<<"is plane node"<<endl;
       if (checkInPlane(tmpnode))
       {
-        cout<<"in plane"<<endl;
+        // cout<<"in plane"<<endl;
         addNode2Plane(tmpnode);
       }
       // nodesHadChecked.insert(tmpnode);
@@ -107,7 +107,12 @@ void plane::regionGrowing()
         }
       }
       // 把某个节点的一部分点加进取，并且节点作为边界点，其邻近节点不再加入
-      cout<<"points size: "<<points.size()<<endl;
+      // cout<<"points size: "<<points.size()<<endl;
+      if (points.empty())
+      {
+        continue;
+      }
+      
       addPoints2Plane(points);
       close_set.insert(node2string(tmpnode));
       // nodesHadChecked.insert(tmpnode);
@@ -118,7 +123,7 @@ void plane::regionGrowing()
       tmpnode->valid_points_size = tmpnode->valid_points.size();
       if (tmpnode->valid_points_size == 0)
       {
-        cout<<"need delete"<<endl;
+        // cout<<"need delete"<<endl;
         quatree::deleteNodeInQuatree(tmpnode);
         tmpnode = nullptr;
       }
@@ -139,7 +144,7 @@ void plane::regionGrowing()
   }
 }
 
-bool plane::checkInPlane(quatree::node* p)
+bool plane::checkInPlane(std::shared_ptr<quatree::node> p)
 {
   assert(p != nullptr && "node is nullptr");
   // assert(p->is_plane && "node is not a plane, please do not add it in a plane");
@@ -165,14 +170,14 @@ bool plane::checkInPlane(quatree::node* p)
   return false;
 }
 
-string plane::node2string(quatree::node* n)
+string plane::node2string(std::shared_ptr<quatree::node> n)
 {
   return (std::to_string(n->start_rows_2d) + "_" + std::to_string(n->start_cols_2d));
 }
 
-bool plane::addNode2Plane(quatree::node* p)
+bool plane::addNode2Plane(std::shared_ptr<quatree::node> p)
 {
-  cout<<"add node to plane"<<endl;
+  // cout<<"add node to plane"<<endl;
   assert(p != nullptr && "node is nullptr");
   // assert(p->is_plane && "node is not a plane, please do not add it in a plane");
   if (valid_points_size == 0)
@@ -191,6 +196,12 @@ bool plane::addNode2Plane(quatree::node* p)
     // cv::Rect 内第一个参数是：列，第二个参数是：行
     // 加上要
     cv::rectangle(contour_image, cv::Rect(p->start_cols, p->start_rows, p->width, p->width), 255, -1, 1, 0);//255白色
+
+    // cv::Mat enlarged_img;
+    // int scale_factor = 50;  // 放大倍数
+    // cv::resize(contour_image, enlarged_img, cv::Size(), scale_factor, scale_factor, cv::INTER_LINEAR);
+    // cv::imshow("initial", enlarged_img);
+    // cv::waitKey(0);
 
     // point_index_2d p1(p->start_rows_2d, p->start_cols_2d);
     // point_index_2d p2(p->start_rows_2d + p->width_2d - 1, p->start_cols_2d);
@@ -211,10 +222,10 @@ bool plane::addNode2Plane(quatree::node* p)
       std::cout<<std::endl;
     }
 #endif
-    // std::vector<std::vector<quatree::node*>>::iterator iter_rows = index_node_2d.index2d.begin() + p->start_rows_2d;
+    // std::vector<std::vector<std::shared_ptr<quatree::node>>>::iterator iter_rows = index_node_2d.index2d.begin() + p->start_rows_2d;
     // for (size_t i = 0; i < p->width_2d; i++)
     // {
-    //   std::for_each(iter_rows->begin() + p->start_cols_2d, iter_rows->begin() + p->start_cols_2d + p->width_2d, [](quatree::node* & p){ p = nullptr;});
+    //   std::for_each(iter_rows->begin() + p->start_cols_2d, iter_rows->begin() + p->start_cols_2d + p->width_2d, [](std::shared_ptr<quatree::node> & p){ p = nullptr;});
     //   iter_rows++;
     // }
 #ifdef DEBUG
@@ -244,7 +255,7 @@ bool plane::addNode2Plane(quatree::node* p)
     //   iter_node->neighbors.erase(p);
     // }
     // LOG(INFO)<<"delete some info"<<endl;
-    cout<<"need delteddddd"<<endl;
+    // cout<<"need delteddddd"<<endl;
     quatree::deleteNodeInQuatree(p);
     // LOG(INFO)<<"return "<<endl;
     return true;
@@ -344,17 +355,17 @@ bool plane::addNode2Plane(quatree::node* p)
     // cv::imshow("image after", index_image);
     // cv::waitKey();
     // 用于求邻近节点，都是节点的地址
-    // std::vector<std::vector<quatree::node*>>::iterator iter_rows = index_node_2d.index2d.begin() + p->start_rows_2d;
+    // std::vector<std::vector<std::shared_ptr<quatree::node>>>::iterator iter_rows = index_node_2d.index2d.begin() + p->start_rows_2d;
     // for (size_t i = 0; i < p->width_2d; i++)
     // {
-    //   std::for_each(iter_rows->begin() + p->start_cols_2d, iter_rows->begin() + p->start_cols_2d + p->width_2d, [](quatree::node* & p){ p = nullptr;});
+    //   std::for_each(iter_rows->begin() + p->start_cols_2d, iter_rows->begin() + p->start_cols_2d + p->width_2d, [](std::shared_ptr<quatree::node> & p){ p = nullptr;});
     //   iter_rows++;
     // }
     patchs.emplace_back(p);// 这个有没有用？？？
     // LOG(INFO)<<"add to patchs"<<endl;
-    cout<<"need delete****"<<endl;
+    // cout<<"need delete****"<<endl;
     quatree::deleteNodeInQuatree(p);
-    cout<<"need delete======="<<endl;
+    // cout<<"need delete======="<<endl;
     // LOG(INFO)<<"RETURN TRUE"<<endl;
     return true;
   }
@@ -366,24 +377,24 @@ bool plane::addNode2Plane(quatree::node* p)
 }
 
 // 对求边缘和邻近节点的相关操作，适用于节点内的所有点都加入了plane
-// bool plane::refreshIndexImage(quatree::node* p)
+// bool plane::refreshIndexImage(std::shared_ptr<quatree::node> p)
 // {
 //   cv::rectangle(index_image, cv::Rect(p->start_cols_2d, p->start_rows_2d, p->width_2d, p->width_2d), 255, -1, 1, 0);
 //   // cv::namedWindow("image after", cv::WINDOW_FREERATIO);
 //   // cv::imshow("image after", index_image);
 //   // cv::waitKey();
 //   // 用于求邻近节点，都是节点的地址
-//   std::vector<std::vector<quatree::node*>>::iterator iter_rows = index_node_2d.index2d.begin() + p->start_rows_2d;
+//   std::vector<std::vector<std::shared_ptr<quatree::node>>>::iterator iter_rows = index_node_2d.index2d.begin() + p->start_rows_2d;
 //   for (size_t i = 0; i < p->width_2d; i++)
 //   {
-//     std::for_each(iter_rows->begin() + p->start_cols_2d, iter_rows->begin() + p->start_cols_2d + p->width_2d, [](quatree::node* & p){ p = nullptr;});
+//     std::for_each(iter_rows->begin() + p->start_cols_2d, iter_rows->begin() + p->start_cols_2d + p->width_2d, [](std::shared_ptr<quatree::node> & p){ p = nullptr;});
 //     iter_rows++;
 //   }
 //   patchs.emplace_back(p);
 //   return  true;
 // }
 // 所有相邻的节点，包括不为平面的节点
-// void plane::getNeighborNode(std::priority_queue<quatree::node*, std::vector<quatree::node*>, quatree::compnode > & neighbors)
+// void plane::getNeighborNode(std::priority_queue<std::shared_ptr<quatree::node>, std::vector<std::shared_ptr<quatree::node>>, quatree::compnode > & neighbors)
 // {
 //   LOG(INFO)<<"index image rows "<<index_image.rows<<" cols "<<index_image.cols<<std::endl;
 //   // cv::namedWindow("raw image", cv::WINDOW_FREERATIO);
@@ -417,7 +428,7 @@ bool plane::addNode2Plane(quatree::node* p)
 //             if (iter_point.x + i >= 0 && iter_point.x + i < index_node_2d.cols)
 //             {
 //               LOG(INFO)<<"index: "<<iter_point.y + j<< " "<<iter_point.x + i<<std::endl;
-//               quatree::node* tmpnode = index_node_2d.getNodeByIndex(iter_point.y + j, iter_point.x + i);
+//               std::shared_ptr<quatree::node> tmpnode = index_node_2d.getNodeByIndex(iter_point.y + j, iter_point.x + i);
 //               if (tmpnode)// 可以每次将用过的patch置nullptr
 //               {
 //                 LOG(INFO)<<"PUSH NODE: "<<tmpnode<<std::endl;
@@ -532,19 +543,25 @@ bool plane::addPoints2Plane(IndexPoints& ps)
       contour_image.at<uchar>(indexpoint.first.first, indexpoint.first.second) = 255;
     }
     
+    // cv::Mat enlarged_img;
+    // int scale_factor = 50;  // 放大倍数
+    // cv::resize(contour_image, enlarged_img, cv::Size(), scale_factor, scale_factor, cv::INTER_LINEAR);
+    // cv::imshow("result", enlarged_img);
+    // cv::waitKey(0);
+
     // valid_points.insert(valid_points.end(), ps.begin(), ps.end());
     valid_points_size = stats.N;
     return true;
   }
 }
 
-// void plane::setIndexImage(quatree::node* p)
+// void plane::setIndexImage(std::shared_ptr<quatree::node> p)
 // {
 //   cv::rectangle(index_image, cv::Rect(p->start_cols_2d, p->start_rows_2d, p->width_2d, p->width_2d), 255, -1, 1, 0);//255白色
-//   std::vector<std::vector<quatree::node*>>::iterator iter_rows = index_node_2d.index2d.begin() + p->start_rows_2d;
+//   std::vector<std::vector<std::shared_ptr<quatree::node>>>::iterator iter_rows = index_node_2d.index2d.begin() + p->start_rows_2d;
 //   for (size_t i = 0; i < p->width_2d; i++)
 //   {
-//     std::for_each(iter_rows->begin() + p->start_cols_2d, iter_rows->begin() + p->start_cols_2d + p->width_2d, [](quatree::node* & p){ p = nullptr;});
+//     std::for_each(iter_rows->begin() + p->start_cols_2d, iter_rows->begin() + p->start_cols_2d + p->width_2d, [](std::shared_ptr<quatree::node> & p){ p = nullptr;});
 //     iter_rows++;
 //   }
 // }
@@ -585,7 +602,7 @@ bool plane::isEmpty()
   return valid_points_size == 0;
 }
 
-// bool plane::nodeHasInPlane(quatree::node* p)
+// bool plane::nodeHasInPlane(std::shared_ptr<quatree::node> p)
 // {
 //   for (auto & iter_node : patchs)
 //   {

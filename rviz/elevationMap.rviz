@@ -6,6 +6,7 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
+        - /GridMap1
       Splitter Ratio: 0.40401506423950195
     Tree Height: 719
   - Class: rviz/Selection
@@ -226,7 +227,7 @@ Visualization Manager:
       Min Intensity: 0
       Name: GridMap
       Show Grid Lines: true
-      Topic: /sub_map
+      Topic: /raw_heightmap
       Unreliable: false
       Use Rainbow: true
       Value: true

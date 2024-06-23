@@ -124,6 +124,8 @@ struct Stats {
 			float V[3][3]={0};
 			LA::eig33sym(K, sv, V); //!!! first eval is the least one
 			//LA.svd33(K, sv, V);
+			// 这里是修改过的地方，由于我们的点云是转到机器人世界坐标系下，所以保证法向量向上
+			// 后续如果机器人行走在局部地图坐标系下时，也需要将地图在局部坐标系下，并且坐标系z轴与重力方向正好相反
 			if(V[0][0]*center[0]+V[1][0]*center[1]+V[2][0]*center[2]<=0) {//enforce dot(normal,center)<00 so normal always points towards camera
 				normal[0]=V[0][0];
 				normal[1]=V[1][0];
