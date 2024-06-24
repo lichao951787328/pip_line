@@ -135,6 +135,19 @@ struct Stats {
 				normal[1]=-V[1][0];
 				normal[2]=-V[2][0];
 			}
+
+			// if (V[2][0]<0)
+			// {
+			// 	normal[0]=-V[0][0];
+			// 	normal[1]=-V[1][0];
+			// 	normal[2]=-V[2][0];
+			// }
+			// else
+			// {
+			// 	normal[0]=V[0][0];
+			// 	normal[1]=V[1][0];
+			// 	normal[2]=V[2][0];
+			// }
 			mse = sv[0]*sc;
 			curvature=sv[0]/(sv[0]+sv[1]+sv[2]);
 		}

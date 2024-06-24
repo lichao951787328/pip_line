@@ -2,7 +2,7 @@
  * @Author: lichao951787328 951787328@qq.com
  * @Date: 2024-06-07 11:01:20
  * @LastEditors: lichao951787328 951787328@qq.com
- * @LastEditTime: 2024-06-19 21:28:37
+ * @LastEditTime: 2024-06-24 22:08:56
  * @FilePath: /pip_line/include/pip_line/pip_line.h
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -31,14 +31,18 @@ private:
     ros::Publisher raw_heightmap_pc_pub;
     ros::Publisher height_map_upper_pub;
     ros::Publisher height_map_lower_pub;
-    ros::Publisher height_map_foot_pub;
-    ros::Publisher planes_all;
-    ros::Publisher planes_cutted;
-    ros::Publisher sub_map_pub;
+    ros::Publisher seg_result_image_pub;
+    ros::Publisher feasible_map_pub;
+
+    cv::Mat upper_body_image;
+    cv::Mat upper_body_dilate;
+    cv::Mat knee_image;
+    cv::Mat knee_image_dilate;
     
 
-    ros::Publisher planes_polygon_pub;
-    ros::Publisher planes_polygon_cutted_pub;
+
+    // ros::Publisher planes_polygon_pub;
+    // ros::Publisher planes_polygon_cutted_pub;
     ros::Timer timer;
 
     ros::Publisher footsteps_pub;
@@ -53,9 +57,11 @@ private:
     grid_map::GridMap map;
     grid_map::GridMap height_map_upper;
     grid_map::GridMap height_map_lower;
-    grid_map::GridMap height_map_foot;
-    grid_map::GridMap plane_map;
-    grid_map::GridMap plane_cutted;
+    // grid_map::GridMap height_map_foot;
+    // grid_map::GridMap plane_map;
+    // grid_map::GridMap plane_cutted;
+    cv::Mat seg_result_image;// 这是一张彩色图
+    grid_map::GridMap feasible_map;
     
     vector<cv::Mat> plane_images;
     visualization_msgs::MarkerArray planes_msg;

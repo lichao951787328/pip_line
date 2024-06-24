@@ -16,6 +16,7 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   std_msgs
   diy_msgs
+  cv_bridge
 )
 
 # set(grid_map_core_DIR "/home/bhr/catkin_gridmap/install/share")
@@ -150,8 +151,8 @@ include
   # ${grid_map_msgs_INCLUDE_DIRS}
   # ${grid_map_ros_INCLUDE_DIRS}
   # ${grid_map_filters_INCLUDE_DIRS}
-  /home/lichao/Darwin-op/src/elevation_map_ours/elevation_mapping/AstarHierarchicalFootstepPlanner/include
-  # /home/bhr/catkin_beijing4th/src/elevation_mapping/AstarHierarchicalFootstepPlanner/include
+  # /home/lichao/Darwin-op/src/elevation_map_ours/elevation_mapping/AstarHierarchicalFootstepPlanner/include
+  /home/bhr/catkin_beijing4th/src/elevation_mapping/AstarHierarchicalFootstepPlanner/include
 )
 
 ## Declare a C++ library
@@ -170,8 +171,8 @@ include
 add_executable(${PROJECT_NAME}_node 
 src/main.cpp 
 src/pip_line.cpp
-# /home/bhr/catkin_beijing4th/src/elevation_mapping/AstarHierarchicalFootstepPlanner/src/AstarHierarchicalFootstepPlanner.cpp
-/home/lichao/Darwin-op/src/elevation_map_ours/elevation_mapping/AstarHierarchicalFootstepPlanner/src/AstarHierarchicalFootstepPlanner.cpp
+/home/bhr/catkin_beijing4th/src/elevation_mapping/AstarHierarchicalFootstepPlanner/src/AstarHierarchicalFootstepPlanner.cpp
+# /home/lichao/Darwin-op/src/elevation_map_ours/elevation_mapping/AstarHierarchicalFootstepPlanner/src/AstarHierarchicalFootstepPlanner.cpp
 src/plane_detection/quatree_node_20240618.cpp
 src/plane_detection/type.cpp
 src/plane_detection/quadtree_new.cpp
