@@ -3,8 +3,8 @@ project(pip_line)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
-# set(CMAKE_BUILD_TYPE Debug)
-set(CMAKE_BUILD_TYPE Release)
+set(CMAKE_BUILD_TYPE Debug)
+# set(CMAKE_BUILD_TYPE Release)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
@@ -33,6 +33,7 @@ find_package(catkin REQUIRED COMPONENTS
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
+# set(PCL_DIR /usr/lib/x86_64-linux-gnu/cmake/pcl)
 find_package(PCL REQUIRED)
 find_package(glog REQUIRED)
 find_package(OpenCV REQUIRED)
@@ -149,6 +150,7 @@ include
   # ${grid_map_msgs_INCLUDE_DIRS}
   # ${grid_map_ros_INCLUDE_DIRS}
   # ${grid_map_filters_INCLUDE_DIRS}
+  /home/lichao/Darwin-op/src/elevation_map_ours/elevation_mapping/AstarHierarchicalFootstepPlanner/include
   # /home/bhr/catkin_beijing4th/src/elevation_mapping/AstarHierarchicalFootstepPlanner/include
 )
 
@@ -169,6 +171,7 @@ add_executable(${PROJECT_NAME}_node
 src/main.cpp 
 src/pip_line.cpp
 # /home/bhr/catkin_beijing4th/src/elevation_mapping/AstarHierarchicalFootstepPlanner/src/AstarHierarchicalFootstepPlanner.cpp
+/home/lichao/Darwin-op/src/elevation_map_ours/elevation_mapping/AstarHierarchicalFootstepPlanner/src/AstarHierarchicalFootstepPlanner.cpp
 src/plane_detection/quatree_node_20240618.cpp
 src/plane_detection/type.cpp
 src/plane_detection/quadtree_new.cpp

@@ -988,7 +988,7 @@ plane_info plane::calculatePlaneParamtestGaussianBlur()
     }
   }
   cv::findContours(Gaussian_filter_image, contours, hierarchy, cv::RETR_CCOMP, cv::CHAIN_APPROX_NONE, cv::Point());
-  std::cout<<"contours size "<<contours.size()<<endl;
+  // std::cout<<"contours size "<<contours.size()<<endl;
 #ifdef SHOWIMAGE
 	// cv::Mat imageContours = cv::Mat::zeros(Gaussian_filter_image.size(),CV_8UC1);
 	// cv::Mat Contours = cv::Mat::zeros(Gaussian_filter_image.size(),CV_8UC1);  //绘制

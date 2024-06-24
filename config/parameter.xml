@@ -5,10 +5,10 @@
         <patch_mse_th>0.002</patch_mse_th>
         <eigen_value_th>0.2</eigen_value_th>
         <!-- calculate normal after merge in quatree, then check children's normal is satisfy the dot condition -->
-        <merge_normal_dot_th>0.8</merge_normal_dot_th>
+        <merge_normal_dot_th>0.75</merge_normal_dot_th>
         <!-- 5mm too small -->
-        <merge_normal_distance>0.015</merge_normal_distance>
+        <merge_normal_distance>0.02</merge_normal_distance>
         <!-- quatree node merge normal condition -->
-        <quatree_merge_normal_dot_th>0.85</quatree_merge_normal_dot_th>
+        <quatree_merge_normal_dot_th>0.8</quatree_merge_normal_dot_th>
     </parameters>
 </file>

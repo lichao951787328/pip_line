@@ -21,7 +21,7 @@
 #include <pcl/point_types.h>
 // #include <PEAC_AHFP_pl/plane_fitter_pcl_AHFP.hpp>
 #include <opencv2/opencv.hpp>
-// #include <AstarHierarchicalFootstepPlanner/AstarHierarchicalFootstepPlanner.h>
+#include <AstarHierarchicalFootstepPlanner/AstarHierarchicalFootstepPlanner.h>
 #include <tf2/buffer_core.h>
 #include <grid_map_msgs/GridMap.h>
 #include <grid_map_ros/GridMapRosConverter.hpp>
@@ -368,20 +368,20 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
         }
     }
 
-    // for (int i = 0; i < map.getSize().x(); i++)
-    // {
-    //     for (int j = 0; j < map.getSize().y(); j++)
-    //     {
-    //         if (i < map.getSize().x()/2)
-    //         {
-    //             map["elevation"](i, j) = 0;
-    //         }
-    //         else
-    //         {
-    //             map["elevation"](i, j) = 0.1;
-    //         }
-    //     }
-    // }
+    for (int i = 0; i < map.getSize().x(); i++)
+    {
+        for (int j = 0; j < map.getSize().y(); j++)
+        {
+            if (i < map.getSize().x()/2)
+            {
+                map["elevation"](i, j) = 0.1;
+            }
+            else
+            {
+                map["elevation"](i, j) = 0;
+            }
+        }
+    }
 
     grid_map_msgs::GridMap raw_map_msg;
     grid_map::GridMapRosConverter::toMessage(map, raw_map_msg);
@@ -479,163 +479,188 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     // }
     // cv::imwrite("/home/bhr/TCDS/src/pip_line/data/result.png", result);
 
-    cv::Mat enlarged_img;
-    int scale_factor = 5;  // 放大倍数
-    cv::resize(result, enlarged_img, cv::Size(), scale_factor, scale_factor, cv::INTER_LINEAR);
-    cv::imshow("result", enlarged_img);
-    cv::waitKey(0);
+    // cv::Mat enlarged_img;
+    // int scale_factor = 5;  // 放大倍数
+    // cv::resize(result, enlarged_img, cv::Size(), scale_factor, scale_factor, cv::INTER_LINEAR);
+    // cv::imshow("result", enlarged_img);
+    // cv::waitKey(0);
     // cv::imshow("result", result);
     // cv::waitKey(0);
-    // vector<cv::Mat> collision_free_images;
+    vector<cv::Mat> collision_free_images;
     // // // 地图膨胀层
-    // double resolution = map.getResolution();
-    // double inflation_radius = 0.5;
-    // int inflation_pixel = 0.5/resolution;
-    // for (int i = 0; i < single_results.size(); i++)
-    // {
-    //     cv::Mat image = single_results.at(i);
-    //     cv::GaussianBlur(image, image, cv::Size(5, 5), 0);
-    //     cv::imshow("image", image);
-    //     cv::waitKey(0);
-    //     int kernel_size = inflation_pixel;
-    //     cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(kernel_size, kernel_size));
-    //     // 对图像进行膨胀操作
-    //     cv::Mat dilated_image;
-    //     cv::dilate(image, dilated_image, kernel);
-    //     cv::imshow("dilated_image", dilated_image);
-    //     cv::waitKey(0);
-    //     // 计算膨胀后的边缘
-    //     cv::Mat collision_layer = dilated_image - image;
-    //     cv::imshow("collision_layer", collision_layer);
-    //     cv::waitKey(0);
-    //     cv::Mat upper_body = cv::Mat::zeros(collision_layer.size(), CV_8UC1);
-    //     cv::Mat knee = cv::Mat::zeros(collision_layer.size(), CV_8UC1);
-    //     for (int y = 0; y < collision_layer.rows; ++y) 
-    //     {
-    //         for (int x = 0; x < collision_layer.cols; ++x) 
-    //         {
-    //             if (collision_layer.at<uchar>(y, x) == 255) 
-    //             {
-    //                 // 获取膝盖层和上半身层
-    //                 grid_map::Position3 p3;
-    //                 if (map.getPosition3("elevation", grid_map::Index(y, x), p3))
-    //                 {
-    //                     if (!std::isnan(p3.z()))
-    //                     {
-    //                         Eigen::Vector3f p3f(p3.x(), p3.y(), p3.z());
-    //                         double dis = (p3f - planes.at(i).center).dot(planes.at(i).normal);
-    //                         if (dis > 0.5)// 上半身
-    //                         {
-    //                             upper_body.at<uchar>(y,x) = 255;
-    //                         }
-    //                         else if (dis > 0.25) // 膝盖
-    //                         {
-    //                             knee.at<uchar>(y,x) = 255;
-    //                         }
-    //                     }
-    //                 }
-    //             }
-    //         }
-    //     }
-    //     cv::imshow("knee", knee);
-    //     cv::waitKey(0);
-    //     cv::imshow("upper_body", upper_body);
-    //     cv::waitKey(0);
-    //     // // 进行不同半径的膨胀
-    //     double upper_inflation = 0.5;
-    //     double knee_inflation = 0.1;
-    //     int inflation_radius_upper = upper_inflation/resolution;
-    //     int inflation_radius_knee = knee_inflation/resolution;
-    //     cv::Mat kernel_upper = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(inflation_radius_upper, inflation_radius_upper));
-    //     cv::Mat kernel_knee = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(inflation_radius_knee, inflation_radius_knee));
-    //     // // 对图像进行膨胀操作
-    //     cv::Mat dilated_image_upper;
-    //     cv::dilate(upper_body, dilated_image_upper, kernel_upper);
-    //     cv::Mat dilated_image_knee;
-    //     cv::dilate(knee, dilated_image_knee, kernel_knee);
-    //     cv::imshow("dilated_image_upper", dilated_image_upper);
-    //     cv::waitKey(0);
-    //     cv::imshow("dilated_image_knee", dilated_image_knee);
-    //     cv::waitKey(0);
-    //     // 计算膨胀后的边缘
-    //     cv::Mat collision_layer1 = image - dilated_image_upper;
-    //     cv::Mat free_collision = collision_layer1 - dilated_image_knee;
-    //     cv::imshow("free_collision", free_collision);
-    //     cv::waitKey(0);
-    //     collision_free_images.emplace_back(free_collision);
-    // }
+    double resolution = map.getResolution();
+    double inflation_radius = 0.5;
+    int inflation_pixel = 0.5/resolution;
+    for (int i = 0; i < single_results.size(); i++)
+    {
+        cv::Mat image = single_results.at(i);
+        cv::GaussianBlur(image, image, cv::Size(5, 5), 0);
+        // cv::imshow("image", image);
+        // cv::waitKey(0);
+        int kernel_size = inflation_pixel;
+        cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(kernel_size, kernel_size));
+        // 对图像进行膨胀操作
+        cv::Mat dilated_image;
+        cv::dilate(image, dilated_image, kernel);
+        // cv::imshow("dilated_image", dilated_image);
+        // cv::waitKey(0);
+        // 计算膨胀后的边缘
+        cv::Mat collision_layer = dilated_image - image;
+        // cv::imshow("collision_layer", collision_layer);
+        // cv::waitKey(0);
+        cv::Mat upper_body = cv::Mat::zeros(collision_layer.size(), CV_8UC1);
+        cv::Mat knee = cv::Mat::zeros(collision_layer.size(), CV_8UC1);
+        for (int y = 0; y < collision_layer.rows; ++y) 
+        {
+            for (int x = 0; x < collision_layer.cols; ++x) 
+            {
+                if (collision_layer.at<uchar>(y, x) == 255) 
+                {
+                    // 获取膝盖层和上半身层
+                    grid_map::Position3 p3;
+                    if (map.getPosition3("elevation", grid_map::Index(y, x), p3))
+                    {
+                        if (!std::isnan(p3.z()))
+                        {
+                            Eigen::Vector3f p3f(p3.x(), p3.y(), p3.z());
+                            double dis = (p3f - planes.at(i).center).dot(planes.at(i).normal);
+                            if (dis > 0.5)// 上半身
+                            {
+                                upper_body.at<uchar>(y,x) = 255;
+                            }
+                            else if (dis > 0.25) // 膝盖
+                            {
+                                knee.at<uchar>(y,x) = 255;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // cv::imshow("knee", knee);
+        // cv::waitKey(0);
+        // cv::imshow("upper_body", upper_body);
+        // cv::waitKey(0);
+        // // 进行不同半径的膨胀
+        double upper_inflation = 0.5;
+        double knee_inflation = 0.1;
+        int inflation_radius_upper = upper_inflation/resolution;
+        int inflation_radius_knee = knee_inflation/resolution;
+        cv::Mat kernel_upper = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(inflation_radius_upper, inflation_radius_upper));
+        cv::Mat kernel_knee = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(inflation_radius_knee, inflation_radius_knee));
+        // // 对图像进行膨胀操作
+        cv::Mat dilated_image_upper;
+        cv::dilate(upper_body, dilated_image_upper, kernel_upper);
+        cv::Mat dilated_image_knee;
+        cv::dilate(knee, dilated_image_knee, kernel_knee);
+        // cv::imshow("dilated_image_upper", dilated_image_upper);
+        // cv::waitKey(0);
+        // cv::imshow("dilated_image_knee", dilated_image_knee);
+        // cv::waitKey(0);
+        // 计算膨胀后的边缘
+        cv::Mat collision_layer1 = image - dilated_image_upper;
+        cv::Mat free_collision = collision_layer1 - dilated_image_knee;
+        // cv::imshow("free_collision", free_collision);
+        // cv::waitKey(0);
+        collision_free_images.emplace_back(free_collision);
+    }
     // // 构造适合落脚点规划的地图
-    // map.add("label");
-    // cv::Mat plane_image = cv::Mat::zeros(result.size(), CV_8UC3);
-    // for (int i = 0; i < map.getSize().x(); i++)
-    // {
-    //     for (int j = 0; j < map.getSize().y(); j++)
-    //     {
-    //         bool flag = false;
-    //         for (int label = 1; label <= collision_free_images.size(); label++)
-    //         {
-    //             if (collision_free_images.at(label - 1).at<uchar>(i, j) == 255)
-    //             {
-    //                 flag = true;
-    //                 map["label"](i ,j) = label;
-    //                 // 后续计算
-    //                 plane_image.at<cv::Vec3b>(i, j) = cv::Vec3b(default_colors[int(label)][0], default_colors[int(label)][1], default_colors[int(label)][2]);
-    //                 break;
-    //             }
-    //         }
-    //         if (!flag)
-    //         {
-    //             map["label"](i,j) = NAN;
-    //         }
-    //     }
-    // }
-    // 落脚点规划的输入，带"label"的高程图，
-    // FootParam footparam(0.13, 0.11, 0.065, 0.065);
-    // AstarHierarchicalFootstepPlanner planner(map, plane_image, collision_free_images, footparam, 0.2);
+    map.add("label");
+    cv::Mat plane_image = cv::Mat::zeros(result.size(), CV_8UC3);
+    for (int i = 0; i < map.getSize().x(); i++)
+    {
+        for (int j = 0; j < map.getSize().y(); j++)
+        {
+            bool flag = false;
+            for (int label = 1; label <= collision_free_images.size(); label++)
+            {
+                if (collision_free_images.at(label - 1).at<uchar>(i, j) == 255)
+                {
+                    flag = true;
+                    map["label"](i ,j) = label;
+                    // 后续计算
+                    plane_image.at<cv::Vec3b>(i, j) = cv::Vec3b(default_colors[int(label)][0], default_colors[int(label)][1], default_colors[int(label)][2]);
+                    break;
+                }
+            }
+            if (!flag)
+            {
+                map["label"](i,j) = NAN;
+            }
+        }
+    }
 
-    // 落脚点规划
-    // // 平面检测
-    // AHFP_pl::PlanarContourExtraction pce(org_pc);
-    // pce.run();
-    // cv::Mat plane_image = pce.getSegImage();
-    // // cv::imshow("seg 1", plane_image);
-    // // cv::waitKey(0);
-    // // LOG(INFO)<<"...";
-    // vector<cv::Mat> planes = pce.getSegPlanes();
-    // vector<Eigen::Vector3d> obstacle, plane_points;
-    // pcl::PointCloud<pcl::PointXYZ> pcl_obstacle, pcl_plane_points;
-    // for (int i = 0; i < plane_image.rows; i++)
-    // {
-    //     for (int j = 0; j < plane_image.cols; j++)
+    while (!get_goal)
+    {
+        sleep(1);
+    }
+    cout<<"get goal"<<endl;
+    // 落脚点规划的输入，带"label"的高程图，
+    FootParam footparam(0.13, 0.11, 0.065, 0.065);
+    AstarHierarchicalFootstepPlanner planner(map, plane_image, collision_free_images, footparam, 0.2);
+    Eigen::Vector3d left_foot(0.05, 0.1, 0);
+    Eigen::Vector3d right_foot(0.05, -0.1, 0);
+    Eigen::Vector3d goal_p;
+    goal_p.x() = goal.position.x;
+    goal_p.y() = goal.position.y;
+    Eigen::Quaterniond qd(goal.orientation.w, goal.orientation.x, goal.orientation.y, goal.orientation.z);
+    Eigen::Vector3d v_t = qd.toRotationMatrix() * Eigen::Vector3d::UnitX();
+    double yaw = atan(v_t.y()/v_t.x());
+    goal_p.z() = yaw;
+    vector<Footstep> steps;
+    vector<vector<Eigen::Vector3d>> avoid_points;
+    if (planner.initial(left_foot, right_foot, 0, goal_p))// 先迈右脚
+    {
+        LOG(INFO)<<"set start and goal";
+        if (planner.plan())
+        {
+            steps = planner.getResultSteps();
+            avoid_points = planner.computeAvoidPoints();
+            for (auto & step : steps)
+            {
+                cout<<setw(8)<<step.x<<" "<<step.y<<" "<<step.z<<" "<<step.roll<<" "<<step.pitch<<" "<<step.yaw*57.3<<" "<<step.robot_side<<endl;
+            }
+        }
+    }
+    else
+    {
+        LOG(INFO)<<"planning error";
+    }
+    //     diy_msgs::footSteps steps_pub;
+    //     steps_pub.header.frame_id = "map";
+    //     for (auto & s : steps)
     //     {
-    //         if (plane_image.at<cv::Vec3b>(i, j) ==  cv::Vec3b(0, 0, 0))
-    //         {
-    //             grid_map::Position3 p3;
-    //             if (map.getPosition3("elevation", grid_map::Index(i, j), p3))
-    //             {
-    //                 if (!std::isnan(p3.z()))
-    //                 {
-    //                     obstacle.emplace_back(p3);
-    //                     pcl_obstacle.emplace_back(pcl::PointXYZ(p3.x(), p3.y(), p3.z()));
-    //                 }
-    //             }
-    //         }
-    //         else
-    //         {
-    //             grid_map::Position3 p3;
-    //             if (map.getPosition3("elevation", grid_map::Index(i, j), p3))
-    //             {
-    //                 if (!std::isnan(p3.z()))
-    //                 {
-    //                     plane_points.emplace_back(p3);
-    //                     pcl_plane_points.emplace_back(pcl::PointXYZ(p3.x(), p3.y(), p3.z()));
-    //                 }
-    //             }
-    //         }
+    //         diy_msgs::footStep tmp_step;
+    //         tmp_step.is_left = s.robot_side == 0 ? true : false;
+    //         tmp_step.x = s.x;
+    //         tmp_step.y = s.y;
+    //         tmp_step.z = s.z;
+    //         tmp_step.roll = s.roll;
+    //         tmp_step.pitch = s.pitch;
+    //         tmp_step.yaw = s.yaw;
+    //         steps_pub.footsteps.emplace_back(tmp_step);
     //     }
+    //     diy_msgs::avoidPointsMsg points_pub;
+    //     points_pub.header.frame_id = "map";
+    //     for (auto & points : avoid_points)
+    //     {
+    //         diy_msgs::avoidPoints ps;
+    //         // ps.terrainType
+    //         for (auto & point : points)
+    //         {
+    //             geometry_msgs::Point p;
+    //             p.x = point.x();
+    //             p.y = point.y();
+    //             p.z = point.z();
+    //             ps.avoidPoints.emplace_back(p);
+    //         }
+    //         points_pub.avoidPointsMsg.emplace_back(ps);
+    //     }
+    //     footsteps_pub.publish(steps_pub);
+    //     avoid_points_pub.publish(points_pub);
     // }
-    // pcl::io::savePCDFileASCII("/home/bhr/TCDS/src/pip_line/data/obstacle.pcd", pcl_obstacle);
-    // pcl::io::savePCDFileASCII("/home/bhr/TCDS/src/pip_line/data/plane.pcd", pcl_plane_points);
+
+
     // for (auto & image : planes)
     // {
     //     Eigen::Vector3d center = Eigen::Vector3d::Zero();

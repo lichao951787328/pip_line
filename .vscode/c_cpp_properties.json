@@ -52,7 +52,8 @@
         "/usr/include/pcl-1.10",
         "/home/lichao/Darwin-op/src/elevation_map_ours/elevation_mapping/AstarHierarchicalFootstepPlanner/include/",
         "/home/bhr/catkin_beijing4th/devel/include",
-        "/home/bhr/TCDS/src/pip_line/include"
+        "/home/bhr/TCDS/src/pip_line/include",
+        "/home/lichao/Darwin-op/src/elevation_map_ours/elevation_mapping/AstarHierarchicalFootstepPlanner/include"
       ],
       "name": "ROS",
       "intelliSenseMode": "gcc-x64",
