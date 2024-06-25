@@ -126,28 +126,27 @@ struct Stats {
 			//LA.svd33(K, sv, V);
 			// 这里是修改过的地方，由于我们的点云是转到机器人世界坐标系下，所以保证法向量向上
 			// 后续如果机器人行走在局部地图坐标系下时，也需要将地图在局部坐标系下，并且坐标系z轴与重力方向正好相反
-			if(V[0][0]*center[0]+V[1][0]*center[1]+V[2][0]*center[2]<=0) {//enforce dot(normal,center)<00 so normal always points towards camera
-				normal[0]=V[0][0];
-				normal[1]=V[1][0];
-				normal[2]=V[2][0];
-			} else {
-				normal[0]=-V[0][0];
-				normal[1]=-V[1][0];
-				normal[2]=-V[2][0];
-			}
-
-			// if (V[2][0]<0)
-			// {
+			// if(V[0][0]*center[0]+V[1][0]*center[1]+V[2][0]*center[2]<=0) {//enforce dot(normal,center)<00 so normal always points towards camera
+			// 	normal[0]=V[0][0];
+			// 	normal[1]=V[1][0];
+			// 	normal[2]=V[2][0];
+			// } else {
 			// 	normal[0]=-V[0][0];
 			// 	normal[1]=-V[1][0];
 			// 	normal[2]=-V[2][0];
 			// }
-			// else
-			// {
-			// 	normal[0]=V[0][0];
-			// 	normal[1]=V[1][0];
-			// 	normal[2]=V[2][0];
-			// }
+			if (V[2][0]<0)
+			{
+				normal[0]=-V[0][0];
+				normal[1]=-V[1][0];
+				normal[2]=-V[2][0];
+			}
+			else
+			{
+				normal[0]=V[0][0];
+				normal[1]=V[1][0];
+				normal[2]=V[2][0];
+			}
 			mse = sv[0]*sc;
 			curvature=sv[0]/(sv[0]+sv[1]+sv[2]);
 		}

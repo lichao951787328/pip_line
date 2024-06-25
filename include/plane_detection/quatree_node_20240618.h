@@ -38,11 +38,12 @@ public:
   static size_t data_height;
   static size_t quatree_width;
   static Eigen::Vector3f check_normal;
-  // static int xxx;
-  // static test_xxx xxx;
 
   static orginazed_points raw_points;
   static parameter param;
+  // 加一个彩色图，根据高度值来赋色，从而看看哪个地方会出现缺口的问题
+  // for debug
+  static cv::Mat debug_color_image;
 
   static std::shared_ptr<node> create(size_t start_rows_, size_t start_cols_, size_t width_, size_t start_rows_2d_, size_t start_cols_2d_, size_t width_2d_, size_t depth_, std::shared_ptr<node> parent_);
 public:

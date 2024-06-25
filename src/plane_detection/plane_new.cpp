@@ -114,6 +114,19 @@ void plane::regionGrowing()
       }
       
       addPoints2Plane(points);
+
+      if (points.size() == tmpnode->initial_size)
+      {
+        // 将邻近节点加入
+        for (auto & n : tmpnode->neighbors)
+        {
+          if (close_set.find(node2string(n)) == close_set.end())
+          {
+            p_queue.push(n);
+          }
+        }
+      }
+      
       close_set.insert(node2string(tmpnode));
       // nodesHadChecked.insert(tmpnode);
       // for (auto & iter_node : tmpnode->neighbors)
@@ -196,6 +209,10 @@ bool plane::addNode2Plane(std::shared_ptr<quatree::node> p)
     // cv::Rect 内第一个参数是：列，第二个参数是：行
     // 加上要
     cv::rectangle(contour_image, cv::Rect(p->start_cols, p->start_rows, p->width, p->width), 255, -1, 1, 0);//255白色
+
+    // cv::imshow("debug_image", contour_image);
+    cv::imwrite("/home/lichao/TCDS/src/pip_line/data/debug_image.png", contour_image);
+    // cv::waitKey(0);
 
     // cv::Mat enlarged_img;
     // int scale_factor = 50;  // 放大倍数
@@ -295,6 +312,7 @@ bool plane::addNode2Plane(std::shared_ptr<quatree::node> p)
     // 加上要
     // 求轮廓时用到
     cv::rectangle(contour_image, cv::Rect(p->start_cols, p->start_rows, p->width, p->width), 255, -1, 1, 0);//255白色
+    cv::imwrite("/home/lichao/TCDS/src/pip_line/data/debug_image.png", contour_image);
     // std::cout<<"erase 3"<<std::endl;
     // std::cout<<"has erase"<<std::endl;
     // std::cout<<"erase node: "<<p<<std::endl;
@@ -450,7 +468,6 @@ bool plane::checkPointInPlane(Eigen::Vector3f & p)
 
 /* bool plane::addPoint2Plane(Eigen::Vector3f & p)
 {
-
   // Eigen::Vector3f M = center * valid_points_size + p;
   // Eigen::Vector3f center_cand = M/(valid_points_size + 1);
   // Eigen::Matrix3f J_cand = J + p * p.transpose();
@@ -477,8 +494,6 @@ bool plane::checkPointInPlane(Eigen::Vector3f & p)
     valid_points_size = stats.N;
     return true;
   }
-    
-  
   // if (mse_cand <= param.patch_mse_th)
   // {
   //   center = center_cand;
@@ -542,7 +557,10 @@ bool plane::addPoints2Plane(IndexPoints& ps)
       // inline uchar &cv::Mat::at<uchar>(int row, int col)
       contour_image.at<uchar>(indexpoint.first.first, indexpoint.first.second) = 255;
     }
-    
+    cv::imwrite("/home/lichao/TCDS/src/pip_line/data/debug_image.png", contour_image);
+    // cv::imshow("debug_image", contour_image);
+    // cv::waitKey(0);
+
     // cv::Mat enlarged_img;
     // int scale_factor = 50;  // 放大倍数
     // cv::resize(contour_image, enlarged_img, cv::Size(), scale_factor, scale_factor, cv::INTER_LINEAR);
@@ -839,7 +857,7 @@ plane_info plane::calculatePlaneParammedianBlur()
   {
     std::vector<std::vector<cv::Point> >::const_iterator itc = contours.begin();
     // 遍历所有轮廓
-    while (itc != contours.end()) 
+    while (itc != contours.end())
     {
       // 定位当前轮廓所在位置
       cv::Rect rect = cv::boundingRect(cv::Mat(*itc));
