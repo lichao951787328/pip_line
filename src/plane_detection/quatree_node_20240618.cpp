@@ -14,10 +14,11 @@ namespace quatree
   size_t node::data_height = 0;
   size_t node::quatree_width = 0;
   Eigen::Vector3f node::check_normal = Eigen::Vector3f::Zero();
-  // int node::xxx = 0;
-  // test_xxx node::xxx = test_xxx();
   orginazed_points node::raw_points;
   parameter node::param;
+
+  // for debug
+  cv::Mat debug_color_image;
 
 bool compnode::operator() (std::shared_ptr<node> a, std::shared_ptr<node> b) const
 {

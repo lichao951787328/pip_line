@@ -135,22 +135,46 @@ bool quatree::checkNodeChildrenIsPlaneMean(std::shared_ptr<node> p)
   // 表明每个子节点是平面，检查平面法向量
   // 这个相当于每次判断是否合并，都需要判断12次
   // 可不可以改成先求法向量的平均值，再将每个子节点的法向量与平均值进行比较，做一个测试
-  Eigen::Vector3f mean_normal = Eigen::Vector3f::Zero();
-  size_t sum_num = 0;
-  for (auto & iter_child : p->children)
-  {
-    mean_normal += iter_child->normal * iter_child->valid_points_size;
-    sum_num += iter_child->valid_points_size;
-  }
-  mean_normal /= sum_num;
+  // Eigen::Vector3f mean_normal = Eigen::Vector3f::Zero();
+  // size_t sum_num = 0;
+  // for (auto & iter_child : p->children)
+  // {
+  //   mean_normal += iter_child->normal * iter_child->valid_points_size;
+  //   sum_num += iter_child->valid_points_size;
+  // }
+  // mean_normal /= sum_num;
   
-  for (auto & iter_child : p->children)
+  // for (auto & iter_child : p->children)
+  // {
+  //   if (mean_normal.dot(iter_child->normal) < param.quatree_merge_normal_dot_th)
+  //   {
+  //     return false;
+  //   }
+  // }
+
+  // 任意两法向量差距比较大
+
+  // 距离因素 任意两个子节点之间的距离都很小 法向量差距很小
+  for (int i = 0; i < 3; i++)
   {
-    if (mean_normal.dot(iter_child->normal) < param.quatree_merge_normal_dot_th)
+    for (int j = i + 1; j < 4; j++)
     {
-      return false;
+      if (abs(p->children.at(i)->normal.dot(p->children.at(j)->normal)) < param.quatree_merge_normal_dot_th)
+      {
+        return false;
+      }
+      else
+      {
+        if (abs((p->children.at(i)->center - p->children.at(j)->center).dot(p->children.at(i)->normal)) > param.merge_normal_distance)
+        {
+          return false;
+        }
+      }
     }
   }
+  
+
+
   return true;
 }
 

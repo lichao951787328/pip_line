@@ -19,6 +19,7 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <visualization_msgs/Marker.h>
+#include <AstarHierarchicalFootstepPlanner/AstarHierarchicalFootstepPlanner.h>
 using namespace std;
 class pip_line
 {
@@ -64,8 +65,11 @@ private:
     grid_map::GridMap feasible_map;
     
     vector<cv::Mat> plane_images;
-    visualization_msgs::MarkerArray planes_msg;
-    visualization_msgs::MarkerArray planes_cutted_msg;
+    // visualization_msgs::MarkerArray planes_msg;
+    // visualization_msgs::MarkerArray planes_cutted_msg;
+
+    vector<Footstep> steps;
+    vector<vector<Eigen::Vector3d>> avoid_points;
 
     bool is_finish = false;
 
@@ -90,6 +94,11 @@ public:
     void timerCallback(const ros::TimerEvent & event);
 
     void draw_planes(grid_map::GridMap map, visualization_msgs::MarkerArray & msg, double r, double g, double b);
+
+    void publishSteps();
+    void publishAvoidpoints();
+    void publishVisualSteps();
+    void publishVisualAvoidpoints();
 
     ~pip_line();
 };
