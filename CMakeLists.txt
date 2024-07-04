@@ -3,8 +3,8 @@ project(pip_line)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
-# set(CMAKE_BUILD_TYPE Debug)
-set(CMAKE_BUILD_TYPE Release)
+set(CMAKE_BUILD_TYPE Debug)
+# set(CMAKE_BUILD_TYPE Release)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
@@ -151,7 +151,7 @@ include
   # ${grid_map_msgs_INCLUDE_DIRS}
   # ${grid_map_ros_INCLUDE_DIRS}
   # ${grid_map_filters_INCLUDE_DIRS}
-  /home/lichao/Darwin-op/src/elevation_map_ours/elevation_mapping/AstarHierarchicalFootstepPlanner/include
+  # /home/lichao/Darwin-op/src/elevation_map_ours/elevation_mapping/AstarHierarchicalFootstepPlanner/include
   # /home/bhr/catkin_beijing4th/src/elevation_mapping/AstarHierarchicalFootstepPlanner/include
 )
 
@@ -172,7 +172,8 @@ add_executable(${PROJECT_NAME}_node
 src/main.cpp 
 src/pip_line.cpp
 # /home/bhr/catkin_beijing4th/src/elevation_mapping/AstarHierarchicalFootstepPlanner/src/AstarHierarchicalFootstepPlanner.cpp
-/home/lichao/Darwin-op/src/elevation_map_ours/elevation_mapping/AstarHierarchicalFootstepPlanner/src/AstarHierarchicalFootstepPlanner.cpp
+# /home/lichao/Darwin-op/src/elevation_map_ours/elevation_mapping/AstarHierarchicalFootstepPlanner/
+src/AstarHierarchicalFootstepPlanner.cpp
 src/plane_detection/quatree_node_20240618.cpp
 src/plane_detection/type.cpp
 src/plane_detection/quadtree_new.cpp
@@ -180,7 +181,25 @@ src/plane_detection/plane_new.cpp
 src/plane_detection/plane_segmentation.cpp 
 )
 
+add_executable(test_planner 
+test/test_footstep_planner/test.cpp
+src/plane_detection/quatree_node_20240618.cpp
+src/plane_detection/type.cpp
+src/plane_detection/quadtree_new.cpp
+src/plane_detection/plane_new.cpp 
+src/plane_detection/plane_segmentation.cpp 
+src/AstarHierarchicalFootstepPlanner.cpp
+)
 
+add_executable(test_multi
+test/test_footstep_planner/test_new.cpp
+src/plane_detection/quatree_node_20240618.cpp
+src/plane_detection/type.cpp
+src/plane_detection/quadtree_new.cpp
+src/plane_detection/plane_new.cpp 
+src/plane_detection/plane_segmentation.cpp 
+src/AstarHierarchicalFootstepPlanner.cpp
+)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -194,6 +213,33 @@ src/plane_detection/plane_segmentation.cpp
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(${PROJECT_NAME}_node
+  ${catkin_LIBRARIES}
+  ${PCL_LIBRARIES}
+  ${OpenCV_LIBRARIES} 
+  ${grid_map_core_LIBRARIES}
+  ${OpenCV_LIBRARIES}
+  # ${grid_map_msgs_LIBRARIES}
+  # ${grid_map_ros_LIBRARIES}
+  # ${grid_map_filters_LIBRARIES}
+  glog::glog
+  tinyxml2::tinyxml2
+)
+
+target_link_libraries(test_planner
+  ${catkin_LIBRARIES}
+  ${PCL_LIBRARIES}
+  ${OpenCV_LIBRARIES} 
+  ${grid_map_core_LIBRARIES}
+  ${OpenCV_LIBRARIES}
+  # ${grid_map_msgs_LIBRARIES}
+  # ${grid_map_ros_LIBRARIES}
+  # ${grid_map_filters_LIBRARIES}
+  glog::glog
+  tinyxml2::tinyxml2
+)
+
+
+target_link_libraries(test_multi
   ${catkin_LIBRARIES}
   ${PCL_LIBRARIES}
   ${OpenCV_LIBRARIES} 

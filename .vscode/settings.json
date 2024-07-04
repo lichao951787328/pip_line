@@ -97,6 +97,8 @@
         "codecvt": "cpp",
         "future": "cpp",
         "shared_mutex": "cpp",
-        "filesystem": "cpp"
+        "filesystem": "cpp",
+        "numericaldiff": "cpp",
+        "specialfunctions": "cpp"
     }
 }

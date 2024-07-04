@@ -45,6 +45,7 @@
 #include <plane_detection/plane_segmentation.h>
 #include <sensor_msgs/Image.h>
 #include <cv_bridge/cv_bridge.h>
+#include <grid_map_cv/GridMapCvConverter.hpp>
 // #include <plane_detection/plane_new.h>
 
 #include <ros/package.h>
@@ -61,7 +62,8 @@ void initial_package_path(string package_name, string & package_path)
 
 pip_line::pip_line(ros::NodeHandle & n):nh(n)
 {
-    pointcloud_sub = nh.subscribe("/trigger_points", 1, &pip_line::pointcloud_callback, this);
+    pointcloud_sub = nh.subscribe("/camera/depth/color/points", 1, &pip_line::pointcloud_callback, this);
+    // pointcloud_sub = nh.subscribe("/trigger_points", 1, &pip_line::pointcloud_callback, this);
     string goal_point_topic = "/move_base_simple/goal";
     goal_point_sub = nh.subscribe(goal_point_topic, 1, &pip_line::goal_point_callback, this);
     raw_heightmap_pub = nh.advertise<grid_map_msgs::GridMap>("raw_heightmap", 1);
@@ -86,8 +88,8 @@ pip_line::pip_line(ros::NodeHandle & n):nh(n)
 
     timer = nh.createTimer(ros::Duration(1), &pip_line::timerCallback, this);
 
-    grid_map::Length length(4, 2);
-    grid_map::Position position(2, 0);
+    grid_map::Length length(2.2, 2);
+    grid_map::Position position(1.1, 0);
     map.setGeometry(length, 0.02, position);
     map.add("elevation", NAN);
 
@@ -104,14 +106,34 @@ pip_line::pip_line(ros::NodeHandle & n):nh(n)
     // plane_map.clearAll();
     // plane_map.add("elevation", NAN);
     is_finish = false;
-    Eigen::Matrix4d T_velodyne_camera = Eigen::Matrix4d::Identity();
-    Eigen::Matrix4d T_base_velodyne = Eigen::Matrix4d::Identity();
+    // helios 使用的变换矩阵
+    // Eigen::Matrix4d T_velodyne_camera = Eigen::Matrix4d::Identity();
+    // Eigen::Matrix4d T_base_velodyne = Eigen::Matrix4d::Identity();
+    // Eigen::Matrix4d T_world_base = Eigen::Matrix4d::Identity();
+    // T_velodyne_camera.block<3,3>(0,0) = Eigen::Quaterniond(0.229184, 0, 0.973383, 0).toRotationMatrix();
+    // T_velodyne_camera.block<3,1>(0,3) = Eigen::Vector3d(0.15, 0, -0.4024);
+    // T_base_velodyne.block<3,1>(0,3) = Eigen::Vector3d(-0.01, 0, 0.7217);
+    // T_world_base.block<3,1>(0,3) = Eigen::Vector3d(0, 0, 0.69);
+    // T_world_camera = T_world_base * T_base_velodyne * T_velodyne_camera;
+
+    // 45度L515相机使用的变换矩阵
+    Eigen::Matrix4d T_install_depth = Eigen::Matrix4d::Identity();
+    T_install_depth(1, 3) = -0.001;
+    T_install_depth(2, 3) = 0.026 - 0.0045;
+    Eigen::Matrix4d T_hole_install = Eigen::Matrix4d::Identity();
+    Eigen::Matrix3d R;
+    R<<- 0.7071, 0, 0.7071,
+        0, 1, 0,
+        - 0.7071, 0, -0.7071;
+    T_hole_install.block<3,3>(0,0) = R;
+    T_hole_install(0, 3) = 0.07025;
+    T_hole_install(2, 3) = 0.00424;
+    Eigen::Matrix4d T_base_hole = Eigen::Matrix4d::Identity();
+    T_base_hole(0, 3) = 0.05675;
+    T_base_hole(2, 3) = 0.49123;
     Eigen::Matrix4d T_world_base = Eigen::Matrix4d::Identity();
-    T_velodyne_camera.block<3,3>(0,0) = Eigen::Quaterniond(0.229184, 0, 0.973383, 0).toRotationMatrix();
-    T_velodyne_camera.block<3,1>(0,3) = Eigen::Vector3d(0.15, 0, -0.4024);
-    T_base_velodyne.block<3,1>(0,3) = Eigen::Vector3d(-0.01, 0, 0.7217);
-    T_world_base.block<3,1>(0,3) = Eigen::Vector3d(0, 0, 0.69);
-    T_world_camera = T_world_base * T_base_velodyne * T_velodyne_camera;
+    T_world_base.block<3,1>(0,3) = Eigen::Vector3d(0, 0, 0.67);
+    T_world_camera = T_world_base * T_base_hole * T_hole_install * T_install_depth;
 }
 
 
@@ -320,6 +342,117 @@ void preprocessing(pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_in, pcl::PointClou
 
 }
 
+void preprocessing_bk(pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_in, pcl::PointCloud<pcl::PointXYZ> &cloud_out)
+{
+    // clock_t start1 = clock();
+    // pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
+    // *cloud = *cloud_in;
+    
+    // // 去除这个过程
+    // // GaussPointCloud(cloud_in, cloud);
+    // // pcl::io::savePCDFile("/home/bhr/catkin_beijing4th/src/elevation_mapping/triggerHelios/debug_data/" + std::to_string(cloud_index) + ".pcd", *cloud);
+    // // cloud_index++;
+    // std::cout<<cloud->width<<" "<<cloud->height<<std::endl;
+    // clock_t end1 = clock();
+    // // cout<<"preprocess1 cost: "<<(double)(end1 - start1)/CLOCKS_PER_SEC<<std::endl;
+
+    // // 去掉顶上一部分
+    // // pcl::io::savePCDFile("/home/bhr/TCDS/src/pip_line/data/raw_points.pcd", *cloud);
+    // pcl::PointCloud<pcl::PointXYZ> stable_points;
+    // // 注意相机方向
+    // clock_t start2 = clock();
+    // for (int i = 100; i < cloud->width - 230; i++)
+    // {
+    //     for (int j = 30; j < cloud->height - 30; j++)
+    //     {
+    //         if (!std::isnan(cloud->at(j * cloud->width + i).z))
+    //         {
+    //             stable_points.emplace_back(cloud->at(j * cloud->width + i));
+    //         }
+    //     }
+    // }
+    // clock_t end2 = clock();
+    // cout<<"preprocess2 cost: "<<(double)(end2 - start2)/CLOCKS_PER_SEC<<std::endl;
+    // pcl::io::savePCDFile("/home/bhr/TCDS/src/pip_line/data/stable_points.pcd", stable_points);
+
+    clock_t start3 = clock();
+    pcl::VoxelGrid<pcl::PointXYZ> voxel_grid_filter;
+
+    // 设置体素滤波器的输入点云
+    // 这个地方可以选择使用平面点云还是所有点云
+    voxel_grid_filter.setInputCloud(cloud_in);
+
+    // 设置体素大小（体素的边长）这个值不能设成0.01，否则太耗时
+    voxel_grid_filter.setLeafSize(0.018f, 0.018f, 0.018f);  // 设置为0.01米
+
+    // 执行体素滤波
+    pcl::PointCloud<pcl::PointXYZ>::Ptr filtered_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+    voxel_grid_filter.filter(*filtered_cloud);
+
+    clock_t end3 = clock();
+    // cout<<"preprocess3 cost: "<<(double)(end3 - start3)/CLOCKS_PER_SEC<<std::endl;
+    // cout<<"after filter: "<<filtered_cloud->size()<<endl;
+
+    clock_t start4 = clock();
+    pcl::PassThrough<pcl::PointXYZ> pass;
+
+    pass.setInputCloud(filtered_cloud);
+
+    // // 设置过滤轴和范围（这里以Z轴为例，过滤掉Z轴范围在[0.0, 1.0]之外的点）
+    pass.setFilterFieldName("x");// 相机转动之前是y，转动之后是x
+    // // 这个值需要根据数据调节，后面上楼梯肯定会改
+    pass.setFilterLimits(-4, 2);
+
+    // // 执行直通滤波
+    pcl::PointCloud<pcl::PointXYZ>::Ptr pass_filtered_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+    pass.filter(*pass_filtered_cloud);
+    clock_t end4 = clock();
+    // cout<<"preprocess4 cost: "<<(double)(end4 - start4)/CLOCKS_PER_SEC<<std::endl;
+    // 飞点去除
+    // cout<<"after pass filter: "<<pass_filtered_cloud->size()<<endl;
+    // pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
+    // ne.setInputCloud(pass_filtered_cloud);// 注意衔接的输入输出
+
+    // // 创建KdTree用于法向量估计
+    // pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
+    // ne.setSearchMethod(tree);
+
+    // // 设置搜索半径，用于确定每个点的邻域
+    // ne.setRadiusSearch(0.08);  // 设置为0.03米
+
+    // // 计算法向量
+    // pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
+    // ne.compute(*normals);
+    // pcl::PointCloud<pcl::PointXYZ> result;
+    // for (size_t i = 0; i < pass_filtered_cloud->size(); i++)
+    // {
+    //     Eigen::Vector3d p(pass_filtered_cloud->at(i).x, pass_filtered_cloud->at(i).y, pass_filtered_cloud->at(i).z);
+    //     Eigen::Vector3d n(normals->at(i).normal_x, normals->at(i).normal_y, normals->at(i).normal_z);
+    //     if (std::abs(p.normalized().dot(n)) > 0.3)// 虽然这是一个阈值，但应该能满足要求
+    //     {
+    //         result.emplace_back(pass_filtered_cloud->at(i));
+    //     }
+    // }
+    // cout<<"after Normal filter: "<<result.size()<<endl;
+    clock_t start5 = clock();
+    pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sor;
+    // sor.setInputCloud(result.makeShared());
+    sor.setInputCloud(pass_filtered_cloud);
+    
+    // 设置统计滤波器参数
+    sor.setMeanK(50);  // 设置邻域中点的数量
+    sor.setStddevMulThresh(1.0);  // 设置标准差的倍数阈值
+
+    // 应用统计滤波器
+    // pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZ>);
+    sor.filter(cloud_out);
+    clock_t end5 = clock();
+    cout<<"preprocess5 cost: "<<(double)(end5 - start5)/CLOCKS_PER_SEC<<std::endl;
+    // LOG(INFO)<<"after StatisticalOutlierRemoval filter: "<<cloud_out.size();
+
+}
+
+
 pcl::PointCloud<pcl::PointXYZ> pip_line::gridMap2Pointcloud(grid_map::GridMap & map)
 {
     pcl::PointCloud<pcl::PointXYZ> pc;
@@ -355,18 +488,33 @@ pcl::PointCloud<pcl::PointXYZ> pip_line::gridMap2Pointcloud(grid_map::GridMap & 
 void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
 {
     // 构建高程图
-    pcl::PointCloud<pcl::PointXYZ>::Ptr pc(new pcl::PointCloud<pcl::PointXYZ>);
+    // pcl::PointCloud<pcl::PointXYZ>::Ptr pc(new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr pc(new pcl::PointCloud<pcl::PointXYZRGB>);
     pcl::fromROSMsg(*msg, *pc);
     LOG(INFO)<<pc->size();
     clock_t start = clock();
+    pcl::PointCloud<pcl::PointXYZ>::Ptr tmppc(new pcl::PointCloud<pcl::PointXYZ>);
+    for (auto & point : *pc)
+    {
+        if (!std::isnan(point.x) && !std::isnan(point.y) && !std::isnan(point.z))
+        {
+            tmppc->emplace_back(pcl::PointXYZ(point.x, point.y, point.z));
+        }
+    }
+    
     // auto start_o = clock();
     pcl::PointCloud<pcl::PointXYZ> pub_cloud;
-    preprocessing(pc, pub_cloud);
+
     
+    preprocessing_bk(tmppc, pub_cloud);
+    // pcl::io::savePCDFileASCII("/home/lichao/TCDS/src/pip_line/data/processed.pcd", pub_cloud);
+
+    pcl::PointCloud<pcl::PointXYZ> pc_world;
     LOG(INFO)<<pub_cloud.size();
     for (auto & point : pub_cloud)
     {
         Eigen::Vector3d po_w = T_world_camera.block<3,3>(0,0)* Eigen::Vector3d(point.x, point.y, point.z) + T_world_camera.block<3,1>(0,3);
+        pc_world.emplace_back(pcl::PointXYZ(po_w.x(), po_w.y(), po_w.z()));
         grid_map::Index index;
         if (map.getIndex(po_w.head(2), index))
         {
@@ -374,7 +522,70 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
         }
     }
 
-    cout<<"...."<<endl;
+    // grid_map_msgs::GridMap map_msg;
+    // grid_map::GridMapRosConverter::toMessage(map, map_msg);
+    // map_msg.info.header.frame_id = "map";
+    // raw_heightmap_pub.publish(map_msg);
+
+    const float minValue = map.get("elevation").minCoeffOfFinites();
+    const float maxValue = map.get("elevation").maxCoeffOfFinites();
+    cv::Mat originalImage;
+    grid_map::GridMapCvConverter::toImage<unsigned char, 1>(map, "elevation", CV_8UC1, minValue, maxValue, originalImage);
+    // cv::imshow("originalImage", originalImage);
+    // cv::waitKey(0);
+    // 对空洞进行补齐
+    // 创建一个标记小区域的掩码
+    cv::Mat smallRegionsMask = cv::Mat::zeros(originalImage.size(), CV_8UC1);
+
+    // // 标记连接组件
+    cv::Mat labels, stats, centroids;
+    int nLabels = cv::connectedComponentsWithStats(originalImage == 0, labels, stats, centroids, 8, CV_32S);
+
+    // 遍历每个连接组件
+    for (int label = 1; label < nLabels; ++label)
+    {
+        int area = stats.at<int>(label, cv::CC_STAT_AREA);
+
+        if (area < 40)
+        {
+            // 对小区域进行标记
+            cv::Mat mask = (labels == label);
+            smallRegionsMask.setTo(255, mask);
+        }
+    }
+    // cv::imshow("smallRegionsMask", smallRegionsMask);
+    // cv::waitKey(0);
+
+    // // 使用掩码进行图像修复
+    cv::Mat inpainted;
+    cv::inpaint(originalImage, smallRegionsMask, inpainted, 5, cv::INPAINT_TELEA);
+    // cv::imshow("inpainted", inpainted);
+    // cv::waitKey(0);
+
+    map.erase("elevation");
+    grid_map::GridMapCvConverter::addLayerFromImage<unsigned char, 1>(inpainted, "elevation", map, minValue, maxValue);
+
+    for (int i = 0; i < map.getSize().x(); i++)
+    {
+        for (int j = 0; j < map.getSize().y(); j++)
+        {
+            if (originalImage.at<uchar>(i, j) == 0 && smallRegionsMask.at<uchar>(i, j) == 0)
+            {
+                map["elevation"](i, j) = NAN;
+            }
+        }
+    }
+    
+
+    // grid_map::GridMapRosConverter::toMessage(map, map_msg);
+    // map_msg.info.header.frame_id = "map";
+    // raw_heightmap_pub.publish(map_msg);
+    // // 更新输入图像
+    // src = inpainted;
+
+
+    // pcl::io::savePCDFileASCII("/home/lichao/TCDS/src/pip_line/data/world_pc.pcd", pc_world);
+    // cout<<"...."<<endl;
     // 对小区域内补齐 (0.4, -0.4) (0, 0.4)
     grid_map::Index fill_start, fill_end;
     if (map.getIndex(grid_map::Position(0.5, 0.4), fill_start))
@@ -487,7 +698,7 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
 
     // // 使用地图转成有序点云
     pcl::PointCloud<pcl::PointXYZ> org_pc = gridMap2Pointcloud(map);
-    pcl::io::savePCDFileASCII("/home/lichao/TCDS/src/pip_line/data/submap.pcd", org_pc);
+    // pcl::io::savePCDFileASCII("/home/lichao/TCDS/src/pip_line/data/submap.pcd", org_pc);
     
 
     // // 确定无效点和有效点的个数
@@ -712,8 +923,8 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     }
     cout<<"get goal"<<endl;
     // 落脚点规划的输入，带"label"的高程图，
-    FootParam footparam(0.13, 0.11, 0.065, 0.065);
-    AstarHierarchicalFootstepPlanner planner(map, plane_image, collision_free_images, footparam, 0.2);
+    FootParam footparam(0.15, 0.11, 0.065, 0.065);
+    AstarHierarchicalFootstepPlanner planner(map, plane_image, collision_free_images, planes, footparam, 0.2);
     Eigen::Vector3d left_foot(0.05, 0.1, 0);
     Eigen::Vector3d right_foot(0.05, -0.1, 0);
     Eigen::Vector3d goal_p;
@@ -967,6 +1178,8 @@ void pip_line::goal_point_callback(geometry_msgs::PoseStamped::ConstPtr pose_p)
     std::lock_guard<std::mutex> lock(m_goal);
     goal.orientation = pose_p->pose.orientation;
     goal.position    = pose_p->pose.position;
+    LOG(INFO)<<goal.orientation.w<<" "<<goal.orientation.x<<" "<<goal.orientation.y<<" "<<goal.orientation.z;
+    LOG(INFO)<<goal.position.x<<" "<<goal.position.y<<" "<<goal.position.z;
     get_goal = true;
 }
 

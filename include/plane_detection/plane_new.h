@@ -39,6 +39,7 @@
 #include "plane_detection/type.h"
 #include <queue>
 #include <unordered_set>
+#include <plane_info.h>
 #define GRAPH
 
 

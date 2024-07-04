@@ -4,7 +4,7 @@
 #pragma once
 
 #include <vector>
-namespace AHFP_pl{
+namespace AHFP{
 class DisjointSet
 {
 private:

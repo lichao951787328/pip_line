@@ -14,7 +14,7 @@
 #include <vector>
 #include <Eigen/Core>
 
-namespace AHFP_pl{
+namespace AHFP{
 namespace ahc {
 
 //return true if d0 and d1 is discontinuous

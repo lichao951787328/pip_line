@@ -8,7 +8,7 @@
             "name": "test", // 创建的这个target的名字
             "type": "cppdbg",
             "request": "launch",
-            "program": "/home/lichao/TCDS/devel/lib/pip_line/pip_line_node",
+            "program": "/home/lichao/TCDS/devel/lib/pip_line/test_multi",
             "args": ["--flagfile=../flagfile.txt"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/build",

@@ -5,7 +5,7 @@
 
 #include "math.h"
 
-namespace AHFP_pl{
+namespace AHFP{
 namespace ahc {
 
 #define MACRO_DEG2RAD(d) ((d)*M_PI/180.0)
@@ -127,7 +127,7 @@ struct ParamSet {
 struct FitterAllParams
 {
 	ParamSet para;
-	int minSupport = 20;
+	int minSupport = 100;
 	int windowWidth = 5;
 	int windowHeight = 5;
 	bool doRefine = true;

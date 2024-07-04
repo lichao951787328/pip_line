@@ -16,7 +16,7 @@
 #include <glog/logging.h>
 #include "AHCPlaneFitter_AHFP.hpp"
 
-namespace AHFP_pl{
+namespace AHFP{
 // #include <polytopic/polytopic.h>
 using ahc::utils::Timer;
 
@@ -35,7 +35,8 @@ struct OrganizedImage3D {
 	inline bool get(const int row, const int col, double& x, double& y, double& z) const {
 		const PointT& pt=cloud.at(col,row);
 		x=pt.x*unitScaleFactor; y=pt.y*unitScaleFactor; z=pt.z*unitScaleFactor; //TODO: will this slowdown the speed?
-		return pcl_isnan(z)==0; //return false if current depth is NaN
+		// return pcl_isnan(z)==0; //return false if current depth is NaN
+		return !std::isnan(z);
 	}
 };
 typedef OrganizedImage3D<pcl::PointXYZ> ImageXYZ;

@@ -17,7 +17,7 @@
 
 #include <cmath>
 #include <limits>
-namespace AHFP_pl{
+namespace AHFP{
 namespace LA {
 	//s[0]<=s[1]<=s[2], V[:][i] correspond to s[i]
 	inline static bool eig33sym(double K[3][3], double s[3], double V[3][3])
