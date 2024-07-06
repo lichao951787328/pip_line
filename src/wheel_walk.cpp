@@ -69,8 +69,8 @@ pip_line::pip_line(ros::NodeHandle & n):nh(n)
 
     // timer = nh.createTimer(ros::Duration(1), &pip_line::timerCallback, this);
 
-    grid_map::Length length(2.2, 2);
-    grid_map::Position position(1.1, 0);
+    grid_map::Length length(4, 2);
+    grid_map::Position position(2, 0);
     map.setGeometry(length, 0.02, position);
     map.add("elevation", NAN);
 
@@ -104,7 +104,7 @@ pip_line::pip_line(ros::NodeHandle & n):nh(n)
     T_base_hole(0, 3) = 0.05675;
     T_base_hole(2, 3) = 0.49123;
     Eigen::Matrix4d T_world_base = Eigen::Matrix4d::Identity();
-    T_world_base.block<3,1>(0,3) = Eigen::Vector3d(0, 0, 0.67);
+    T_world_base.block<3,1>(0,3) = Eigen::Vector3d(0, 0, 0.75);
     T_world_camera = T_world_base * T_base_hole * T_hole_install * T_install_depth;
 }
 
@@ -366,6 +366,9 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     plane_segmentation ps(height, width, &qq, raw_points, param);
     vector<plane_info> planes = ps.getPlaneResult();
     cv::Mat result = ps.getSegResult();
+    // cv::imshow("result", result);
+    // cv::waitKey(0);
+    cv::imwrite("/home/lichao/TCDS/src/pip_line/data/result.png", result);
     seg_result_image = result;
     vector<cv::Mat> single_results = ps.getSegResultSingle();
     LOG(INFO)<<single_results.size();
@@ -374,17 +377,17 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     vector<plane_info> slope_plane, step_plane;
     for (auto & plane : planes)
     {
-        if (plane.center.z() < 0.05 && plane.normal.z() > 0.95)
+        if (plane.center.z() < 0.02 && plane.normal.z() > 0.98)
         {
             LOG(INFO)<<"it is ground";
             continue;
         }
-        if (plane.normal.z() > 0.95 && plane.center.z() > 0.05)
+        if (plane.normal.z() > 0.98 && plane.center.z() > 0.02)
         {
             LOG(INFO)<<"it is step";
             step_plane.emplace_back(plane);
         }
-        if (plane.normal.z() < 0.95)
+        if (plane.normal.z() < 0.98)
         {
             LOG(INFO)<<"it is slope";
             slope_plane.emplace_back(plane);
