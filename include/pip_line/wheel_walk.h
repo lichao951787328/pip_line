@@ -27,51 +27,39 @@ private:
     ros::NodeHandle nh;
     Eigen::Matrix4d T_world_camera;
     ros::Subscriber pointcloud_sub;
-    ros::Subscriber goal_point_sub;
+   
     ros::Publisher raw_heightmap_pub;
-    ros::Publisher raw_heightmap_pc_pub;
-    ros::Publisher height_map_upper_pub;
-    ros::Publisher height_map_lower_pub;
-    ros::Publisher seg_result_image_pub;
-    ros::Publisher feasible_map_pub;
+    // ros::Publisher raw_heightmap_pc_pub;
+    // ros::Publisher height_map_upper_pub;
+    // ros::Publisher height_map_lower_pub;
+    // ros::Publisher seg_result_image_pub;
+    // ros::Publisher feasible_map_pub;
 
-    cv::Mat upper_body_image;
-    cv::Mat upper_body_dilate;
-    cv::Mat knee_image;
-    cv::Mat knee_image_dilate;
+   
     
 
 
     // ros::Publisher planes_polygon_pub;
     // ros::Publisher planes_polygon_cutted_pub;
-    ros::Timer timer;
+    // ros::Timer timer;
 
-    ros::Publisher footsteps_pub;
-    ros::Publisher footsteps_visual_pub;
-    ros::Publisher avoid_points_pub;
-    ros::Publisher avoid_points_visual_pub;
 
     
-    bool get_goal = false;
-    std::mutex m_goal;
-    geometry_msgs::Pose goal;
+  
     grid_map::GridMap map;
-    grid_map::GridMap height_map_upper;
-    grid_map::GridMap height_map_lower;
-    // grid_map::GridMap height_map_foot;
-    // grid_map::GridMap plane_map;
-    // grid_map::GridMap plane_cutted;
+ 
+    
     cv::Mat seg_result_image;// 这是一张彩色图
-    grid_map::GridMap feasible_map;
+    // grid_map::GridMap feasible_map;
     
     vector<cv::Mat> plane_images;
     // visualization_msgs::MarkerArray planes_msg;
     // visualization_msgs::MarkerArray planes_cutted_msg;
 
-    vector<Footstep> steps;
-    vector<vector<Eigen::Vector3d>> avoid_points;
+    // vector<Footstep> steps;
+    // vector<vector<Eigen::Vector3d>> avoid_points;
 
-    bool is_finish = false;
+    // bool is_finish = false;
 
     unsigned char default_colors[10][3] =
     {
@@ -90,15 +78,15 @@ public:
     pip_line(ros::NodeHandle & n);
     void pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg);
     pcl::PointCloud<pcl::PointXYZ> gridMap2Pointcloud(grid_map::GridMap & map);
-    void goal_point_callback(geometry_msgs::PoseStamped::ConstPtr pose_p);
-    void timerCallback(const ros::TimerEvent & event);
+    // void goal_point_callback(geometry_msgs::PoseStamped::ConstPtr pose_p);
+    // void timerCallback(const ros::TimerEvent & event);
 
-    void draw_planes(grid_map::GridMap map, visualization_msgs::MarkerArray & msg, double r, double g, double b);
+    // void draw_planes(grid_map::GridMap map, visualization_msgs::MarkerArray & msg, double r, double g, double b);
 
-    void publishSteps();
-    void publishAvoidpoints();
-    void publishVisualSteps();
-    void publishVisualAvoidpoints();
+    // void publishSteps();
+    // void publishAvoidpoints();
+    // void publishVisualSteps();
+    // void publishVisualAvoidpoints();
 
     ~pip_line();
 };

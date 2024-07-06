@@ -10,7 +10,7 @@
 
 #include <ros/ros.h>
 #include <iostream>
-#include <pip_line/pip_line.h>
+#include <pip_line/wheel_walk.h>
 using namespace std;
 
 int main(int argc, char** argv)

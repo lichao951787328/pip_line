@@ -63,49 +63,19 @@ void initial_package_path(string package_name, string & package_path)
 pip_line::pip_line(ros::NodeHandle & n):nh(n)
 {
     pointcloud_sub = nh.subscribe("/camera/depth/color/points", 1, &pip_line::pointcloud_callback, this);
-    // pointcloud_sub = nh.subscribe("/trigger_points", 1, &pip_line::pointcloud_callback, this);
-    string goal_point_topic = "/move_base_simple/goal";
-    goal_point_sub = nh.subscribe(goal_point_topic, 1, &pip_line::goal_point_callback, this);
     raw_heightmap_pub = nh.advertise<grid_map_msgs::GridMap>("raw_heightmap", 1);
-    // sub_map_pub = nh.advertise<grid_map_msgs::GridMap>("sub_map", 1);
-    raw_heightmap_pc_pub = nh.advertise<sensor_msgs::PointCloud2>("raw_heightmap_pc", 1);
-    height_map_upper_pub = nh.advertise<grid_map_msgs::GridMap>("height_map_upper", 1);
-    height_map_lower_pub = nh.advertise<grid_map_msgs::GridMap>("height_map_lower", 1);
-    feasible_map_pub = nh.advertise<grid_map_msgs::GridMap>("feasible_map", 1);
-    // height_map_foot_pub = nh.advertise<grid_map_msgs::GridMap>("height_map_foot", 1);
-    seg_result_image_pub = nh.advertise<sensor_msgs::Image>("seg_result", 1);
-    // planes_all = nh.advertise<grid_map_msgs::GridMap>("planes_all", 1);
-    // planes_cutted = nh.advertise<grid_map_msgs::GridMap>("planes_cutted", 1);
-    // planes_polygon_pub = nh.advertise<visualization_msgs::MarkerArray>("planes_polygon", 1);
-    // planes_polygon_cutted_pub = nh.advertise<visualization_msgs::MarkerArray>("planes_polygon_cutted", 1);
+    // seg_result_image_pub = nh.advertise<sensor_msgs::Image>("seg_result", 1);
+    // footsteps_pub = nh.advertise<diy_msgs::footSteps>("footsteps", 1);
 
-
-    footsteps_pub = nh.advertise<diy_msgs::footSteps>("footsteps", 1);
-    footsteps_visual_pub = nh.advertise<visualization_msgs::MarkerArray>("footsteps_visual", 1);
-
-    avoid_points_pub = nh.advertise<diy_msgs::avoidPointsMsg>("avoid_points", 1);
-    avoid_points_visual_pub = nh.advertise<visualization_msgs::MarkerArray>("avoid_points_visual", 1);
-
-    timer = nh.createTimer(ros::Duration(1), &pip_line::timerCallback, this);
+    // timer = nh.createTimer(ros::Duration(1), &pip_line::timerCallback, this);
 
     grid_map::Length length(2.2, 2);
     grid_map::Position position(1.1, 0);
     map.setGeometry(length, 0.02, position);
     map.add("elevation", NAN);
 
-    height_map_upper = map;
-    height_map_lower = map;
-    // height_map_foot = map;
-    height_map_upper.clearAll();
-    height_map_lower.clearAll();
-    // height_map_foot.clearAll();
-    height_map_upper.add("elevation", NAN);
-    height_map_lower.add("elevation", NAN);
-    // height_map_foot.add("elevation", NAN);
-    // plane_map = map;
-    // plane_map.clearAll();
-    // plane_map.add("elevation", NAN);
-    is_finish = false;
+    
+    // is_finish = false;
     // helios 使用的变换矩阵
     // Eigen::Matrix4d T_velodyne_camera = Eigen::Matrix4d::Identity();
     // Eigen::Matrix4d T_base_velodyne = Eigen::Matrix4d::Identity();
@@ -120,14 +90,16 @@ pip_line::pip_line(ros::NodeHandle & n):nh(n)
     Eigen::Matrix4d T_install_depth = Eigen::Matrix4d::Identity();
     T_install_depth(1, 3) = -0.001;
     T_install_depth(2, 3) = 0.026 - 0.0045;
+
     Eigen::Matrix4d T_hole_install = Eigen::Matrix4d::Identity();
     Eigen::Matrix3d R;
-    R<<- 0.7071, 0, 0.7071,
-        0, 1, 0,
-        - 0.7071, 0, -0.7071;
+    R<<0, -0.5, 0.866,
+        1, 0, 0,
+        0, -0.866, -0.5;
     T_hole_install.block<3,3>(0,0) = R;
-    T_hole_install(0, 3) = 0.07025;
-    T_hole_install(2, 3) = 0.00424;
+    T_hole_install(0, 3) = 0.06739;
+    T_hole_install(2, 3) = 0.01115;
+
     Eigen::Matrix4d T_base_hole = Eigen::Matrix4d::Identity();
     T_base_hole(0, 3) = 0.05675;
     T_base_hole(2, 3) = 0.49123;
@@ -301,7 +273,7 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
 
     
     preprocessing_bk(tmppc, pub_cloud);
-    // pcl::io::savePCDFileASCII("/home/lichao/TCDS/src/pip_line/data/processed.pcd", pub_cloud);
+    pcl::io::savePCDFileASCII("/home/lichao/TCDS/src/pip_line/data/processed.pcd", pub_cloud);
 
     pcl::PointCloud<pcl::PointXYZ> pc_world;
     LOG(INFO)<<pub_cloud.size();
@@ -315,11 +287,11 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
             map["elevation"](index.x(), index.y()) = po_w.z();
         }
     }
-
-    // grid_map_msgs::GridMap map_msg;
-    // grid_map::GridMapRosConverter::toMessage(map, map_msg);
-    // map_msg.info.header.frame_id = "map";
-    // raw_heightmap_pub.publish(map_msg);
+    pcl::io::savePCDFileASCII("/home/lichao/TCDS/src/pip_line/data/pc_world.pcd", pc_world);
+    grid_map_msgs::GridMap map_msg;
+    grid_map::GridMapRosConverter::toMessage(map, map_msg);
+    map_msg.info.header.frame_id = "map";
+    raw_heightmap_pub.publish(map_msg);
 
     const float minValue = map.get("elevation").minCoeffOfFinites();
     const float maxValue = map.get("elevation").maxCoeffOfFinites();
@@ -369,10 +341,10 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
             }
         }
     }
-
+    // is_finish = false;
     // // 使用地图转成有序点云
     pcl::PointCloud<pcl::PointXYZ> org_pc = gridMap2Pointcloud(map);
-    // pcl::io::savePCDFileASCII("/home/lichao/TCDS/src/pip_line/data/submap.pcd", org_pc);
+    pcl::io::savePCDFileASCII("/home/lichao/TCDS/src/pip_line/data/submap.pcd", org_pc);
     
     orginazed_points raw_points;
     raw_points.initialByPCL(org_pc);
@@ -402,12 +374,12 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     vector<plane_info> slope_plane, step_plane;
     for (auto & plane : planes)
     {
-        if (plane.center.z < 0.05 && plane.normal.z() > 0.95)
+        if (plane.center.z() < 0.05 && plane.normal.z() > 0.95)
         {
             LOG(INFO)<<"it is ground";
             continue;
         }
-        if (plane.normal.z() > 0.95 && plane.center.z > 0.05)
+        if (plane.normal.z() > 0.95 && plane.center.z() > 0.05)
         {
             LOG(INFO)<<"it is step";
             step_plane.emplace_back(plane);
@@ -432,7 +404,7 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     }
     else if (step_plane.size() == 1)
     {
-        LOG(INFO)<<"just have 1 plane;
+        LOG(INFO)<<"just have 1 plane";
     }
     else
     {
@@ -451,251 +423,107 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     }
 }
 
-void pip_line::publishSteps()
-{
-    diy_msgs::footSteps steps_pub;
-    steps_pub.header.frame_id = "map";
-    for (auto & s : steps)
-    {
-        diy_msgs::footStep tmp_step;
-        tmp_step.is_left = s.robot_side == 0 ? true : false;
-        tmp_step.x = s.x;
-        tmp_step.y = s.y;
-        tmp_step.z = s.z;
-        tmp_step.roll = s.roll;
-        tmp_step.pitch = s.pitch;
-        tmp_step.yaw = s.yaw;
-        steps_pub.footsteps.emplace_back(tmp_step);
-    }
-    footsteps_pub.publish(steps_pub);
-}
 
-void pip_line::publishAvoidpoints()
-{
-    diy_msgs::avoidPointsMsg points_pub;
-    points_pub.header.frame_id = "map";
-    for (auto & points : avoid_points)
-    {
-        diy_msgs::avoidPoints ps;
-        // ps.terrainType
-        for (auto & point : points)
-        {
-            geometry_msgs::Point p;
-            p.x = point.x();
-            p.y = point.y();
-            p.z = point.z();
-            ps.avoidPoints.emplace_back(p);
-        }
-        points_pub.avoidPointsMsg.emplace_back(ps);
-    }
-    avoid_points_pub.publish(points_pub);
-}
+// void pip_line::timerCallback(const ros::TimerEvent & event)
+// {
+//     if (is_finish)
+//     {
+//         grid_map_msgs::GridMap map_msg;
+//         grid_map::GridMapRosConverter::toMessage(map, map_msg);
+//         map_msg.info.header.frame_id = "map";
+//         raw_heightmap_pub.publish(map_msg);
 
-void pip_line::publishVisualSteps()
-{
-     visualization_msgs::MarkerArray visual_steps;
-    int index_visual_step = 0;
-    for (auto & step : steps)
-    {
-        visualization_msgs::Marker visual_step;
-        visual_step.action = visualization_msgs::Marker::ADD;
-        visual_step.header.frame_id = "map";  // 设置坐标系
-        visual_step.id = index_visual_step;
-        index_visual_step++;
-        visual_step.type = visualization_msgs::Marker::MESH_RESOURCE;  // 表示网格模型
-        Eigen::AngleAxisd ad_roll(step.roll, Eigen::Vector3d::UnitX());
-        Eigen::AngleAxisd ad_pitch(step.pitch, Eigen::Vector3d::UnitY());
-        Eigen::AngleAxisd ad_yaw(step.yaw, Eigen::Vector3d::UnitZ());
-        Eigen::Matrix3d r = ad_roll.toRotationMatrix() * ad_pitch.toRotationMatrix() * ad_yaw.toRotationMatrix();
-        // Eigen::Matrix3d r_stl;
-        // r_stl<<1, 0, 0, 0, -1, 0, 0, 0, -1;
-        // Eigen::Quaterniond qd(r_stl * r);
-        Eigen::Quaterniond qd(r);
-        visual_step.pose.orientation.w = qd.w();
-        visual_step.pose.orientation.x = qd.x();
-        visual_step.pose.orientation.y = qd.y();
-        visual_step.pose.orientation.z = qd.z();
-        visual_step.pose.position.x = step.x - 0.09;
-        visual_step.pose.position.y = step.y - 0.065;
-        visual_step.pose.position.z = step.z;
-        visual_step.scale.x = 1.0;  // 调整模型大小
-        visual_step.scale.y = 1.0;
-        visual_step.scale.z = 1.0;
-        visual_step.color.a = 1.0;
-        // 获取包的路径
-        std::string package_path = ros::package::getPath("pip_line");
-        // 设置模型的相对路径
-        // mesh_resource_marker.mesh_resource = "file://" + package_path + "/path/to/your/model.stl";
-        if (step.robot_side == 0)
-        {
-            visual_step.mesh_resource = "file://" + package_path + "/foot_visual/leftfoot4.STL";  // 设置STL文件路径
-            // model_marker.mesh_resource = "file://" + package_path + "/data/left_foot.STL";  // 设置STL文件路径
-        }
-        else
-        {
-            visual_step.mesh_resource = "file://" + package_path + "/foot_visual/rightfoot4.STL";  // 设置STL文件路径
-            // model_marker.mesh_resource = "file://" + package_path + "/data/right_foot.STL";  // 设置STL文件路径
-        }
-        // 220,223,227
-        visual_step.color.r = 220.0/255.0;
-        visual_step.color.g = 223.0/255.0;
-        visual_step.color.b = 227.0/255.0;
-        visual_steps.markers.emplace_back(visual_step);
-    }
-    footsteps_visual_pub.publish(visual_steps);
-}
+//         grid_map_msgs::GridMap feasible_map_msg;
+//         grid_map::GridMapRosConverter::toMessage(feasible_map, feasible_map_msg);
+//         feasible_map_msg.info.header.frame_id = "map";
+//         feasible_map_pub.publish(feasible_map_msg);
 
-void pip_line::publishVisualAvoidpoints()
-{
-    visualization_msgs::MarkerArray visual_avoid_points;
-    int index_avoid_points = 0;
-    for (auto & points : avoid_points)
-    {
-        visualization_msgs::Marker visual_points;
-        visual_points.action = visualization_msgs::Marker::ADD;
-        visual_points.header.frame_id = "map";  // 设置坐标系
-        visual_points.id = index_avoid_points;
-        index_avoid_points ++;
-        visual_points.type = visualization_msgs::Marker::POINTS;
-        visual_points.color.r = 1.0f;
-        visual_points.color.g = 0.0f;
-        visual_points.color.b = 0.0f;
-        visual_points.color.a = 1.0f;
-        visual_points.scale.x = 0.05; // 点的宽度
-        visual_points.scale.y = 0.05; // 点的高度
-        visual_points.scale.z = 0.05; // 点的高度
-        // visual_points.scale.x = 1.0f;
-        // visual_points.scale.y = 1.0f;
-        // visual_points.scale.z = 1.0f;
-        for (auto & point : points)
-        {
-            geometry_msgs::Point p;
-            p.x = point.x();
-            p.y = point.y();
-            p.z = point.z();
-            visual_points.points.emplace_back(p);
-        }
-        // 这个地方并不考虑障碍点与步态点不对应，只是为了显示，不考虑对应关系
-        if (!visual_points.points.empty())
-        {
-            visual_avoid_points.markers.emplace_back(visual_points);
-        }
+//         // sensor_msgs::PointCloud2 raw_heightmap_pc;
+//         // pcl::toROSMsg(org_pc, raw_heightmap_pc);
+//         // raw_heightmap_pc.header.frame_id = "map";
+//         // raw_heightmap_pc_pub.publish(raw_heightmap_pc);
+
+//         std::vector<cv::Point> white_points;
+//         cv::findNonZero(upper_body_image, white_points);
+//         for (auto & cv_p : white_points)
+//         {
+//             height_map_upper["elevation"](cv_p.y, cv_p.x) = map["elevation"](cv_p.y, cv_p.x);
+//         }
         
-        
-    }
-    avoid_points_visual_pub.publish(visual_avoid_points);
-}
+//         white_points.clear();
+//         cv::findNonZero(knee_image, white_points);
+//         for (auto & cv_p : white_points)
+//         {
+//             height_map_lower["elevation"](cv_p.y, cv_p.x) = map["elevation"](cv_p.y, cv_p.x);
+//         }
 
-void pip_line::timerCallback(const ros::TimerEvent & event)
-{
-    if (is_finish)
-    {
-        grid_map_msgs::GridMap map_msg;
-        grid_map::GridMapRosConverter::toMessage(map, map_msg);
-        map_msg.info.header.frame_id = "map";
-        raw_heightmap_pub.publish(map_msg);
+//         grid_map_msgs::GridMap upper_msg;
+//         grid_map::GridMapRosConverter::toMessage(height_map_upper, upper_msg);
+//         upper_msg.info.header.frame_id = "map";
+//         height_map_upper_pub.publish(upper_msg);
 
-        grid_map_msgs::GridMap feasible_map_msg;
-        grid_map::GridMapRosConverter::toMessage(feasible_map, feasible_map_msg);
-        feasible_map_msg.info.header.frame_id = "map";
-        feasible_map_pub.publish(feasible_map_msg);
+//         grid_map_msgs::GridMap lower_msg;
+//         grid_map::GridMapRosConverter::toMessage(height_map_lower, lower_msg);
+//         lower_msg.info.header.frame_id = "map";
+//         height_map_lower_pub.publish(lower_msg);
 
-        // sensor_msgs::PointCloud2 raw_heightmap_pc;
-        // pcl::toROSMsg(org_pc, raw_heightmap_pc);
-        // raw_heightmap_pc.header.frame_id = "map";
-        // raw_heightmap_pc_pub.publish(raw_heightmap_pc);
+//         sensor_msgs::ImagePtr result = cv_bridge::CvImage(std_msgs::Header(), "bgr8", seg_result_image).toImageMsg();
 
-        std::vector<cv::Point> white_points;
-        cv::findNonZero(upper_body_image, white_points);
-        for (auto & cv_p : white_points)
-        {
-            height_map_upper["elevation"](cv_p.y, cv_p.x) = map["elevation"](cv_p.y, cv_p.x);
-        }
-        
-        white_points.clear();
-        cv::findNonZero(knee_image, white_points);
-        for (auto & cv_p : white_points)
-        {
-            height_map_lower["elevation"](cv_p.y, cv_p.x) = map["elevation"](cv_p.y, cv_p.x);
-        }
+//         result->header.frame_id = "map";
+//         seg_result_image_pub.publish(result);
+//         // grid_map_msgs::GridMap foot_msg;
+//         // grid_map::GridMapRosConverter::toMessage(height_map_foot, foot_msg);
+//         // foot_msg.info.header.frame_id = "map";
+//         // height_map_foot_pub.publish(foot_msg);
 
-        grid_map_msgs::GridMap upper_msg;
-        grid_map::GridMapRosConverter::toMessage(height_map_upper, upper_msg);
-        upper_msg.info.header.frame_id = "map";
-        height_map_upper_pub.publish(upper_msg);
+//         // grid_map_msgs::GridMap height_msg;
+//         // grid_map::GridMapRosConverter::toMessage(plane_map, height_msg);
+//         // height_msg.info.header.frame_id = "map";
+//         // planes_all.publish(height_msg);
 
-        grid_map_msgs::GridMap lower_msg;
-        grid_map::GridMapRosConverter::toMessage(height_map_lower, lower_msg);
-        lower_msg.info.header.frame_id = "map";
-        height_map_lower_pub.publish(lower_msg);
+//         // grid_map_msgs::GridMap cutted_msg;
+//         // grid_map::GridMapRosConverter::toMessage(plane_cutted, cutted_msg);
+//         // cutted_msg.info.header.frame_id = "map";
+//         // planes_cutted.publish(cutted_msg);
 
-        sensor_msgs::ImagePtr result = cv_bridge::CvImage(std_msgs::Header(), "bgr8", seg_result_image).toImageMsg();
-
-        result->header.frame_id = "map";
-        seg_result_image_pub.publish(result);
-        // grid_map_msgs::GridMap foot_msg;
-        // grid_map::GridMapRosConverter::toMessage(height_map_foot, foot_msg);
-        // foot_msg.info.header.frame_id = "map";
-        // height_map_foot_pub.publish(foot_msg);
-
-        // grid_map_msgs::GridMap height_msg;
-        // grid_map::GridMapRosConverter::toMessage(plane_map, height_msg);
-        // height_msg.info.header.frame_id = "map";
-        // planes_all.publish(height_msg);
-
-        // grid_map_msgs::GridMap cutted_msg;
-        // grid_map::GridMapRosConverter::toMessage(plane_cutted, cutted_msg);
-        // cutted_msg.info.header.frame_id = "map";
-        // planes_cutted.publish(cutted_msg);
-
-        // planes_polygon_pub.publish(planes_msg);
-        // planes_polygon_cutted_pub.publish(planes_cutted_msg);
-    }
+//         // planes_polygon_pub.publish(planes_msg);
+//         // planes_polygon_cutted_pub.publish(planes_cutted_msg);
+//     }
     
-}
+// }
 
-void pip_line::goal_point_callback(geometry_msgs::PoseStamped::ConstPtr pose_p)
-{
-    ROS_INFO("get goal********************************************************8");
-    std::lock_guard<std::mutex> lock(m_goal);
-    goal.orientation = pose_p->pose.orientation;
-    goal.position    = pose_p->pose.position;
-    LOG(INFO)<<goal.orientation.w<<" "<<goal.orientation.x<<" "<<goal.orientation.y<<" "<<goal.orientation.z;
-    LOG(INFO)<<goal.position.x<<" "<<goal.position.y<<" "<<goal.position.z;
-    get_goal = true;
-}
 
-void getPlaneInfo(grid_map::GridMap & map, cv::Mat & image, Eigen::Vector3d & normal, double & d)
-{
-    Eigen::Vector3d center = Eigen::Vector3d::Zero();
-    vector<Eigen::Vector3d> points;
-    for (int i = 0; i < image.rows; i++)
-    {
-        for (int j = 0; j < image.cols; j++)
-        {
-            if (image.at<uchar>(i, j) == 255)
-            {
-                grid_map::Position3 p3;
-                if (map.getPosition3("elevation", grid_map::Index(i, j), p3))
-                {
-                    points.emplace_back(p3);
-                    center += p3;
-                }
-            }
-        }
-    }
-    center = center/points.size();
+// void getPlaneInfo(grid_map::GridMap & map, cv::Mat & image, Eigen::Vector3d & normal, double & d)
+// {
+//     Eigen::Vector3d center = Eigen::Vector3d::Zero();
+//     vector<Eigen::Vector3d> points;
+//     for (int i = 0; i < image.rows; i++)
+//     {
+//         for (int j = 0; j < image.cols; j++)
+//         {
+//             if (image.at<uchar>(i, j) == 255)
+//             {
+//                 grid_map::Position3 p3;
+//                 if (map.getPosition3("elevation", grid_map::Index(i, j), p3))
+//                 {
+//                     points.emplace_back(p3);
+//                     center += p3;
+//                 }
+//             }
+//         }
+//     }
+//     center = center/points.size();
     
-    Eigen::Matrix3d M = Eigen::Matrix3d::Zero();
-    for (auto & point : points)
-    {
-        M += (point - center) * (point - center).transpose();
-    }
-    Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eigensolver(M);
-    auto eigenvectors = eigensolver.eigenvectors();
-    normal = eigenvectors.col(0);
-    d = -(normal.dot(center));
-}
+//     Eigen::Matrix3d M = Eigen::Matrix3d::Zero();
+//     for (auto & point : points)
+//     {
+//         M += (point - center) * (point - center).transpose();
+//     }
+//     Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eigensolver(M);
+//     auto eigenvectors = eigensolver.eigenvectors();
+//     normal = eigenvectors.col(0);
+//     d = -(normal.dot(center));
+// }
 
 // 使用平面地形高程图检测平面，获取轮廓，在根据像素轮廓，获取平面点，再根据三维点画出多边形
 // void pip_line::draw_planes(grid_map::GridMap map, visualization_msgs::MarkerArray & msg, double r, double g, double b)
