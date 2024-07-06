@@ -48,6 +48,7 @@ private:
 
     ros::Publisher footsteps_pub;
     ros::Publisher footsteps_visual_pub;
+    ros::Publisher footsteps_arrow_pub;
     ros::Publisher avoid_points_pub;
     ros::Publisher avoid_points_visual_pub;
 

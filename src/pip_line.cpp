@@ -82,6 +82,7 @@ pip_line::pip_line(ros::NodeHandle & n):nh(n)
 
     footsteps_pub = nh.advertise<diy_msgs::footSteps>("footsteps", 1);
     footsteps_visual_pub = nh.advertise<visualization_msgs::MarkerArray>("footsteps_visual", 1);
+    footsteps_arrow_pub = nh.advertise<visualization_msgs::MarkerArray>("footsteps_arrow", 1);
 
     avoid_points_pub = nh.advertise<diy_msgs::avoidPointsMsg>("avoid_points", 1);
     avoid_points_visual_pub = nh.advertise<visualization_msgs::MarkerArray>("avoid_points_visual", 1);
@@ -410,34 +411,34 @@ void preprocessing_bk(pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_in, pcl::PointC
     // cout<<"preprocess4 cost: "<<(double)(end4 - start4)/CLOCKS_PER_SEC<<std::endl;
     // 飞点去除
     // cout<<"after pass filter: "<<pass_filtered_cloud->size()<<endl;
-    // pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
-    // ne.setInputCloud(pass_filtered_cloud);// 注意衔接的输入输出
+    pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
+    ne.setInputCloud(pass_filtered_cloud);// 注意衔接的输入输出
 
     // // 创建KdTree用于法向量估计
-    // pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
-    // ne.setSearchMethod(tree);
+    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
+    ne.setSearchMethod(tree);
 
     // // 设置搜索半径，用于确定每个点的邻域
-    // ne.setRadiusSearch(0.08);  // 设置为0.03米
+    ne.setRadiusSearch(0.08);  // 设置为0.03米
 
     // // 计算法向量
-    // pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
-    // ne.compute(*normals);
-    // pcl::PointCloud<pcl::PointXYZ> result;
-    // for (size_t i = 0; i < pass_filtered_cloud->size(); i++)
-    // {
-    //     Eigen::Vector3d p(pass_filtered_cloud->at(i).x, pass_filtered_cloud->at(i).y, pass_filtered_cloud->at(i).z);
-    //     Eigen::Vector3d n(normals->at(i).normal_x, normals->at(i).normal_y, normals->at(i).normal_z);
-    //     if (std::abs(p.normalized().dot(n)) > 0.3)// 虽然这是一个阈值，但应该能满足要求
-    //     {
-    //         result.emplace_back(pass_filtered_cloud->at(i));
-    //     }
-    // }
+    pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
+    ne.compute(*normals);
+    pcl::PointCloud<pcl::PointXYZ> result;
+    for (size_t i = 0; i < pass_filtered_cloud->size(); i++)
+    {
+        Eigen::Vector3d p(pass_filtered_cloud->at(i).x, pass_filtered_cloud->at(i).y, pass_filtered_cloud->at(i).z);
+        Eigen::Vector3d n(normals->at(i).normal_x, normals->at(i).normal_y, normals->at(i).normal_z);
+        if (std::abs(p.normalized().dot(n)) > 0.3)// 虽然这是一个阈值，但应该能满足要求
+        {
+            result.emplace_back(pass_filtered_cloud->at(i));
+        }
+    }
     // cout<<"after Normal filter: "<<result.size()<<endl;
     clock_t start5 = clock();
     pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sor;
-    // sor.setInputCloud(result.makeShared());
-    sor.setInputCloud(pass_filtered_cloud);
+    sor.setInputCloud(result.makeShared());
+    // sor.setInputCloud(pass_filtered_cloud);
     
     // 设置统计滤波器参数
     sor.setMeanK(50);  // 设置邻域中点的数量
@@ -738,9 +739,6 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     Eigen::Matrix4f T_I = Eigen::Matrix4f::Identity();
     quatree::node::setStaticMember(width, height, param.quatree_width, T_I, raw_points, param);
 
-    // 
-
-
     // // std::shared_ptr<quatree::node> root = std::make_shared<quatree::node>(0, 0, param.quatree_width, 0, 0, param.quatree_width/param.leafnode_width, 0, nullptr);
 
     // std::shared_ptr<quatree::node> root = quatree::node::create(0, 0, param.quatree_width, 0, 0, param.quatree_width / param.leafnode_width, 0, nullptr);
@@ -895,9 +893,9 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
         for (int j = 0; j < map.getSize().y(); j++)
         {
             bool flag = false;
-            for (int label = 1; label <= collision_free_images.size(); label++)
+            for (int label = 0; label < collision_free_images.size(); label++)
             {
-                if (collision_free_images.at(label - 1).at<uchar>(i, j) == 255)
+                if (collision_free_images.at(label).at<uchar>(i, j) == 255)
                 {
                     flag = true;
                     map["label"](i ,j) = label;
@@ -952,6 +950,8 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
             {
                 cout<<setw(8)<<"step "<<i<<": "<<steps.at(i).x<<" "<<steps.at(i).y<<" "<<steps.at(i).z<<" "<<steps.at(i).roll*57.3<<" "<<steps.at(i).pitch*57.3<<" "<<steps.at(i).yaw*57.3<<" "<<steps.at(i).robot_side<<endl;
                 cout<<"points: "<<endl;
+
+                
                 for (auto & point : avoid_points.at(i))
                 {
                     cout<<setw(8)<<point.transpose()<<endl;
@@ -1011,7 +1011,8 @@ void pip_line::publishAvoidpoints()
 
 void pip_line::publishVisualSteps()
 {
-     visualization_msgs::MarkerArray visual_steps;
+    visualization_msgs::MarkerArray visual_steps;
+    visualization_msgs::MarkerArray steps_arrow;
     int index_visual_step = 0;
     for (auto & step : steps)
     {
@@ -1019,7 +1020,6 @@ void pip_line::publishVisualSteps()
         visual_step.action = visualization_msgs::Marker::ADD;
         visual_step.header.frame_id = "map";  // 设置坐标系
         visual_step.id = index_visual_step;
-        index_visual_step++;
         visual_step.type = visualization_msgs::Marker::MESH_RESOURCE;  // 表示网格模型
         Eigen::AngleAxisd ad_roll(step.roll, Eigen::Vector3d::UnitX());
         Eigen::AngleAxisd ad_pitch(step.pitch, Eigen::Vector3d::UnitY());
@@ -1034,7 +1034,8 @@ void pip_line::publishVisualSteps()
         visual_step.pose.orientation.y = qd.y();
         visual_step.pose.orientation.z = qd.z();
         visual_step.pose.position.x = step.x - 0.09;
-        visual_step.pose.position.y = step.y - 0.065;
+        visual_step.pose.position.y = step.y + 0.065;
+        // visual_step.pose.position.y = step.y - 0.065;
         visual_step.pose.position.z = step.z;
         visual_step.scale.x = 1.0;  // 调整模型大小
         visual_step.scale.y = 1.0;
@@ -1059,8 +1060,46 @@ void pip_line::publishVisualSteps()
         visual_step.color.g = 223.0/255.0;
         visual_step.color.b = 227.0/255.0;
         visual_steps.markers.emplace_back(visual_step);
+
+
+        visualization_msgs::Marker step_arrow;
+        step_arrow.action = visualization_msgs::Marker::ADD;
+        step_arrow.header.frame_id = "map";  // 设置坐标系
+        step_arrow.id = index_visual_step;
+        step_arrow.ns = "arrows";
+        step_arrow.type = visualization_msgs::Marker::ARROW;
+        step_arrow.pose.position.x = step.x; // Offset each arrow by 2 units
+        step_arrow.pose.position.y = step.y;
+        step_arrow.pose.position.z = step.z;
+        step_arrow.pose.orientation.x = qd.x();
+        step_arrow.pose.orientation.y = qd.y();
+        step_arrow.pose.orientation.z = qd.z();
+        step_arrow.pose.orientation.w = qd.w();
+        // Set the scale of the arrow
+        step_arrow.scale.x = 0.4; // Shaft diameter
+        step_arrow.scale.y = 0.05; // Head diameter
+        step_arrow.scale.z = 0.05; // Head length
+
+        if (step.robot_side == 0)
+        {
+            step_arrow.color.r = 1.0f;
+            step_arrow.color.g = 0.0f;
+            step_arrow.color.b = 0.0f;
+            step_arrow.color.a = 1.0;
+        }
+        else
+        {
+            step_arrow.color.r = 0.0f;
+            step_arrow.color.g = 1.0f;
+            step_arrow.color.b = 0.0f;
+            step_arrow.color.a = 1.0;
+        }
+        steps_arrow.markers.emplace_back(step_arrow);
+
+        index_visual_step++;
     }
     footsteps_visual_pub.publish(visual_steps);
+    footsteps_arrow_pub.publish(steps_arrow);
 }
 
 void pip_line::publishVisualAvoidpoints()

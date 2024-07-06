@@ -101,8 +101,7 @@ void AstarHierarchicalFootstepPlanner::initial_transitions()
     //             if (j == 0 && k ==-3)
     //             {
     //                 continue;
-    //             }
-                
+    //             }      
     //             Eigen::Vector3d transition = Eigen::Vector3d(i * 0.1,   0.02 * j + 0.2,  k*3/57.3);
     //             // LOG(INFO)<<transition.transpose();
     //             transitions.emplace_back(transition);
@@ -292,7 +291,7 @@ bool AstarHierarchicalFootstepPlanner::computeTransitionScore(std::pair<Eigen::V
 
     // 判断是否是危险的
     // 超出点为15-30， 支撑小于。 则认为是危险的，需要微调，这样才能满足落脚需求
-    if (above_points > 10 || max_size < 0.85 * footsize_inmap)
+    if (above_points > 10 || max_size < 0.95 * footsize_inmap)
     {
         dangerous = true;
     }
@@ -478,6 +477,11 @@ bool AstarHierarchicalFootstepPlanner::computeTransitionStrictScore(std::pair<Ei
     {
         return false;
     }
+    if (max_size < 0.95 * footsize_inmap)
+    {
+        return false;
+    }
+    
     double transition_height;
     if (!computeTransitionHeight(transition.second, transition_height))
     {
