@@ -2,7 +2,7 @@
  * @Author: lichao951787328 951787328@qq.com
  * @Date: 2024-06-07 11:01:20
  * @LastEditors: lichao951787328 951787328@qq.com
- * @LastEditTime: 2024-06-24 23:32:56
+ * @LastEditTime: 2024-07-07 11:12:51
  * @FilePath: /pip_line/src/pip_line.cpp
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -86,26 +86,37 @@ pip_line::pip_line(ros::NodeHandle & n):nh(n)
     // T_world_base.block<3,1>(0,3) = Eigen::Vector3d(0, 0, 0.69);
     // T_world_camera = T_world_base * T_base_velodyne * T_velodyne_camera;
 
+    Eigen::Matrix4d T_base_camera_LHZ = Eigen::Matrix4d::Identity();
+    T_base_camera_LHZ(0, 3) = 0.160119;
+    T_base_camera_LHZ(1, 3) = 0.00188852;
+    T_base_camera_LHZ(2, 3) = 0.381563;
+    Eigen::Matrix3d R_base_camera_LHZ;
+    R_base_camera_LHZ<<0.000502277, -0.462135, 0.886805,
+                        -0.999806, 0.0172056, 0.00953625,
+                        -0.019666, -0.886641, -0.46204;
+    T_base_camera_LHZ.block<3,3>(0,0) = R_base_camera_LHZ;
+
     // 45度L515相机使用的变换矩阵
-    Eigen::Matrix4d T_install_depth = Eigen::Matrix4d::Identity();
-    T_install_depth(1, 3) = -0.001;
-    T_install_depth(2, 3) = 0.026 - 0.0045;
+    // Eigen::Matrix4d T_install_depth = Eigen::Matrix4d::Identity();
+    // T_install_depth(1, 3) = -0.001;
+    // T_install_depth(2, 3) = 0.026 - 0.0045;
 
-    Eigen::Matrix4d T_hole_install = Eigen::Matrix4d::Identity();
-    Eigen::Matrix3d R;
-    R<<0, -0.5, 0.866,
-        1, 0, 0,
-        0, -0.866, -0.5;
-    T_hole_install.block<3,3>(0,0) = R;
-    T_hole_install(0, 3) = 0.06739;
-    T_hole_install(2, 3) = 0.01115;
+    // Eigen::Matrix4d T_hole_install = Eigen::Matrix4d::Identity();
+    // Eigen::Matrix3d R;
+    // R<<0, -0.5, 0.866,
+    //     1, 0, 0,
+    //     0, -0.866, -0.5;
+    // T_hole_install.block<3,3>(0,0) = R;
+    // T_hole_install(0, 3) = 0.06739;
+    // T_hole_install(2, 3) = 0.01115;
 
-    Eigen::Matrix4d T_base_hole = Eigen::Matrix4d::Identity();
-    T_base_hole(0, 3) = 0.05675;
-    T_base_hole(2, 3) = 0.49123;
+    // Eigen::Matrix4d T_base_hole = Eigen::Matrix4d::Identity();
+    // T_base_hole(0, 3) = 0.05675;
+    // T_base_hole(2, 3) = 0.49123;
     Eigen::Matrix4d T_world_base = Eigen::Matrix4d::Identity();
     T_world_base.block<3,1>(0,3) = Eigen::Vector3d(0, 0, 0.75);
-    T_world_camera = T_world_base * T_base_hole * T_hole_install * T_install_depth;
+    // T_world_camera = T_world_base * T_base_hole * T_hole_install * T_install_depth;
+    T_world_camera = T_world_base * T_base_camera_LHZ;
 }
 
 void preprocessing_bk(pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_in, pcl::PointCloud<pcl::PointXYZ> &cloud_out)
@@ -273,7 +284,7 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
 
     
     preprocessing_bk(tmppc, pub_cloud);
-    pcl::io::savePCDFileASCII("/home/lichao/TCDS/src/pip_line/data/processed.pcd", pub_cloud);
+    pcl::io::savePCDFileASCII("/home/bhr/TCDS/src/pip_line/data/processed.pcd", pub_cloud);
 
     pcl::PointCloud<pcl::PointXYZ> pc_world;
     LOG(INFO)<<pub_cloud.size();
@@ -287,7 +298,7 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
             map["elevation"](index.x(), index.y()) = po_w.z();
         }
     }
-    pcl::io::savePCDFileASCII("/home/lichao/TCDS/src/pip_line/data/pc_world.pcd", pc_world);
+    pcl::io::savePCDFileASCII("/home/bhr/TCDS/src/pip_line/data/pc_world.pcd", pc_world);
     grid_map_msgs::GridMap map_msg;
     grid_map::GridMapRosConverter::toMessage(map, map_msg);
     map_msg.info.header.frame_id = "map";
@@ -344,7 +355,7 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     // is_finish = false;
     // // 使用地图转成有序点云
     pcl::PointCloud<pcl::PointXYZ> org_pc = gridMap2Pointcloud(map);
-    pcl::io::savePCDFileASCII("/home/lichao/TCDS/src/pip_line/data/submap.pcd", org_pc);
+    pcl::io::savePCDFileASCII("/home/bhr/TCDS/src/pip_line/data/submap.pcd", org_pc);
     
     orginazed_points raw_points;
     raw_points.initialByPCL(org_pc);
@@ -352,7 +363,7 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     size_t height = org_pc.height;
     LOG(INFO)<<width<<" "<<height;
     LOG(INFO)<<raw_points.width<<" "<<raw_points.height;
-    string package_path = "/home/lichao/TCDS/src/pip_line";
+    string package_path = "/home/bhr/TCDS/src/pip_line";
     // string package_path = "/home/lichao/TCDS/src/pip_line";
     // // initial_package_path("pip_line", package_path);
     parameter param;
@@ -368,46 +379,56 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     cv::Mat result = ps.getSegResult();
     // cv::imshow("result", result);
     // cv::waitKey(0);
-    cv::imwrite("/home/lichao/TCDS/src/pip_line/data/result.png", result);
+    cv::imwrite("/home/bhr/TCDS/src/pip_line/data/result.png", result);
     seg_result_image = result;
     vector<cv::Mat> single_results = ps.getSegResultSingle();
     LOG(INFO)<<single_results.size();
 
     // 去除地面
     vector<plane_info> slope_plane, step_plane;
+    plane_info ground;
     for (auto & plane : planes)
     {
         if (plane.center.z() < 0.02 && plane.normal.z() > 0.98)
         {
-            LOG(INFO)<<"it is ground";
+            // LOG(INFO)<<"it is ground";
+            ground = plane;
             continue;
         }
         if (plane.normal.z() > 0.98 && plane.center.z() > 0.02)
         {
-            LOG(INFO)<<"it is step";
+            // LOG(INFO)<<"it is step";
             step_plane.emplace_back(plane);
         }
         if (plane.normal.z() < 0.98)
         {
-            LOG(INFO)<<"it is slope";
+            // LOG(INFO)<<"it is slope";
             slope_plane.emplace_back(plane);
         }
     }
     
-    if (step_plane.size() > 1)
+    // if (step_plane.size() > 1)
+    // {
+    //     // double distance = 0;
+    //     // int dis_num = 0;
+    //     // for (int i = 0; i < step_plane.size() - 1; i++)
+    //     // {
+    //     //     distance += abs((step_plane.at(i).center - step_plane.at(i+1).center).dot(step_plane.at(i).normal));
+    //     //     dis_num++;
+    //     // }
+    //     // LOG(INFO)<<"step height: "<<distance/dis_num;
+    // }
+    // else 
+    if (step_plane.size() >= 1)
     {
-        double distance = 0;
-        int dis_num = 0;
-        for (int i = 0; i < step_plane.size() - 1; i++)
+        // cout<<"just have 1 plane"<<endl;
+        cout<<"step_plane size: "<<step_plane.size()<<endl;
+        for (int i = 0; i < step_plane.size(); i++)
         {
-            distance += abs((step_plane.at(i).center - step_plane.at(i+1).center).dot(step_plane.at(i).normal));
-            dis_num++;
+            cout<<"step height: "<<abs((ground.center - step_plane.at(i).center).dot(ground.normal))<<endl;
         }
-        LOG(INFO)<<"step height: "<<distance/dis_num;
-    }
-    else if (step_plane.size() == 1)
-    {
-        LOG(INFO)<<"just have 1 plane";
+        
+        
     }
     else
     {
@@ -421,7 +442,7 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
         for(auto & slope_plane : slope_plane)
         {
             float dot = plane_normal.dot(slope_plane.normal);
-            LOG(INFO)<<std::acos(dot);
+            cout<<"slope angle: "<<std::acos(dot)*(180/3.1415926)<<endl;
         }   
     }
 }
