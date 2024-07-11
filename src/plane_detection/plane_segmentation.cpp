@@ -40,6 +40,7 @@ plane_segmentation::plane_segmentation(size_t rows, size_t cols, quatree::quatre
   {
     // index_node_2d = index2D(x, y, pqq->getRoot());// 用于使用index获取节点
     std::shared_ptr<quatree::node> seed = pqq->getSeedNode();
+    // showNodeAndNeisImage(seed);
     // LOG(INFO)<<seed->start_rows<<" "<<seed->start_cols;
     // std::cout<<"seed: "<<seed<<std::endl;
     if (seed && seed->valid_points_size >= 12)
@@ -221,6 +222,28 @@ plane_segmentation::plane_segmentation(size_t rows, size_t cols, quatree::quatre
 void plane_segmentation::getSinglePlaneResult()
 {
   
+}
+
+
+void plane_segmentation::showNodeAndNeisImage(std::shared_ptr<quatree::node> n)
+{
+  // 如果有彩色图时
+  cv::Mat color_image = cv::imread("/home/lichao/TCDS/src/pip_line/data/rotatedImage.png");
+  // LOG(INFO)<<"color_image size: "<<color_image.size;
+  // 如果没有彩色图时
+  // cv::Mat color_image = cv::Mat::zeros(raw_points.height, raw_points.width, CV_8UC3);
+  // 对于是平面节点的点画点，对于非平面节点画叉叉，节点边界用细线画
+  int scale = 8;
+  
+
+  for (auto & no : n->neighbors)
+  {
+    cv::rectangle(color_image, cv::Rect(no->start_cols * scale, no->start_rows * scale, no->width * scale, no->width * scale), cv::Scalar(166, 206, 227), 2);
+  }
+  cv::rectangle(color_image, cv::Rect(n->start_cols * scale, n->start_rows * scale, n->width * scale, n->width * scale), cv::Scalar(20, 160, 10), 3);
+  cv::imwrite("/home/lichao/TCDS/src/pip_line/data/seed_nei.png", color_image);
+  cv::imshow("leaf node", color_image);
+  cv::waitKey(0);
 }
 
 // void plane_segmentation::getPlane(plane & plane)

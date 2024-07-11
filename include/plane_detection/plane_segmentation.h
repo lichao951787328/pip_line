@@ -51,6 +51,7 @@ public:
   {
     return seg_images;
   }
+  void showNodeAndNeisImage(std::shared_ptr<quatree::node> n);
   ~plane_segmentation();
 };
 

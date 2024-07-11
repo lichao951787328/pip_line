@@ -24,7 +24,7 @@ quatree::quatree(orginazed_points & org_points_, parameter & param_):raw_points(
   // showLeafNodeImage();
   mergePatchsForSeeds();
   // // root->showNodeFrame();
-  // // showMergeLeafNodeImage();
+  showMergeLeafNodeImage();
   refreshIndex2D();
   // pindex2d->pritfIndex();
   getQuatreeNeighbors();
@@ -724,10 +724,12 @@ void quatree::showLeafNodeImage()
 void quatree::showMergeLeafNodeImage()
 {
   // 如果有彩色图时
-  // cv::Mat color_image = cv::imread("/home/lichao/catkin_plane_detection/src/my_plane_detection_ros-master/bag/color_part_align.png");
+  cv::Mat color_image = cv::imread("/home/lichao/TCDS/src/pip_line/data/rotatedImage.png");
+  LOG(INFO)<<"color_image size: "<<color_image.size;
   // 如果没有彩色图时
-  cv::Mat color_image = cv::Mat::zeros(raw_points.height, raw_points.width, CV_8UC3);
+  // cv::Mat color_image = cv::Mat::zeros(raw_points.height, raw_points.width, CV_8UC3);
   // 对于是平面节点的点画点，对于非平面节点画叉叉，节点边界用细线画
+  int scale = 8;
   std::list<std::shared_ptr<node>> Q;
   Q.emplace_back(root);
   while (!Q.empty())
@@ -749,17 +751,17 @@ void quatree::showMergeLeafNodeImage()
     {
       if (tmpnode->is_plane)
       {
-        cv::rectangle(color_image, cv::Rect(tmpnode->start_cols, tmpnode->start_rows, tmpnode->width, tmpnode->width), cv::Scalar(50, 0, 0), 1);
+        cv::rectangle(color_image, cv::Rect(tmpnode->start_cols * scale, tmpnode->start_rows * scale, tmpnode->width * scale, tmpnode->width * scale), cv::Scalar(51, 160, 44), 2);
       }
       else
       {
-        cv::rectangle(color_image, cv::Rect(tmpnode->start_cols, tmpnode->start_rows, tmpnode->width, tmpnode->width), cv::Scalar(50, 0, 0), 1);
+        cv::rectangle(color_image, cv::Rect(tmpnode->start_cols * scale, tmpnode->start_rows * scale, tmpnode->width * scale, tmpnode->width * scale), cv::Scalar(51, 160, 44), 2);
       
-        cv::putText(color_image, "x", cv::Point2f(tmpnode->start_cols + tmpnode->width/2 - 7, tmpnode->start_rows + tmpnode->width/2 + 3), cv::FONT_HERSHEY_COMPLEX_SMALL, 1, cv::Scalar(0, 255, 120));
+        cv::putText(color_image, "x", cv::Point2f(tmpnode->start_cols  * scale + tmpnode->width * scale/2  - 1.2 * scale, tmpnode->start_rows  * scale + tmpnode->width * scale/2 + scale), cv::FONT_HERSHEY_COMPLEX_SMALL, 1.5, cv::Scalar(0, 0, 255), 2);
       }
     }
   }
-  cv::imwrite("/home/bhr/TCDS/src/pip_line/data/leaf_node_merge.png", color_image);
+  cv::imwrite("/home/lichao/TCDS/src/pip_line/data/leaf_node_merge.png", color_image);
   cv::imshow("leaf node", color_image);
   cv::waitKey(0);
 }

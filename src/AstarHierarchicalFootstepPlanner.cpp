@@ -291,7 +291,7 @@ bool AstarHierarchicalFootstepPlanner::computeTransitionScore(std::pair<Eigen::V
 
     // 判断是否是危险的
     // 超出点为15-30， 支撑小于。 则认为是危险的，需要微调，这样才能满足落脚需求
-    if (above_points > 10 || max_size < 0.95 * footsize_inmap)
+    if (above_points > 5 || max_size < 0.95 * footsize_inmap)
     {
         dangerous = true;
     }
@@ -473,7 +473,7 @@ bool AstarHierarchicalFootstepPlanner::computeTransitionStrictScore(std::pair<Ei
     {
         return false;
     }
-    if (above_points > 10)// 这个值也需要调
+    if (above_points > 3)// 这个值也需要调
     {
         return false;
     }
@@ -585,7 +585,6 @@ bool AstarHierarchicalFootstepPlanner::nodeExtension(FootstepNodePtr current_nod
                 // transition.first 基础偏移量
                 ScoreMarkerNodePtr node_p = std::make_shared<ScoreMarkerNode>(transition.first, score);
                 // dangerousBasicScoreNodes.push(node_p);
-
 
                 // 如果是危险节点，那么把这个节点进行微调，如果合理再加入basicScoreNodes中
                 vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> trans = fineTransitions(node_p->point, current_node);
@@ -1167,7 +1166,7 @@ bool AstarHierarchicalFootstepPlanner::computeLandInfo(Eigen::Vector3d ankle, in
             LOG(INFO)<<index_points.first<<" "<<index_points.second.size();
         }
         
-        if (plane_points.getMaxPointsSize() > footsize_inmap * 0.75)
+        if (plane_points.getMaxPointsSize() > footsize_inmap * 0.85)
         {
             int max_index = plane_points.getMaxIndex();
             Eigen::Vector3d center = Eigen::Vector3d(planes_info.at(max_index).center.x(), planes_info.at(max_index).center.y(), planes_info.at(max_index).center.z());
@@ -1179,7 +1178,7 @@ bool AstarHierarchicalFootstepPlanner::computeLandInfo(Eigen::Vector3d ankle, in
                     above_points ++;
                 }
             }
-            if (above_points > 25)
+            if (above_points > 5)
             {
 #ifdef DEBUG
                 LOG(INFO)<<"above to more: "<<above_points;
@@ -1980,7 +1979,22 @@ bool AstarHierarchicalFootstepPlanner::checkFootstepsResult()
 {
     for (auto & step : steps)
     {
+        cout<<"******************"<<endl;
         LOG(INFO)<<step.robot_side<<" "<<step.x<<" "<<step.y<<" "<<step.z<<" "<<step.roll<<" "<<step.pitch<<" "<<step.yaw;
+        int above_points = 0;
+        int max_size = 0;
+        Eigen::Vector3d normal;
+        LOG(INFO)<<"footsize_inmap: "<<footsize_inmap;
+        if (computeLandInfo(Eigen::Vector3d(step.x, step.y, step.yaw), max_size, above_points, normal))
+        {
+            LOG(INFO)<<"above_points: "<<above_points;
+            LOG(INFO)<<"max_size: "<<max_size;
+            LOG(INFO)<<"normal: "<<normal.transpose();
+        }
+        else
+        {
+            LOG(INFO)<<"can not get the step info";
+        }
     }
     
     // 检查两脚之间的参数
