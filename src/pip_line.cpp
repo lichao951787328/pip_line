@@ -2,7 +2,7 @@
  * @Author: lichao951787328 951787328@qq.com
  * @Date: 2024-06-07 11:01:20
  * @LastEditors: lichao951787328 951787328@qq.com
- * @LastEditTime: 2024-06-24 23:32:56
+ * @LastEditTime: 2024-07-11 11:25:50
  * @FilePath: /pip_line/src/pip_line.cpp
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -633,7 +633,7 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     // colored_cloud->height = 1;
     // colored_cloud->width = colored_cloud->size();
     // 步骤1原时点云转成域处理后的点云
-    pcl::io::savePCDFileASCII("/home/lichao/TCDS/src/pip_line/data/processed.pcd", pub_cloud);
+    // pcl::io::savePCDFileASCII("/home/bhr/TCDS/src/pip_line/data/processed.pcd", pub_cloud);
 
     // 点云转成高程图，并对高程图内的空点云处理
     pcl::PointCloud<pcl::PointXYZ> pc_world;
@@ -852,7 +852,7 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     size_t height = org_pc.height;
     LOG(INFO)<<width<<" "<<height;
     LOG(INFO)<<raw_points.width<<" "<<raw_points.height;
-    string package_path = "/home/lichao/TCDS/src/pip_line";
+    string package_path = "/home/bhr/TCDS/src/pip_line";
     // string package_path = "/home/lichao/TCDS/src/pip_line";
     // // initial_package_path("pip_line", package_path);
     parameter param;
@@ -928,8 +928,8 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     }
     
 
-    cv::imwrite("/home/lichao/TCDS/src/pip_line/data/image_paper.png", image_paper);
-    cv::imwrite("/home/lichao/TCDS/src/pip_line/data/result.png", result);
+    // cv::imwrite("/home/bhr/TCDS/src/pip_line/data/image_paper.png", image_paper);
+    // cv::imwrite("/home/bhr/TCDS/src/pip_line/data/result.png", result);
 
     // cv::Mat enlarged_img;
     // int scale_factor = 5;  // 放大倍数
@@ -946,7 +946,7 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     for (int i = 0; i < single_results.size(); i++)
     {
         cv::Mat image = single_results.at(i);
-        cv::imwrite("/home/lichao/TCDS/src/pip_line/data/image" + std::to_string(i) + ".png", image);
+        // cv::imwrite("/home/bhr/TCDS/src/pip_line/data/image" + std::to_string(i) + ".png", image);
         // cv::imshow("image", image);
         // cv::waitKey(0);
         int kernel_size = inflation_pixel;
@@ -954,12 +954,12 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
         // 对图像进行膨胀操作
         cv::Mat dilated_image;
         cv::dilate(image, dilated_image, kernel);
-        cv::imwrite("/home/lichao/TCDS/src/pip_line/data/dilated_image" + std::to_string(i) + ".png", dilated_image);
+        // cv::imwrite("/home/bhr/TCDS/src/pip_line/data/dilated_image" + std::to_string(i) + ".png", dilated_image);
         // cv::imshow("dilated_image", dilated_image);
         // cv::waitKey(0);
         // 计算膨胀后的边缘
         cv::Mat collision_layer = dilated_image - image;
-        cv::imwrite("/home/lichao/TCDS/src/pip_line/data/collision_layer" + std::to_string(i) + ".png", collision_layer);
+        // cv::imwrite("/home/bhr/TCDS/src/pip_line/data/collision_layer" + std::to_string(i) + ".png", collision_layer);
         // cv::imshow("collision_layer", collision_layer);
         // cv::waitKey(0);
         cv::Mat upper_body = cv::Mat::zeros(collision_layer.size(), CV_8UC1);
@@ -982,7 +982,7 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
                     // LOG(INFO)<<"p3f: "<<p3f.transpose();
                     // LOG(INFO)<<"planes.at(i).center: "<<planes.at(i).center.transpose();
                     // LOG(INFO)<<"planes.at(i).normal: "<<planes.at(i).normal.transpose();
-                    cout<<"dis = "<<dis<<endl;
+                    // cout<<"dis = "<<dis<<endl;
                     if (dis > 0.4)// 上半身
                     {
                         // cout<<"dis = "<<dis<<endl;
@@ -996,8 +996,8 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
                 }
             }
         }
-        cv::imwrite("/home/lichao/TCDS/src/pip_line/data/knee" + std::to_string(i) + ".png", knee);
-        cv::imwrite("/home/lichao/TCDS/src/pip_line/data/upper_body" + std::to_string(i) + ".png", upper_body);
+        // cv::imwrite("/home/bhr/TCDS/src/pip_line/data/knee" + std::to_string(i) + ".png", knee);
+        // cv::imwrite("/home/bhr/TCDS/src/pip_line/data/upper_body" + std::to_string(i) + ".png", upper_body);
         // cv::imshow("knee", knee);
         // cv::waitKey(0);
         // cv::imshow("upper_body", upper_body);
@@ -1018,8 +1018,8 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
         cv::dilate(knee, dilated_image_knee, kernel_knee);
         knee_image = knee;
         knee_image_dilate = dilated_image_knee;
-        cv::imwrite("/home/lichao/TCDS/src/pip_line/data/dilated_image_upper" + std::to_string(i) + ".png", dilated_image_upper);
-        cv::imwrite("/home/lichao/TCDS/src/pip_line/data/dilated_image_knee" + std::to_string(i) + ".png", dilated_image_knee);
+        // cv::imwrite("/home/bhr/TCDS/src/pip_line/data/dilated_image_upper" + std::to_string(i) + ".png", dilated_image_upper);
+        // cv::imwrite("/home/bhr/TCDS/src/pip_line/data/dilated_image_knee" + std::to_string(i) + ".png", dilated_image_knee);
         // cv::imshow("dilated_image_upper", dilated_image_upper);
         // cv::waitKey(0);
         // cv::imshow("dilated_image_knee", dilated_image_knee);
@@ -1027,7 +1027,7 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
         // 计算膨胀后的边缘
         cv::Mat collision_layer1 = image - dilated_image_upper;
         cv::Mat free_collision = collision_layer1 - dilated_image_knee;
-        cv::imwrite("/home/lichao/TCDS/src/pip_line/data/free_collision" + std::to_string(i) + ".png", free_collision);
+        // cv::imwrite("/home/bhr/TCDS/src/pip_line/data/free_collision" + std::to_string(i) + ".png", free_collision);
         // cv::imshow("free_collision", free_collision);
         // cv::waitKey(0);
         collision_free_images.emplace_back(free_collision);

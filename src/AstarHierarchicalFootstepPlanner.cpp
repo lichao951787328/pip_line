@@ -31,8 +31,8 @@ AstarHierarchicalFootstepPlanner::AstarHierarchicalFootstepPlanner(grid_map::Gri
     LOG(INFO)<<"footparam: "<<footparam.x_upper<<" "<<footparam.x_button<<" "<<footparam.y_left<<" "<<footparam.y_right;
     LOG(INFO)<<"hip_width: "<<hip_width;
     LOG(INFO)<<"footsize_inmap: "<<footsize_inmap;
-    outfile = std::ofstream("/home/lichao/Darwin-op/src/elevation_map_ours/elevation_mapping/AstarHierarchicalFootstepPlanner/data/out.txt");
-    // outfile = std::ofstream("/home/bhr/catkin_beijing4th/src/elevation_mapping/AstarHierarchicalFootstepPlanner/data/out.txt");
+    // outfile = std::ofstream("/home/lichao/Darwin-op/src/elevation_map_ours/elevation_mapping/AstarHierarchicalFootstepPlanner/data/out.txt");
+    outfile = std::ofstream("/home/bhr/catkin_beijing4th/src/elevation_mapping/AstarHierarchicalFootstepPlanner/data/out.txt");
 #endif
     // 每个transition x y yaw 右脚往左扩展的步态点
     initial_transitions();
@@ -57,8 +57,8 @@ AstarHierarchicalFootstepPlanner::AstarHierarchicalFootstepPlanner(grid_map::Gri
     LOG(INFO)<<"footparam: "<<footparam.x_upper<<" "<<footparam.x_button<<" "<<footparam.y_left<<" "<<footparam.y_right;
     LOG(INFO)<<"hip_width: "<<hip_width;
     LOG(INFO)<<"footsize_inmap: "<<footsize_inmap;
-    outfile = std::ofstream("/home/lichao/Darwin-op/src/elevation_map_ours/elevation_mapping/AstarHierarchicalFootstepPlanner/data/out.txt");
-    // outfile = std::ofstream("/home/bhr/catkin_beijing4th/src/elevation_mapping/AstarHierarchicalFootstepPlanner/data/out.txt");
+    // outfile = std::ofstream("/home/lichao/Darwin-op/src/elevation_map_ours/elevation_mapping/AstarHierarchicalFootstepPlanner/data/out.txt");
+    outfile = std::ofstream("/home/bhr/catkin_beijing4th/src/elevation_mapping/AstarHierarchicalFootstepPlanner/data/out.txt");
 #endif
     initial_transitions();
     LOG(INFO)<<"construct planner over";
@@ -221,7 +221,9 @@ bool AstarHierarchicalFootstepPlanner::getPointHeightInPlane(grid_map::Position 
         // 使用原数据判断，如果使用转换后的int的判断，会判断错误
         if (std::isnan(label_localmap["label"](index.x(), index.y())))
         {
+#ifdef DEBUG
             LOG(ERROR)<<"get error plane index, your plane segmentation may error.";
+#endif
             return false;
         }
         label_index = static_cast<int>(label_localmap["label"](index.x(), index.y()));
@@ -285,7 +287,9 @@ bool AstarHierarchicalFootstepPlanner::computeTransitionScore(std::pair<Eigen::V
     Eigen::Vector3d plane_normal;
     if (!computeLandInfo(transition.second, max_size, above_points, plane_normal))
     {
+#ifdef DEBUG
         LOG(INFO)<<"CANNOT computeLandInfo";
+#endif
         return false;
     }
 
@@ -300,7 +304,9 @@ bool AstarHierarchicalFootstepPlanner::computeTransitionScore(std::pair<Eigen::V
     double transition_height;
     if (!computeTransitionHeight(transition.second, transition_height))
     {
+#ifdef DEBUG
         LOG(INFO)<<"CANNOT computeTransitionHeight";
+#endif
         return false;
     }
     // 高度太高，则去除，高度也会是一个打分项
@@ -377,7 +383,9 @@ bool  AstarHierarchicalFootstepPlanner::point2Node(Eigen::Vector3d p, FootstepNo
     }
     else
     {
+#ifdef DEBUG
         LOG(INFO)<<"can not set node";
+#endif
         return false;
     }
     
@@ -617,7 +625,7 @@ bool AstarHierarchicalFootstepPlanner::nodeExtension(FootstepNodePtr current_nod
             }
         }
     }
-
+#ifdef DEBUG
     cv::Mat basicImage = cv::Mat::zeros(plane_image.size(), CV_8UC3);
 
     auto tmpbasicScoreNodes = basicScoreNodes;
@@ -635,7 +643,7 @@ bool AstarHierarchicalFootstepPlanner::nodeExtension(FootstepNodePtr current_nod
     resize(plane_image, enlarge, cv::Size(scaledWidth, scaledHeight));
     cv::imshow("enlarge", enlarge);
     cv::waitKey(0);
-
+#endif
 
 // #ifdef DEBUG
 //     LOG(INFO)<<"basic node size: "<<basicScoreNodes.size();
@@ -746,10 +754,12 @@ bool AstarHierarchicalFootstepPlanner::nodeExtension(FootstepNodePtr current_nod
                     // stepnode->cost = stepnode->Hcost *4 + stepnode->Gcost;
                     child_nodes.emplace_back(stepnode);
                 }
+#ifdef DEBUG
                 else
                 {
                     LOG(INFO)<<"can not turn it to node";
                 }
+#endif
             }
         }
     }
@@ -976,7 +986,7 @@ vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> AstarHierarchicalFootstepPla
 
 bool AstarHierarchicalFootstepPlanner::getPointsInFootArea(Eigen::Vector3d ankle, IndexPlanePoints & index_plane)
 {
-    LOG(INFO)<<",,,,l";
+    // LOG(INFO)<<",,,,l";
     Eigen::AngleAxisd ax(ankle.z(), Eigen::Vector3d::UnitZ());
 
     Eigen::Vector3d mid(ankle.x(), ankle.y(), 0);
@@ -998,7 +1008,7 @@ bool AstarHierarchicalFootstepPlanner::getPointsInFootArea(Eigen::Vector3d ankle
     // points_planes.resize(planes);
     if (label_localmap.isInside(top_left_l) && label_localmap.isInside(top_right_l) && label_localmap.isInside(down_left_l) && label_localmap.isInside(down_right_l))
     {
-        LOG(INFO)<<"ALL INSIDE";
+        // LOG(INFO)<<"ALL INSIDE";
         grid_map::LineIterator iterator_start(label_localmap, down_right_l, down_left_l);
         grid_map::LineIterator iterator_end(label_localmap, top_right_l, top_left_l);
         for (; !iterator_start.isPastEnd()&&!iterator_end.isPastEnd(); ++iterator_start, ++iterator_end)
@@ -1021,10 +1031,10 @@ bool AstarHierarchicalFootstepPlanner::getPointsInFootArea(Eigen::Vector3d ankle
                                 int label_index = static_cast<int>(label_localmap["label"](index_l.x(), index_l.y()));
                                 index_plane.add(label_index, cor_position);
                             }
-                            else
-                            {
-                                LOG(INFO)<<"nan";
-                            }
+                            // else
+                            // {
+                            //     LOG(INFO)<<"nan";
+                            // }
                             // allpoints.emplace_back(cor_position);// 将所有点都添加
                             // grid_map::Position3 label3;
                             // if (label_localmap.getPosition3("label", index_l, label3))
@@ -1043,20 +1053,26 @@ bool AstarHierarchicalFootstepPlanner::getPointsInFootArea(Eigen::Vector3d ankle
                             //     }
                             // }
                         }
+#ifdef DEBUG
                         else
                         {
                             LOG(INFO)<<"cor nan";
                         }
+#endif
                     }
+#ifdef DEBUG
                     else
                     {
                         LOG(INFO)<<"can not get cor";
                     }
+#endif
                 }
+#ifdef DEBUG
                 else
                 {
                     LOG(INFO)<<"can not get cor2";
                 }
+#endif
             }
         }
 #ifdef DEBUG
@@ -1161,10 +1177,10 @@ bool AstarHierarchicalFootstepPlanner::computeLandInfo(Eigen::Vector3d ankle, in
     IndexPlanePoints plane_points;
     if (getPointsInFootArea(ankle, plane_points))
     {
-        for (auto & index_points : plane_points.counter)
-        {
-            LOG(INFO)<<index_points.first<<" "<<index_points.second.size();
-        }
+        // for (auto & index_points : plane_points.counter)
+        // {
+        //     LOG(INFO)<<index_points.first<<" "<<index_points.second.size();
+        // }
         
         if (plane_points.getMaxPointsSize() > footsize_inmap * 0.85)
         {
@@ -1202,7 +1218,9 @@ bool AstarHierarchicalFootstepPlanner::computeLandInfo(Eigen::Vector3d ankle, in
     }
     else
     {
+#ifdef DEBUG
         LOG(ERROR)<<"foot or its corner out of map";
+#endif
         return false;
     }
 }
@@ -1977,6 +1995,7 @@ bool AstarHierarchicalFootstepPlanner::getConvexPoint(Eigen::Vector3d start, Eig
 
 bool AstarHierarchicalFootstepPlanner::checkFootstepsResult()
 {
+#ifdef DEBUG
     for (auto & step : steps)
     {
         cout<<"******************"<<endl;
@@ -1996,7 +2015,7 @@ bool AstarHierarchicalFootstepPlanner::checkFootstepsResult()
             LOG(INFO)<<"can not get the step info";
         }
     }
-    
+#endif
     // 检查两脚之间的参数
     for (int i = 0; i < steps.size(); i++)
     {
