@@ -84,6 +84,7 @@ struct FootstepNode
 {
     Footstep footstep;
     double cost, Hcost, Gcost;
+    int plane_index;//脚属于哪一个平面，后续可以根据平面是否变化及xyz的位移信息进行筛选更适合机器人的步态点
     std::shared_ptr<FootstepNode> PreFootstepNode = nullptr;
     FootstepNode():footstep()
     {
@@ -278,6 +279,7 @@ private:
     vector<Footstep> steps;
     // 初始化参数 支撑脚为右脚，扩展参数为左脚
     vector<Eigen::Vector3d> transitions;
+    vector<Eigen::Vector3d> combine_transitions;
 
     // 后续计算障碍点时会用到
     cv::Mat plane_image;
@@ -363,7 +365,7 @@ public:
      * @return true 
      * @return false 
      */
-    bool getPointHeightInPlane(grid_map::Position p, double & height);
+    bool getPointHeightInPlane(grid_map::Position p, double & height, int & plane_index);
 
     /**
      * @brief 对落脚点进行精修，根据goal得到的左右脚可能有些缺陷，通过精修获得更合适的终点左右脚的姿态。这里只是为了获得候选节点
@@ -401,7 +403,7 @@ public:
      * @return true 
      * @return false 
      */
-    bool computeZRollPitch(Eigen::Vector3d point, double & z, Eigen::Vector3d & eular);
+    bool computeZRollPitch(Eigen::Vector3d point, double & z, Eigen::Vector3d & eular, int & plane_index);
 
     /**
      * @brief 计算localmap对应的含平面编号的平面信息
@@ -484,7 +486,7 @@ public:
      * @return true 
      * @return false 
      */
-    bool getPointsInFootArea(Eigen::Vector3d ankle, IndexPlanePoints & index_plane);
+    bool getPointsInFootArea(Eigen::Vector3d ankle, IndexPlanePoints & index_plane, int & area_cells);
 
     /**
      * @brief 根据localmap计算在ankle处，支撑点数、超出点数、平面法向量
@@ -496,7 +498,7 @@ public:
      * @return true 
      * @return false 
      */
-    bool computeLandInfo(Eigen::Vector3d ankle, int & max_size, int & above_points, Eigen::Vector3d & plane_normal);
+    bool computeLandInfo(Eigen::Vector3d ankle, int & max_size, int & above_points, Eigen::Vector3d & plane_normal, int & area_num);
 
     /**
      * @brief 根据地图坐标系下的normal，计算在经过yaw旋转后，平面的roll和pitch角

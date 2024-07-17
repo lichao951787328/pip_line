@@ -2,7 +2,7 @@
  * @Author: lichao951787328 951787328@qq.com
  * @Date: 2024-06-07 11:01:20
  * @LastEditors: lichao951787328 951787328@qq.com
- * @LastEditTime: 2024-07-11 11:25:50
+ * @LastEditTime: 2024-07-17 17:46:13
  * @FilePath: /pip_line/src/pip_line.cpp
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -90,8 +90,8 @@ pip_line::pip_line(ros::NodeHandle & n):nh(n)
 
     timer = nh.createTimer(ros::Duration(1), &pip_line::timerCallback, this);
 
-    grid_map::Length length(2, 2);
-    grid_map::Position position(1, 0);
+    grid_map::Length length(3, 2);
+    grid_map::Position position(1.5, 0);
     map.setGeometry(length, 0.02, position);
     map.add("elevation", NAN);
 
@@ -137,6 +137,30 @@ pip_line::pip_line(ros::NodeHandle & n):nh(n)
     // 一定要注意根据实际高度调节，控制端反馈
     T_world_base.block<3,1>(0,3) = Eigen::Vector3d(0, 0, 0.71);
     T_world_camera = T_world_base * T_base_hole * T_hole_install * T_install_depth;
+
+
+    // 通过彩色图标定的位置
+    //   frame_id: "depth_to_color_extrinsics"
+// rotation: [0.9999532699584961, -0.009290458634495735, 0.002664804458618164, 0.009367496706545353, 0.9994901418685913, -0.03052295371890068, -0.0023798735346645117, 0.030546491965651512, 0.9995304942131042]
+// translation: [-0.0004955815966241062, 0.013567420653998852, -0.007013721391558647]
+
+    // Eigen::Matrix4d T_color_depth = Eigen::Matrix4d::Identity();
+    // Eigen::Matrix3d R_color_depth;
+    // R_color_depth<< 0.9999532699584961, -0.009290458634495735, 0.002664804458618164,
+    //                 0.009367496706545353, 0.9994901418685913, -0.03052295371890068,
+    //                 -0.0023798735346645117, 0.030546491965651512, 0.9995304942131042;
+    // T_color_depth(0, 3) = -0.0004955815966241062;
+    // T_color_depth(1, 3) = 0.013567420653998852;
+    // T_color_depth(2, 3) = -0.007013721391558647;
+
+    // Eigen::Matrix4d T_base1_color = Eigen::Matrix4d::Identity();
+    // T_base1_color<<-0.728249, 0.0600791, 0.682674, 0.173513,
+    //                 0.0538417, 0.998087, -0.0304012, -0.0128659,
+    //                 -0.68319, 0.0146158, -0.730088, 0.389446,
+    //                 0,0,0,1;
+    // Eigen::Matrix4d T_base_base1 = Eigen::Matrix4d::Identity();
+    // T_base_base1(2, 3) = 0.15;
+    // T_world_camera = T_world_base * T_base_base1 * T_base1_color * T_color_depth;
 }
 
 
@@ -586,7 +610,6 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     // auto start_o = clock();
     pcl::PointCloud<pcl::PointXYZRGB> pub_cloud;
 
-    
     preprocessingColor(pc, pub_cloud);
 
     // // 法线估计
@@ -609,31 +632,26 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
 
     // // 创建一个新的点云用于存储彩色点
     // pcl::PointCloud<pcl::PointXYZRGB>::Ptr colored_cloud(new pcl::PointCloud<pcl::PointXYZRGB>());
-
     // // 根据曲率给点云着色
     // for (size_t i = 0; i < pub_cloud.points.size(); ++i) {
     //     pcl::PointXYZRGB point;
     //     point.x = pub_cloud.points[i].x;
     //     point.y = pub_cloud.points[i].y;
     //     point.z = pub_cloud.points[i].z;
-
     //     float curvature = cloud_curvatures->points[i].pc1; // 使用主曲率之一作为着色依据
     //     uint8_t r = std::min(255.0f, std::max(0.0f, curvature * 255.0f));
     //     uint8_t g = 0;
     //     uint8_t b = 255 - r;
-
     //     point.r = r;
     //     point.g = g;
     //     point.b = b;
-
     //     colored_cloud->points.push_back(point);
     // }
-
     // cout<<"colored_cloud size: "<<colored_cloud->size()<<endl;
     // colored_cloud->height = 1;
     // colored_cloud->width = colored_cloud->size();
     // 步骤1原时点云转成域处理后的点云
-    // pcl::io::savePCDFileASCII("/home/bhr/TCDS/src/pip_line/data/processed.pcd", pub_cloud);
+    pcl::io::savePCDFileASCII("/home/bhr/TCDS/src/pip_line/data/processed.pcd", pub_cloud);
 
     // 点云转成高程图，并对高程图内的空点云处理
     pcl::PointCloud<pcl::PointXYZ> pc_world;
@@ -645,9 +663,20 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
         grid_map::Index index;
         if (map.getIndex(po_w.head(2), index))
         {
-            map["elevation"](index.x(), index.y()) = po_w.z();
+            if (std::isnan(map["elevation"](index.x(), index.y())))
+            {
+                map["elevation"](index.x(), index.y()) = po_w.z();
+            }
+            else
+            {
+                if(map["elevation"](index.x(), index.y()) < po_w.z())
+                {
+                    map["elevation"](index.x(), index.y()) = po_w.z();
+                }
+            }
         }
     }
+    pcl::io::savePCDFileASCII("/home/bhr/TCDS/src/pip_line/data/pc_world.pcd", pc_world);
 
     // grid_map_msgs::GridMap map_msg;
     // grid_map::GridMapRosConverter::toMessage(map, map_msg);
@@ -983,7 +1012,7 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
                     // LOG(INFO)<<"planes.at(i).center: "<<planes.at(i).center.transpose();
                     // LOG(INFO)<<"planes.at(i).normal: "<<planes.at(i).normal.transpose();
                     // cout<<"dis = "<<dis<<endl;
-                    if (dis > 0.4)// 上半身
+                    if (dis > 0.45)// 上半身
                     {
                         // cout<<"dis = "<<dis<<endl;
                         upper_body.at<uchar>(cv_p.y, cv_p.x) = 255;
@@ -1003,8 +1032,8 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
         // cv::imshow("upper_body", upper_body);
         // cv::waitKey(0);
         // // 进行不同半径的膨胀
-        double upper_inflation = 0.3;
-        double knee_inflation = 0.1;
+        double upper_inflation = 0.5;
+        double knee_inflation = 0.3;
         int inflation_radius_upper = upper_inflation/resolution;
         int inflation_radius_knee = knee_inflation/resolution;
         cv::Mat kernel_upper = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(inflation_radius_upper, inflation_radius_upper));
@@ -1072,10 +1101,11 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     }
     cout<<"get goal"<<endl;
     // 落脚点规划的输入，带"label"的高程图，
-    FootParam footparam(0.15, 0.11, 0.065, 0.065);
+    // 台阶用0.175更合适，斜坡0.16就可以
+    FootParam footparam(0.16, 0.11, 0.065, 0.065);
     AstarHierarchicalFootstepPlanner planner(map, plane_image, collision_free_images, planes, footparam, 0.2);
-    Eigen::Vector3d left_foot(0.05, 0.1, 0);
-    Eigen::Vector3d right_foot(0.05, -0.1, 0);
+    Eigen::Vector3d left_foot(0.03, 0.1, 0);
+    Eigen::Vector3d right_foot(0.03, -0.1, 0);
     Eigen::Vector3d goal_p;
     goal_p.x() = goal.position.x;
     goal_p.y() = goal.position.y;
@@ -1084,7 +1114,7 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     double yaw = atan(v_t.y()/v_t.x());
     goal_p.z() = yaw;
     
-    if (planner.initial(left_foot, right_foot, 0, goal_p))// 先迈右脚
+    if (planner.initial(right_foot, left_foot, 1, goal_p))// 先迈右脚
     {
         LOG(INFO)<<"set start and goal";
         if (planner.plan())
