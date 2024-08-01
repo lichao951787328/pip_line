@@ -511,6 +511,7 @@ public:
     //  */
     bool computeLandPointScore(std::pair<Eigen::Vector3d, Eigen::Vector3d> land_point, double & score);
 
+
     /**
      * @brief 在精修阶段，对超过支撑面高度的点要求很高。计算精修阶段的点的得分
      * 
