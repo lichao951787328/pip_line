@@ -24,7 +24,7 @@ quatree::quatree(orginazed_points & org_points_, parameter & param_):raw_points(
   // showLeafNodeImage();
   mergePatchsForSeeds();
   // // root->showNodeFrame();
-  showMergeLeafNodeImage();
+  // showMergeLeafNodeImage();
   refreshIndex2D();
   // pindex2d->pritfIndex();
   getQuatreeNeighbors();

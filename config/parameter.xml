@@ -1,14 +1,14 @@
 <file>
     <parameters>
         <leafnode_width>4</leafnode_width>
-        <patch_num__percent_th>0.8</patch_num__percent_th>
+        <patch_num__percent_th>0.9</patch_num__percent_th>
         <patch_mse_th>0.002</patch_mse_th>
-        <eigen_value_th>0.08</eigen_value_th>
+        <eigen_value_th>0.002</eigen_value_th>
         <!-- calculate normal after merge in quatree, then check children's normal is satisfy the dot condition -->
-        <merge_normal_dot_th>0.95</merge_normal_dot_th>
+        <merge_normal_dot_th>0.99</merge_normal_dot_th>
         <!-- 5mm too small -->
-        <merge_normal_distance>0.014</merge_normal_distance>
+        <merge_normal_distance>0.004</merge_normal_distance>
         <!-- quatree node merge normal condition -->
-        <quatree_merge_normal_dot_th>0.9</quatree_merge_normal_dot_th>
+        <quatree_merge_normal_dot_th>0.99</quatree_merge_normal_dot_th>
     </parameters>
 </file>

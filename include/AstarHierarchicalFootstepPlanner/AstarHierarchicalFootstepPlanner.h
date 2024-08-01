@@ -16,7 +16,7 @@
 #include <plane_info.h>
 using namespace std;
 
-#define DEBUG
+// #define DEBUG
 enum RobotSide{LEFT, RIGHT, _NAN_};
 
 struct Footstep
@@ -41,6 +41,24 @@ struct Footstep
         z = NAN;
         roll = NAN;
         pitch = NAN;
+        yaw = point.z();
+        if (robotside == 0)
+        {
+            robot_side = LEFT;
+        }
+        else
+        {
+            robot_side = RIGHT;
+        }
+    }
+
+    Footstep(Eigen::Vector3d point, double height, double roll_, double pitch_, int robotside)
+    {
+        x = point.x();
+        y = point.y();
+        z = height;
+        roll = roll_;
+        pitch = pitch_;
         yaw = point.z();
         if (robotside == 0)
         {
@@ -84,6 +102,7 @@ struct FootstepNode
 {
     Footstep footstep;
     double cost, Hcost, Gcost;
+    int plane_index;//脚属于哪一个平面，后续可以根据平面是否变化及xyz的位移信息进行筛选更适合机器人的步态点
     std::shared_ptr<FootstepNode> PreFootstepNode = nullptr;
     FootstepNode():footstep()
     {
@@ -100,6 +119,13 @@ struct FootstepNode
         PreFootstepNode = nullptr;
     }
 
+    FootstepNode(Eigen::Vector3d point, double height, double roll, double pitch, int robotside):footstep(point, height, roll, pitch, robotside)
+    {
+        cost = NAN;
+        Hcost = NAN;
+        Gcost = NAN;
+        PreFootstepNode = nullptr;
+    }
     FootstepNode & operator=(const FootstepNode & other)
     {
         if (this == &other)
@@ -160,12 +186,21 @@ struct FootParam
 
 struct ScoreMarkerNode
 {
-    Eigen::Vector3d point; //  相对于支撑脚的平移量
+    Eigen::Vector3d point; //  相对于支撑脚的平移量， x y yaw
+    Eigen::Vector3d normal;
     double score;
+    double height;
     ScoreMarkerNode(Eigen::Vector3d point_, double score_)
     {
         point = point_;
         score = score_;
+    }
+    ScoreMarkerNode(Eigen::Vector3d point_, double score_, double height_, Eigen::Vector3d normal_)
+    {
+        point = point_;
+        score = score_;
+        height = height_;
+        normal = normal_;
     }
 };
 typedef std::shared_ptr<ScoreMarkerNode> ScoreMarkerNodePtr;
@@ -182,6 +217,31 @@ struct ScoreMarkerNodeCompare
     }
 };
 
+// 直方图投票
+struct HistogramVoting
+{
+    std::unordered_map<int, vector<Eigen::Vector3d>> counter;
+    int nan_points = 0;
+    int all_points = 0;
+    void add(int index, Eigen::Vector3d & p)
+    {
+        if (std::isnan(index))
+        {
+            nan_points++;
+            return;
+        }
+        else
+        {
+            counter[index].emplace_back(p);
+        }
+        all_points++;
+    }
+
+    void addNANPoints()
+    {
+        nan_points++;
+    }
+};
 
 struct IndexPlanePoints
 {
@@ -189,6 +249,10 @@ struct IndexPlanePoints
     int max_index = -1;  // 计数最多的索引值
     int max_count = 0;   // 计数最多的次数
     int nan_points = 0;
+    void addNANPoints()
+    {
+        nan_points++;
+    }
     void add(int index, Eigen::Vector3d p) 
     {
         if (std::isnan(index))
@@ -278,6 +342,7 @@ private:
     vector<Footstep> steps;
     // 初始化参数 支撑脚为右脚，扩展参数为左脚
     vector<Eigen::Vector3d> transitions;
+    vector<Eigen::Vector3d> combine_transitions;
 
     // 后续计算障碍点时会用到
     cv::Mat plane_image;
@@ -363,7 +428,7 @@ public:
      * @return true 
      * @return false 
      */
-    bool getPointHeightInPlane(grid_map::Position p, double & height);
+    bool getPointHeightInPlane(grid_map::Position p, double & height, int & plane_index);
 
     /**
      * @brief 对落脚点进行精修，根据goal得到的左右脚可能有些缺陷，通过精修获得更合适的终点左右脚的姿态。这里只是为了获得候选节点
@@ -401,7 +466,7 @@ public:
      * @return true 
      * @return false 
      */
-    bool computeZRollPitch(Eigen::Vector3d point, double & z, Eigen::Vector3d & eular);
+    bool computeZRollPitch(Eigen::Vector3d point, double & z, Eigen::Vector3d & eular, int & plane_index);
 
     /**
      * @brief 计算localmap对应的含平面编号的平面信息
@@ -434,7 +499,7 @@ public:
     Eigen::Vector3d Quaterniond2EulerAngles(Eigen::Quaterniond q);
     Eigen::Vector3d Matrix3d2EulerAngles(Eigen::Matrix3d m);
 
-    bool computeTransitionScore(std::pair<Eigen::Vector3d, Eigen::Vector3d> transition, FootstepNodePtr current_node, FootstepNodePtr pre_node, bool & dangerous, double & score);
+    bool computeTransitionScore(std::pair<Eigen::Vector3d, Eigen::Vector3d> transition, FootstepNodePtr current_node, FootstepNodePtr pre_node, bool & dangerous, double & score, double & height, Eigen::Vector3d & plane_normal);
 
     /**
      * @brief 计算每个落脚点的得分，目的是为了找到终点处最佳的左右脚站立点
@@ -443,7 +508,7 @@ public:
      * @param score 
      * @return true 
      * @return false 
-     */
+    //  */
     bool computeLandPointScore(std::pair<Eigen::Vector3d, Eigen::Vector3d> land_point, double & score);
 
     /**
@@ -456,7 +521,7 @@ public:
      * @return true 
      * @return false 
      */
-    bool computeTransitionStrictScore(std::pair<Eigen::Vector3d, Eigen::Vector3d> transition, FootstepNodePtr current_node, FootstepNodePtr pre_node, double & score);
+    bool computeTransitionStrictScore(std::pair<Eigen::Vector3d, Eigen::Vector3d> transition, FootstepNodePtr current_node, FootstepNodePtr pre_node, double & score, double & height, Eigen::Vector3d & plane_normal);
 
     /**
      * @brief 将地图转化为有序地图，供提取平面时使用
@@ -475,6 +540,16 @@ public:
 
     bool startPoint2Node(Eigen::Vector3d p, FootstepNodePtr node);
 
+    bool getPointsInFootArea(Eigen::Vector3d ankle, HistogramVoting & fore_foot_HV, HistogramVoting & hind_foot_HV);
+
+    bool getPointsInForeFoot(Eigen::Vector3d ankle, HistogramVoting & fore_foot_HV);
+
+    bool getPointsInHindFoot(Eigen::Vector3d ankle, HistogramVoting & hind_foot_HV);
+
+    bool SqurePoints(Eigen::Vector2d TL, Eigen::Vector2d TR, Eigen::Vector2d BL, Eigen::Vector2d BR, vector<Eigen::Vector3d> & points);
+
+    bool SqureHistogramVoting(Eigen::Vector2d TL, Eigen::Vector2d TR, Eigen::Vector2d BL, Eigen::Vector2d BR, HistogramVoting & HV);
+
     /**
      * @brief 获取在ankle处落脚时，机器人包含几个平面点，及位于此区域所有的点集
      * 
@@ -484,7 +559,7 @@ public:
      * @return true 
      * @return false 
      */
-    bool getPointsInFootArea(Eigen::Vector3d ankle, IndexPlanePoints & index_plane);
+    bool getPointsInFootArea(Eigen::Vector3d ankle, IndexPlanePoints & index_plane, int & area_cells);
 
     /**
      * @brief 根据localmap计算在ankle处，支撑点数、超出点数、平面法向量
@@ -496,7 +571,7 @@ public:
      * @return true 
      * @return false 
      */
-    bool computeLandInfo(Eigen::Vector3d ankle, int & max_size, int & above_points, Eigen::Vector3d & plane_normal);
+    bool computeLandInfo(Eigen::Vector3d ankle, int & max_size, int & above_points, Eigen::Vector3d & plane_normal, double & step_height);
 
     /**
      * @brief 根据地图坐标系下的normal，计算在经过yaw旋转后，平面的roll和pitch角

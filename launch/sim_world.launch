@@ -1,0 +1,19 @@
+<launch>
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+ 
+    <arg name="world_name" value="/home/lichao/TCDS/src/pip_line/sim_environment/sim_terrain.world"/>
+    
+    <arg name="physics" value="none"/>
+
+    <arg name="paused" value="false"/>
+    
+    <arg name="use_sim_time" value="true"/>
+    
+    <arg name="gui" value="true"/>
+    
+    <arg name="headless" value="false"/>
+    
+    <arg name="debug" value="false"/>
+ 
+  </include>
+</launch>

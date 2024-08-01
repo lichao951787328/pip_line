@@ -1,0 +1,9 @@
+<launch>
+  <!-- Start Gazebo world -->
+  <include file="$(find pip_line)/launch/sim_world.launch">
+    <!-- <arg name="enable physics" value="false"/> -->
+    <!-- <arg name="paused" value="false"/>
+    <arg name="use_sim_time" value="true"/>
+    <arg name="gui" value="true"/> -->
+  </include>
+</launch>
