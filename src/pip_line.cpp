@@ -190,6 +190,9 @@ pip_line::pip_line(ros::NodeHandle & n):nh(n)
     // Eigen::Matrix4d T_base_base1 = Eigen::Matrix4d::Identity();
     // T_base_base1(2, 3) = 0.15;
     // T_world_camera = T_world_base * T_base_base1 * T_base1_color * T_color_depth;
+<<<<<<< HEAD
+>>>>>>> 722a853174111366aacf8ef4ce86da998cc2cb24
+=======
 >>>>>>> 722a853174111366aacf8ef4ce86da998cc2cb24
 }
 
@@ -1020,8 +1023,13 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     
 
 <<<<<<< HEAD
+<<<<<<< HEAD
     // cv::imwrite("/home/lichao/TCDS/src/pip_line/data/image_paper.png", image_paper);
     cv::imwrite("/home/lichao/TCDS/src/pip_line/data/result.png", result);
+=======
+    // cv::imwrite("/home/bhr/TCDS/src/pip_line/data/image_paper.png", image_paper);
+    // cv::imwrite("/home/bhr/TCDS/src/pip_line/data/result.png", result);
+>>>>>>> 722a853174111366aacf8ef4ce86da998cc2cb24
 =======
     // cv::imwrite("/home/bhr/TCDS/src/pip_line/data/image_paper.png", image_paper);
     // cv::imwrite("/home/bhr/TCDS/src/pip_line/data/result.png", result);
@@ -1080,7 +1088,11 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
                     // LOG(INFO)<<"planes.at(i).normal: "<<planes.at(i).normal.transpose();
                     // cout<<"dis = "<<dis<<endl;
 <<<<<<< HEAD
+<<<<<<< HEAD
                     if (dis > 0.4)// 上半身
+=======
+                    if (dis > 0.45)// 上半身
+>>>>>>> 722a853174111366aacf8ef4ce86da998cc2cb24
 =======
                     if (dis > 0.45)// 上半身
 >>>>>>> 722a853174111366aacf8ef4ce86da998cc2cb24
@@ -1177,6 +1189,7 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     FootParam footparam(0.16, 0.11, 0.065, 0.065);
     AstarHierarchicalFootstepPlanner planner(map, plane_image, collision_free_images, planes, footparam, 0.2);
 <<<<<<< HEAD
+<<<<<<< HEAD
     Eigen::Vector3d left_foot(0.05, 0.1, 0);
     Eigen::Vector3d right_foot(0.05, -0.1, 0);
     Eigen::Vector3d goal_p(1.5478, 0.1, 0);
@@ -1187,6 +1200,8 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     // double yaw = atan(v_t.y()/v_t.x());
     // goal_p.z() = yaw;
 =======
+=======
+>>>>>>> 722a853174111366aacf8ef4ce86da998cc2cb24
     Eigen::Vector3d left_foot(0.03, 0.1, 0);
     Eigen::Vector3d right_foot(0.03, -0.1, 0);
     Eigen::Vector3d goal_p;
