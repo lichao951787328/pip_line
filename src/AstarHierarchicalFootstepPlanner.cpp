@@ -32,7 +32,7 @@ AstarHierarchicalFootstepPlanner::AstarHierarchicalFootstepPlanner(grid_map::Gri
     LOG(INFO)<<"hip_width: "<<hip_width;
     LOG(INFO)<<"footsize_inmap: "<<footsize_inmap;
     // outfile = std::ofstream("/home/lichao/Darwin-op/src/elevation_map_ours/elevation_mapping/AstarHierarchicalFootstepPlanner/data/out.txt");
-    outfile = std::ofstream("/home/bhr/catkin_beijing4th/src/elevation_mapping/AstarHierarchicalFootstepPlanner/data/out.txt");
+    outfile = std::ofstream("/home/lichao/TCDS/src/pip_line/data/out.txt");
 #endif
     // 每个transition x y yaw 右脚往左扩展的步态点
     initial_transitions();
@@ -48,7 +48,7 @@ AstarHierarchicalFootstepPlanner::AstarHierarchicalFootstepPlanner(grid_map::Gri
 
     resolution = localmap.getResolution();
     mapsize = localmap.getSize().x() * localmap.getSize().y();
-    footsize_inmap = ((int)((footparam.x_button + footparam.x_upper)/resolution)) * ((int)((footparam.y_left + footparam.y_right)/resolution));
+    footsize_inmap = ((ceil)((footparam.x_button + footparam.x_upper)/resolution)) * ((ceil)((footparam.y_left + footparam.y_right)/resolution));
     planes = plane_images.size();
 #ifdef DEBUG
     LOG(INFO)<<"resolution: "<<resolution;
@@ -58,7 +58,7 @@ AstarHierarchicalFootstepPlanner::AstarHierarchicalFootstepPlanner(grid_map::Gri
     LOG(INFO)<<"hip_width: "<<hip_width;
     LOG(INFO)<<"footsize_inmap: "<<footsize_inmap;
     // outfile = std::ofstream("/home/lichao/Darwin-op/src/elevation_map_ours/elevation_mapping/AstarHierarchicalFootstepPlanner/data/out.txt");
-    outfile = std::ofstream("/home/bhr/catkin_beijing4th/src/elevation_mapping/AstarHierarchicalFootstepPlanner/data/out.txt");
+    outfile = std::ofstream("/home/lichao/TCDS/src/pip_line/data/out.txt");
 #endif
     initial_transitions();
     LOG(INFO)<<"construct planner over";
@@ -105,48 +105,6 @@ void AstarHierarchicalFootstepPlanner::initial_transitions()
             }
         }
     }
-
-    // for (int i = -1; i < 4; i++)
-    // {
-    //     for (int j = -1; j < 3; j++)
-    //     {
-    //         for (int k = -3; k < 4; k++)
-    //         {
-    //             if (j == -1 && (k == -3 || k == -2))// 靠的太近时角度不允许内转太多
-    //             {
-    //                 continue;
-    //             }
-    //             if (j == 0 && k ==-3)
-    //             {
-    //                 continue;
-    //             }      
-    //             Eigen::Vector3d transition = Eigen::Vector3d(i * 0.1,   0.02 * j + 0.2,  k*3/57.3);
-    //             // LOG(INFO)<<transition.transpose();
-    //             transitions.emplace_back(transition);
-    //         }
-    //     }
-    // } 
-
-    // Eigen::Vector3d transition = Eigen::Vector3d(0, 0.2,  0);
-    // transitions.emplace_back(transition);
-    // transition = Eigen::Vector3d(0, 0.2,  3/57.3);
-    // transitions.emplace_back(transition);
-    // transition = Eigen::Vector3d(0, 0.2,  -3/57.3);
-    // transitions.emplace_back(transition);
-    // transition = Eigen::Vector3d(0, 0.2,  6/57.3);
-    // transitions.emplace_back(transition);
-    // transition = Eigen::Vector3d(0, 0.2,  -6/57.3);
-    // transitions.emplace_back(transition);
-    // transition = Eigen::Vector3d(0.2, 0.2,  0);
-    // transitions.emplace_back(transition);
-    // transition = Eigen::Vector3d(0.3, 0.2,  3/57.3);
-    // transitions.emplace_back(transition);
-    // transition = Eigen::Vector3d(0.3, 0.2,  -3/57.3);
-    // transitions.emplace_back(transition);
-    // transition = Eigen::Vector3d(0.3, 0.2,  6/57.3);
-    // transitions.emplace_back(transition);
-    // transition = Eigen::Vector3d(0.3, 0.2,  -6/57.3);
-    // transitions.emplace_back(transition);
 }
 
 // 默认起点和终点位置是对的
@@ -230,29 +188,56 @@ bool AstarHierarchicalFootstepPlanner::initial(Eigen::Vector3d start, Eigen::Vec
     return true;
 }
 
-bool AstarHierarchicalFootstepPlanner::getPointHeightInPlane(grid_map::Position p, double & height, int & plane_index)
+bool AstarHierarchicalFootstepPlanner::getPointInfoInPlane(Eigen::Vector3d p, double & height, int & plane_index, double & pitch, double & roll)
 {
-    int label_index;
-    grid_map::Index index;
-    if (localmap.getIndex(p, index))
+    int max_size = 0, above_points = 0;
+    Eigen::Vector3d plane_normal = Eigen::Vector3d::Zero();
+    height = -std::numeric_limits<double>::infinity();
+    plane_index = -1;
+    pitch = std::numeric_limits<double>::infinity();
+    roll = std::numeric_limits<double>::infinity();
+    if (computeLandInfo(p, max_size, above_points, plane_normal, height, plane_index, pitch, roll))
     {
-        // 使用原数据判断，如果使用转换后的int的判断，会判断错误
-        if (std::isnan(label_localmap["label"](index.x(), index.y())))
+#ifdef DEBUG
+        LOG(INFO)<<"plane_normal = "<<plane_normal.transpose();
+#endif
+        if (plane_normal.z() > 0.85)
+        {
+            if (above_points == 0)
+            {
+                if (max_size > 0.7 * footsize_inmap)
+                {
+                    return true;
+                }
+                else
+                {
+#ifdef DEBUG
+                    LOG(INFO)<<"support error";
+#endif
+                    return false;
+                }
+            }
+            else
+            {
+#ifdef DEBUG
+                LOG(INFO)<<"above points error";
+#endif
+                return false;
+            }
+        }
+        else
         {
 #ifdef DEBUG
-            LOG(ERROR)<<"get error plane index, your plane segmentation may error.";
+            LOG(INFO)<<"normal is error";
 #endif
             return false;
         }
-        label_index = static_cast<int>(label_localmap["label"](index.x(), index.y()));
-        // LOG(INFO)<<"label_index: "<<label_index;
-        height = planes_info.at(label_index).getZ(p.head(2));
-        plane_index = label_index;
-        return true;
     }
     else
-    {   LOG(INFO)<<"p: "<<p.transpose();
-        LOG(INFO)<<"node is not in map";
+    {
+#ifdef DEBUG
+        LOG(INFO)<<"get land info error";
+#endif
         return false;
     }
 }
@@ -260,44 +245,46 @@ bool AstarHierarchicalFootstepPlanner::getPointHeightInPlane(grid_map::Position 
 // 是不是可以换成平面的形式
 bool AstarHierarchicalFootstepPlanner::startPoint2Node(Eigen::Vector3d p, FootstepNodePtr node)
 {
-    double height = 0.0;
+    double height = 0.0, pitch = 0, roll = 0;
     int plane_index;
-    if (getPointHeightInPlane(p.head(2), height, plane_index))
+    if (getPointInfoInPlane(p, height, plane_index, pitch, roll))
     {
         node->footstep.x = p(0);
         node->footstep.y = p(1);
         node->footstep.z = height;
         node->footstep.yaw = p(2);
-        node->footstep.roll = NAN;
-        node->footstep.pitch = NAN;
+        node->footstep.roll = roll;
+        node->footstep.pitch = pitch;
         node->plane_index = plane_index;
         return true;
     }
     else
     {
-        LOG(ERROR)<<"get height error";
+#ifdef DEBUG
+        LOG(ERROR)<<"get info error";
+#endif
         return false;
     }
 }
 
 // 改用xy坐标计算平面点的z坐标更合适
-bool AstarHierarchicalFootstepPlanner::computeTransitionHeight(Eigen::Vector3d transition, double & transition_height)
-{
-    int plane_index;
-    if (getPointHeightInPlane(transition.head(2), transition_height, plane_index))
-    {
-        return true;
-    }
-    else
-    {
-        return false;
-    }
-}
+// bool AstarHierarchicalFootstepPlanner::computeTransitionHeight(Eigen::Vector3d transition, double & transition_height)
+// {
+//     int plane_index;
+//     if (getPointHeightInPlane(transition.head(2), transition_height, plane_index))
+//     {
+//         return true;
+//     }
+//     else
+//     {
+//         return false;
+//     }
+// }
 
 // tested
 // 是否是危险的，是分数为0，并需要微调
 // 不是危险的，计算得分，得分过低的不再作为扩展节点
-bool AstarHierarchicalFootstepPlanner::computeTransitionScore(std::pair<Eigen::Vector3d, Eigen::Vector3d> transition, FootstepNodePtr current_node, FootstepNodePtr pre_node, bool & dangerous, double & score, double & height, Eigen::Vector3d & plane_normal)
+bool AstarHierarchicalFootstepPlanner::computeTransitionScore(std::pair<Eigen::Vector3d, Eigen::Vector3d> transition, FootstepNodePtr current_node, FootstepNodePtr pre_node, bool & dangerous, double & score, double & height, Eigen::Vector3d & plane_normal, int & plane_index, double & pitch, double & roll)
 {
     dangerous = false;
     score = 0;
@@ -305,16 +292,19 @@ bool AstarHierarchicalFootstepPlanner::computeTransitionScore(std::pair<Eigen::V
     // 如果采集的支撑区域位于同一平面，肯定可以，如果采集的支撑区域绝大部分区域位于同一平面，且其他位于平面之下，注意不是高度值小于平面。注意在此处需要考虑分层的打分，比方说缺少的区域或者发生碰撞的区域，如果发生碰撞的区域位于边缘区域，那么可以通过打分再通过后续细化
     int max_size = 0; // 属于同一最大平面的点数
     int above_points = 0; // 超出限制部分的点数
-    // Eigen::Vector3d plane_normal;
-    // double step_height = 0.;
-    if (!computeLandInfo(transition.second, max_size, above_points, plane_normal, height))
+    plane_normal = Eigen::Vector3d::Zero();
+    height = -std::numeric_limits<double>::infinity();
+    plane_index = -1;
+    pitch = std::numeric_limits<double>::infinity();
+    roll = std::numeric_limits<double>::infinity();
+    if (!computeLandInfo(transition.second, max_size, above_points, plane_normal, height, plane_index, pitch, roll))
     {
 #ifdef DEBUG
         LOG(INFO)<<"CANNOT computeLandInfo";
 #endif
         return false;
     }
-    int judge_num = max(area_num, footsize_inmap);
+    // int judge_num = max(area_num, footsize_inmap);
     // 判断是否是危险的
     // 超出点为15-30， 支撑小于。 则认为是危险的，需要微调，这样才能满足落脚需求
     // if (above_points > 5 || max_size < 0.7 * footsize_inmap)
@@ -340,8 +330,10 @@ bool AstarHierarchicalFootstepPlanner::computeTransitionScore(std::pair<Eigen::V
     double height_change = height - current_node->footstep.z;
     if (height_change > 0.16 || height_change < -0.15)
     {
+#ifdef DEBUG
         LOG(INFO)<<"height is unsuaitable";
         LOG(INFO)<<"height: "<<height;
+#endif
         // LOG(INFO)<<transition_height<<" "<<current_node->footstep.z;
         return false;
     }
@@ -358,20 +350,24 @@ bool AstarHierarchicalFootstepPlanner::computeTransitionScore(std::pair<Eigen::V
     }
     if (swing_height_max > 0.45)
     {
+#ifdef DEBUG
         LOG(INFO)<<"swing_height_max";
+#endif
         return false;
     }
     if (abs(height_change_swing) > 0.35)
     {
+#ifdef DEBUG
         LOG(INFO)<<"height_change_swing";
+#endif
         return false;
     }
     // LOG(INFO)<<"compute height";
 
     // 根据这些信息能确定脚的角度roll和pitch
     // double roll, pitch;
-    Eigen::Vector3d eular;
-    computeRollPitch(plane_normal, transition.second.z(), eular);
+    // Eigen::Vector3d eular;
+    // computeRollPitch(plane_normal, transition.second.z(), eular);
     // 根据上面的点能对每个transition进行打分
     // 打分的标准1. 超出高度数量； 2. 总数量； 3. 哪个位置更好；4：roll角
     // double score1 = - (int(above_points)) * 0.01; // 这个是不是可以不参与排序
@@ -388,8 +384,8 @@ bool AstarHierarchicalFootstepPlanner::computeTransitionScore(std::pair<Eigen::V
     double score7 = - abs(transition.first.y() - 0.2) * 0.15;
     double score10 = - abs(transition.first.z()) * 1;// yaw角打分
     // double score10 = yaw
-    double score8 = - abs(eular(2)) * 5;
-    double score9 = - abs(eular(1)) * 3;
+    double score8 = - abs(roll) * 5;
+    double score9 = - abs(pitch) * 3;
     // score = score1 + score2 + score3 + score4 + score5 + score6 + score7 + score8 + score9 + score10;
     score = score3 + score4 + score5 + score6 + score7 + score8 + score9 + score10;
     // LOG(INFO)<<score1<<" "<<score2<<" "<<score3<<" "<<score4<<" "<<score5<<" "<<score6<<" "<<score7<<" "<<score8<<" "<<score9<<" "<<score10;
@@ -397,59 +393,51 @@ bool AstarHierarchicalFootstepPlanner::computeTransitionScore(std::pair<Eigen::V
     return true;
 }
 
-bool  AstarHierarchicalFootstepPlanner::point2Node(Eigen::Vector3d p, FootstepNodePtr node)
-{
-    double z;
-    Eigen::Vector3d eular;
-    int plane_index;
-    if (computeZRollPitch(p, z, eular, plane_index))
-    {
-        node->footstep.z = z;
-        node->footstep.roll = eular(2);
-        node->footstep.pitch = eular(1);
-        node->footstep.yaw = p.z();
-        node->plane_index = plane_index;
-        return true;
-    }
-    else
-    {
-#ifdef DEBUG
-        LOG(INFO)<<"can not set node";
-#endif
-        return false;
-    }
+// bool  AstarHierarchicalFootstepPlanner::point2Node(Eigen::Vector3d p, FootstepNodePtr node)
+// {
+//     double z;
+//     Eigen::Vector3d eular;
+//     int plane_index;
+//     if (computeZRollPitch(p, z, eular, plane_index))
+//     {
+//         node->footstep.z = z;
+//         node->footstep.roll = eular(2);
+//         node->footstep.pitch = eular(1);
+//         node->footstep.yaw = p.z();
+//         node->plane_index = plane_index;
+//         return true;
+//     }
+//     else
+//     {
+// #ifdef DEBUG
+//         LOG(INFO)<<"can not set node";
+// #endif
+//         return false;
+//     }
     
-}
+// }
 
 // tested 计算落脚点的得分
-bool AstarHierarchicalFootstepPlanner::computeLandPointScore(std::pair<Eigen::Vector3d, Eigen::Vector3d> land_point, double & score)
+bool AstarHierarchicalFootstepPlanner::computeLandPointScore(std::pair<Eigen::Vector3d, Eigen::Vector3d> land_point, double & score, double & height, int & plane_index, double & pitch, double & roll)
 {
     int max_size = 0; // 属于同一最大平面的点数
     int above_points = 0; // 超出限制部分的点数
-    Eigen::Vector3d plane_normal;
-    double height;
-    if (!computeLandInfo(land_point.second, max_size, above_points, plane_normal, height))
+    Eigen::Vector3d plane_normal = Eigen::Vector3d::Zero();
+    height = -std::numeric_limits<double>::infinity();
+    plane_index = -1;
+    pitch = std::numeric_limits<double>::infinity();
+    roll = std::numeric_limits<double>::infinity();
+    if (!computeLandInfo(land_point.second, max_size, above_points, plane_normal, height, plane_index, pitch, roll))
     {
 #ifdef DEBUG
         LOG(INFO)<<"can not get land info";
 #endif
         return false;
     }
-
-    // 根据这些信息能确定脚的角度roll和pitch
-    // double roll, pitch;
-    Eigen::Vector3d eular;
-    computeRollPitch(plane_normal, land_point.second.z(), eular);
-    if (eular(2) > 10/57.3 || eular(1) > 15/57.3)
+    if (above_points > 0)
     {
-#ifdef DEBUG
-        LOG(INFO)<<"roll or pitch is too large";
-        LOG(INFO)<<eular(2)*57.3<<" "<<eular(1)*57.3<<" "<<eular(0)*57.3;
-#endif
         return false;
     }
-    
-    double score1 = - above_points * 0.1; // 这个是不是可以不参与排序
     double score2 = 0; 
     if (footsize_inmap > max_size)
     {
@@ -459,121 +447,106 @@ bool AstarHierarchicalFootstepPlanner::computeLandPointScore(std::pair<Eigen::Ve
     double score6 = - abs(land_point.first.x()) * 0.1;
     double score7 = - abs(land_point.first.y()) * 0.15;
     double score10 = - abs(land_point.first.z()) * 1;// yaw角打分
-    double score8 = - abs(eular(2)) * 7;
-    double score9 = - abs(eular(1)) * 5;
-    score = score1 + score2 + score6 + score7 + score8 + score9 + score10;
-    // LOG(INFO)<<score1<<" "<<score2<<" "<<score6<<" "<<score7<<" "<<score8<<" "<<score9<<" "<<score10;
+    double score8 = - abs(roll) * 7;
+    double score9 = - abs(pitch) * 5;
+    score = score2 + score6 + score7 + score8 + score9 + score10;
     return true;
 }
 
 // 计算落脚位置对应的z，roll，pitch值
-bool AstarHierarchicalFootstepPlanner::computeZRollPitch(Eigen::Vector3d point, double & z, Eigen::Vector3d & eular, int & plane_index)
-{
-    int max_size = 0; // 属于同一最大平面的点数
-    int above_points = 0; // 超出限制部分的点数
-    Eigen::Vector3d plane_normal;
-    double height = 0;
-    if (!computeLandInfo(point, max_size, above_points, plane_normal, height))
-    {
-#ifdef DEBUG
-        LOG(INFO)<<"not land info";
-#endif
-        return false;
-    }
+// bool AstarHierarchicalFootstepPlanner::computeZRollPitch(Eigen::Vector3d point, double & z, Eigen::Vector3d & eular, int & plane_index)
+// {
+//     int max_size = 0; // 属于同一最大平面的点数
+//     int above_points = 0; // 超出限制部分的点数
+//     Eigen::Vector3d plane_normal;
+//     double height = 0;
+//     if (!computeLandInfo(point, max_size, above_points, plane_normal, height))
+//     {
+// #ifdef DEBUG
+//         LOG(INFO)<<"not land info";
+// #endif
+//         return false;
+//     }
 
-    // 根据这些信息能确定脚的角度roll和pitch
-    computeRollPitch(plane_normal, point.z(), eular);
-    if (eular(2) > 10/57.3 || eular(1) > 15/57.3)
-    {
-        LOG(INFO)<<"roll or pitch is unsuitable";
-        LOG(INFO)<<(eular*57.3).transpose();
-        return false;
-    }
-    return true;
-    // double height;
-    // if (getPointHeightInPlane(point.head(2), height))
-    // {
-    //     z = height;
-    //     return true;
-    // }
-    // else
-    // {
-    //     LOG(ERROR)<<"can not get height";
-    //     return false;
-    // }
-}
+//     // 根据这些信息能确定脚的角度roll和pitch
+//     computeRollPitch(plane_normal, point.z(), eular);
+//     if (eular(2) > 10/57.3 || eular(1) > 15/57.3)
+//     {
+//         LOG(INFO)<<"roll or pitch is unsuitable";
+//         LOG(INFO)<<(eular*57.3).transpose();
+//         return false;
+//     }
+//     return true;
+// }
 
 // tested 更严格的标准判断是否合格
-bool AstarHierarchicalFootstepPlanner::computeTransitionStrictScore(std::pair<Eigen::Vector3d, Eigen::Vector3d> transition, FootstepNodePtr current_node, FootstepNodePtr pre_node, double & score, double & height, Eigen::Vector3d & plane_normal)
-{
-    int max_size = 0; // 属于同一最大平面的点数
-    int above_points = 0; // 超出限制部分的点数
-    // Eigen::Vector3d plane_normal;
-    // double step_height = 0.;
-    if (!computeLandInfo(transition.second, max_size, above_points, plane_normal, height))
-    {
-        return false;
-    }
-    if (above_points > 0)// 这个值也需要调
-    {
-        return false;
-    }
-    // if (max_size < 0.85 * footsize_inmap)
-    // {
-    //     return false;
-    // }
-    
-    // double transition_height;
-    // if (!computeTransitionHeight(transition.second, transition_height))
-    // {
-    //     return false;
-    // }
-    // 高度太高，则去除，高度也会是一个打分项
-    double height_change = height - current_node->footstep.z;
-    // LOG(INFO)<<transition_height<<" "<<current_node->footstep.z;
-    if (height_change > 0.2 || height_change < -0.15)
-    {
-        return false;
-    }
-
-    // 摆动脚跨越高度，这也是一个打分项
-    double height_change_swing, swing_height_max;
-    if (!swingHeight(grid_map::Position(pre_node->footstep.x, pre_node->footstep.y), transition.second.head(2), height_change_swing, swing_height_max))
-    {
-        return false;
-    }
-    if (swing_height_max > 0.45)
-    {
-        return false;
-    }
-    if (abs(height_change_swing) > 0.35)
-    {
-        return false;
-    }
-    Eigen::Vector3d eular;
-    computeRollPitch(plane_normal, transition.second.z(), eular);
-    // 根据上面的点能对每个transition进行打分
-    // 打分的标准1. 超出高度数量； 2. 总数量； 3. 哪个位置更好；4：roll角
-
-    double score2 = 0;
-    if (footsize_inmap > max_size)
-    {
-        score2 = -((footsize_inmap - max_size)) * 0.001;
-    }
-    double score3 = - abs(height_change) * 0.05;
-    double score4 = - abs(height_change_swing) * 0.05;
-    double score5 = - abs(swing_height_max) * 0.05;
-    // double score6 = 没有对应关系了，怎么确定分数xy方向的分数
-    double score6 = - abs(transition.first.x() - 0.3) * 0.2;
-    double score7 = - abs(transition.first.y() - 0.2) * 0.15;
-    double score10 = - abs(transition.first.z()) * 1;// yaw角打分
-    // double score10 = yaw
-    double score8 = - abs(eular(2)) * 5;
-    double score9 = - abs(eular(1)) * 3;
-    score = score2 + score3 + score4 + score5 + score6 + score7 + score8 + score9 + score10;
-    // LOG(INFO)<<score2<<" "<<score3<<" "<<score4<<" "<<score5<<" "<<score6<<" "<<score7<<" "<<score8<<" "<<score9<<" "<<score10;
-    return true;
-}
+// bool AstarHierarchicalFootstepPlanner::computeTransitionStrictScore(std::pair<Eigen::Vector3d, Eigen::Vector3d> transition, FootstepNodePtr current_node, FootstepNodePtr pre_node, double & score, double & height, Eigen::Vector3d & plane_normal)
+// {
+//     int max_size = 0; // 属于同一最大平面的点数
+//     int above_points = 0; // 超出限制部分的点数
+//     // Eigen::Vector3d plane_normal;
+//     // double step_height = 0.;
+//     if (!computeLandInfo(transition.second, max_size, above_points, plane_normal, height))
+//     {
+//         return false;
+//     }
+//     if (above_points > 0)// 这个值也需要调
+//     {
+//         return false;
+//     }
+//     // if (max_size < 0.85 * footsize_inmap)
+//     // {
+//     //     return false;
+//     // }
+//     // double transition_height;
+//     // if (!computeTransitionHeight(transition.second, transition_height))
+//     // {
+//     //     return false;
+//     // }
+//     // 高度太高，则去除，高度也会是一个打分项
+//     double height_change = height - current_node->footstep.z;
+//     // LOG(INFO)<<transition_height<<" "<<current_node->footstep.z;
+//     if (height_change > 0.2 || height_change < -0.15)
+//     {
+//         return false;
+//     }
+//     // 摆动脚跨越高度，这也是一个打分项
+//     double height_change_swing, swing_height_max;
+//     if (!swingHeight(grid_map::Position(pre_node->footstep.x, pre_node->footstep.y), transition.second.head(2), height_change_swing, swing_height_max))
+//     {
+//         return false;
+//     }
+//     if (swing_height_max > 0.45)
+//     {
+//         return false;
+//     }
+//     if (abs(height_change_swing) > 0.35)
+//     {
+//         return false;
+//     }
+//     Eigen::Vector3d eular;
+//     computeRollPitch(plane_normal, transition.second.z(), eular);
+//     // 根据上面的点能对每个transition进行打分
+//     // 打分的标准1. 超出高度数量； 2. 总数量； 3. 哪个位置更好；4：roll角
+//     double score2 = 0;
+//     if (footsize_inmap > max_size)
+//     {
+//         score2 = -((footsize_inmap - max_size)) * 0.001;
+//     }
+//     double score3 = - abs(height_change) * 0.05;
+//     double score4 = - abs(height_change_swing) * 0.05;
+//     double score5 = - abs(swing_height_max) * 0.05;
+//     // double score6 = 没有对应关系了，怎么确定分数xy方向的分数
+//     double score6 = - abs(transition.first.x() - 0.3) * 0.2;
+//     double score7 = - abs(transition.first.y() - 0.2) * 0.15;
+//     double score10 = - abs(transition.first.z()) * 1;// yaw角打分
+//     // double score10 = yaw
+//     double score8 = - abs(eular(2)) * 5;
+//     double score9 = - abs(eular(1)) * 3;
+//     score = score2 + score3 + score4 + score5 + score6 + score7 + score8 + score9 + score10;
+//     // LOG(INFO)<<score2<<" "<<score3<<" "<<score4<<" "<<score5<<" "<<score6<<" "<<score7<<" "<<score8<<" "<<score9<<" "<<score10;
+//     return true;
+// }
 
 bool AstarHierarchicalFootstepPlanner::nodeExtension(FootstepNodePtr current_node, FootstepNodePtr pre_node, vector<FootstepNodePtr> & child_nodes)
 {
@@ -621,7 +594,9 @@ bool AstarHierarchicalFootstepPlanner::nodeExtension(FootstepNodePtr current_nod
         bool dangerous = false;
         double height = 0.;
         Eigen::Vector3d normal;
-        if (computeTransitionScore(transition, current_node, pre_node, dangerous, score, height, normal))
+        int plane_index;
+        double pitch, roll;
+        if (computeTransitionScore(transition, current_node, pre_node, dangerous, score, height, normal, plane_index, pitch, roll))
         {
             if (dangerous)// 这个节点需要微调
             {
@@ -637,15 +612,20 @@ bool AstarHierarchicalFootstepPlanner::nodeExtension(FootstepNodePtr current_nod
                     double tmp_score;
                     double height = 0;
                     Eigen::Vector3d fine_normal;
-                    if (computeTransitionStrictScore(tr, current_node, pre_node, tmp_score, height, fine_normal))
+                    int plane_index;
+                    double pitch, roll;
+                    bool fine_dangerous = false;
+                    if (computeTransitionScore(tr, current_node, pre_node, fine_dangerous, tmp_score, height, fine_normal, plane_index, pitch, roll))
                     {
-                        // LOG(INFO)<<tmp_score;
-                        ScoreMarkerNodePtr node_p = std::make_shared<ScoreMarkerNode>(tr.second, tmp_score, height, fine_normal);
-                        tmpFineScoreNodes.push(node_p);
+                        if (!fine_dangerous)
+                        {
+                            ScoreMarkerNodePtr node_p = std::make_shared<ScoreMarkerNode>(tr.second, tmp_score, height, fine_normal, plane_index, roll, pitch);
+                            tmpFineScoreNodes.push(node_p);
+                        }
                     }
                 }
 
-                int total = 3;
+                int total = 2;
                 while (total >= 0 && !tmpFineScoreNodes.empty())
                 {
                     auto node_tmp = tmpFineScoreNodes.top();
@@ -656,7 +636,7 @@ bool AstarHierarchicalFootstepPlanner::nodeExtension(FootstepNodePtr current_nod
             else// 不需要微调
             {
                 // transition.first 基础偏移量 transition.second 地图中实际的偏移
-                ScoreMarkerNodePtr node_p = std::make_shared<ScoreMarkerNode>(transition.second, score, height, normal);
+                ScoreMarkerNodePtr node_p = std::make_shared<ScoreMarkerNode>(transition.second, score, height, normal, plane_index, roll, pitch);
                 // computeTransitionStrictScore 是不是有点多余
                 basicScoreNodes.push(node_p);
             }
@@ -688,146 +668,52 @@ bool AstarHierarchicalFootstepPlanner::nodeExtension(FootstepNodePtr current_nod
     cv::waitKey(0);
 #endif
 
-// #ifdef DEBUG
-//     LOG(INFO)<<"basic node size: "<<basicScoreNodes.size();
-//     auto debug_q  = basicScoreNodes;
-//     while (!debug_q.empty())
-//     {
-//         auto node = debug_q.top();
-//         debug_q.pop();
-//         cout<<node->score<<" "<<node->point.transpose()<<endl;
-//     }
-//     cout<<endl;
-// #endif
-//     std::priority_queue<ScoreMarkerNodePtr, std::vector<ScoreMarkerNodePtr>, ScoreMarkerNodeCompare> fineScoreNodes;
-//     if (!dangerousBasicScoreNodes.empty())// 如果有一些危险节点需要微调
-//     {
-//         int total = 8;
-//         while (total > 0 && !dangerousBasicScoreNodes.empty())
-//         {
-//             total --;
-//             auto node = dangerousBasicScoreNodes.top();
-//             dangerousBasicScoreNodes.pop();
-//             // 细化
-//             vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> trans = fineTransitions(node->point, current_node);
-//             // 计算细化得分, 由基础偏移量转到了实际位置
-//             std::priority_queue<ScoreMarkerNodePtr, std::vector<ScoreMarkerNodePtr>, ScoreMarkerNodeCompare> tmpFineScoreNodes;
-//             for (auto & tr : trans)
-//             {
-//                 double tmp_score;
-//                 if (computeTransitionStrictScore(tr, current_node, pre_node, tmp_score))
-//                 {
-//                     // LOG(INFO)<<tmp_score;
-//                     ScoreMarkerNodePtr node_p = std::make_shared<ScoreMarkerNode>(tr.second, tmp_score);
-//                     tmpFineScoreNodes.push(node_p);
-//                 }
-//             }
-//             while (!tmpFineScoreNodes.empty())
-//             {
-//                 fineScoreNodes.push(tmpFineScoreNodes.top());
-//                 tmpFineScoreNodes.pop();
-//             }
-//         }
-//     }
-    
-
-    // 将微调后的和之前的合并构成扩展节点，还是直接将两者加入
-    // while (!fineScoreNodes.empty())
-    // {
-    //     auto node = fineScoreNodes.top();
-    //     fineScoreNodes.pop();
-    //     FootstepNodePtr stepnode;
-    //     grid_map::Index index_;
-    //     if (label_localmap.getIndex(node->point.head(2), index_))
-    //     {
-    //         grid_map::Position3 p3;
-    //         if (label_localmap.getPosition3("elevation", index_, p3))
-    //         {
-    //             FootstepNodePtr stepnode = std::make_shared<FootstepNode>(Eigen::Vector3d(p3.x(), p3.y(), node->point.z()), current_node->footstep.getInverseRobotSide());
-    //             stepnode->PreFootstepNode = current_node;
-    //             if (point2Node(p3, stepnode))
-    //             {
-    //                 // stepnode->Gcost = current_node->Gcost + node->score * 0.1 * (-1);
-    //                 if (!computeHcost(stepnode, stepnode->Hcost))
-    //                 {
-    //                     continue;
-    //                 }
-    //                 if (!computeGcost(stepnode, stepnode->Gcost))
-    //                 {
-    //                     continue;
-    //                 }           
-    //                 // stepnode->cost = stepnode->Hcost + stepnode->Gcost;
-    //                 stepnode->cost = stepnode->Hcost* 1.5 + stepnode->Gcost;
-    //                 child_nodes.emplace_back(stepnode);
-    //             }
-    //         }
-    //     }
-    // }
-    
     while (!basicScoreNodes.empty())
     {
         auto node = basicScoreNodes.top();
         // 由基础偏移量转到实际位置
         basicScoreNodes.pop();
-        FootstepNodePtr stepnode;
-        grid_map::Index index_;
-        if (label_localmap.getIndex(node->point.head(2), index_))
+        FootstepNodePtr stepnode = std::make_shared<FootstepNode>(node->point, node->height, node->roll, node->pitch, current_node->footstep.getInverseRobotSide());
+        stepnode->plane_index = node->plane_index;
+        stepnode->PreFootstepNode = current_node;
+        // 跨平面运动时对规划的落脚点限制
+        if (stepnode->plane_index != stepnode->PreFootstepNode->plane_index)
         {
-            grid_map::Position3 p3;
-            if (label_localmap.getPosition3("elevation", index_, p3))
+            Eigen::Vector2d dis_v1(stepnode->footstep.x, stepnode->footstep.y);
+            Eigen::Vector2d dis_v2(stepnode->PreFootstepNode->PreFootstepNode->footstep.x, stepnode->PreFootstepNode->PreFootstepNode->footstep.y);
+            // 距离超过0.4
+            if (abs((dis_v1 - dis_v2).norm()) > 0.45)
             {
-                Eigen::Vector3d eular;
-                computeRollPitch(node->normal, node->point.z(), eular);
-                if (eular(2) > 10/57.3 || eular(1) > 15/57.3)
-                {
-                    LOG(INFO)<<"roll or pitch is unsuitable";
-                    LOG(INFO)<<(eular*57.3).transpose();
-                    return false;
-                }
-                // node->footstep.roll = eular(2);
-                // node->footstep.pitch = eular(1);
-                FootstepNodePtr stepnode = std::make_shared<FootstepNode>(Eigen::Vector3d(p3.x(), p3.y(), node->point.z()), node->height, eular(2), eular(1), current_node->footstep.getInverseRobotSide());
-
-                // FootstepNodePtr stepnode = std::make_shared<FootstepNode>(Eigen::Vector3d(p3.x(), p3.y(), node->point.z()), current_node->footstep.getInverseRobotSide());
-                stepnode->PreFootstepNode = current_node;
-
-                if (!computeHcost(stepnode, stepnode->Hcost))
-                {
-                    continue;
-                }
-
-                if (!computeGcost(stepnode, stepnode->Gcost))
-                {
-                    continue;
-                }
-                
-                stepnode->cost = stepnode->Hcost + stepnode->Gcost;
-                // stepnode->cost = stepnode->Hcost *4 + stepnode->Gcost;
-                child_nodes.emplace_back(stepnode);
-
-                // if (point2Node(Eigen::Vector3d(p3.x(), p3.y(), node->point.z()), stepnode))
-                // {
-                //     // stepnode->Gcost = current_node->Gcost + node->score * 0.1 * (-1);
-                //     if (!computeHcost(stepnode, stepnode->Hcost))
-                //     {
-                //         continue;
-                //     }
-
-                //     if (!computeGcost(stepnode, stepnode->Gcost))
-                //     {
-                //         continue;
-                //     }
-                    
-                //     stepnode->cost = stepnode->Hcost + stepnode->Gcost;
-                //     // stepnode->cost = stepnode->Hcost *4 + stepnode->Gcost;
-                //     child_nodes.emplace_back(stepnode);
-                // }
-                // else
-                // {
-                //     LOG(INFO)<<"can not turn it to node";
-                // }
+                continue;
+            }
+            // 不在同一平面上且角度相差太大，也舍弃
+            if (abs(stepnode->footstep.yaw - stepnode->PreFootstepNode->footstep.yaw) > 3 /57.3)
+            {
+                continue;
             }
         }
+        // 如果两脚pitch较大，那就不要迈大步长，5关节可能会达到62度
+        if (stepnode->footstep.pitch <= - 5/57.3 && stepnode->PreFootstepNode->footstep.pitch <= - 5/57.3)
+        {
+            Eigen::Vector2d dis_v1(stepnode->footstep.x, stepnode->footstep.y);
+            Eigen::Vector2d dis_v2(stepnode->PreFootstepNode->PreFootstepNode->footstep.x, stepnode->PreFootstepNode->PreFootstepNode->footstep.y);
+            if (abs((dis_v1 - dis_v2).norm()) > 0.32)
+            {
+                continue;
+            }
+        }
+
+        if (!computeHcost(stepnode, stepnode->Hcost))
+        {
+            continue;
+        }
+
+        if (!computeGcost(stepnode, stepnode->Gcost))
+        {
+            continue;
+        }
+        stepnode->cost = stepnode->Hcost + stepnode->Gcost;
+        child_nodes.emplace_back(stepnode);
     }
     
     if (child_nodes.empty())
@@ -899,7 +785,7 @@ Eigen::Vector3d AstarHierarchicalFootstepPlanner::adjustEulerAngles(const Eigen:
 }
 
 // 四元数转欧拉角的方案
-//四元数 --> 欧拉角(Z-Y-X，即RPY)（确保pitch的范围[-pi/2, pi/2]）
+// 四元数 --> 欧拉角(Z-Y-X，即RPY)（确保pitch的范围[-pi/2, pi/2]）
 Eigen::Vector3d AstarHierarchicalFootstepPlanner::Quaterniond2EulerAngles(Eigen::Quaterniond q) 
 {
     Eigen::Vector3d angles;
@@ -924,6 +810,7 @@ Eigen::Vector3d AstarHierarchicalFootstepPlanner::Quaterniond2EulerAngles(Eigen:
     return angles;
 }
 
+// yaw pitch roll
 Eigen::Vector3d AstarHierarchicalFootstepPlanner::Matrix3d2EulerAngles(Eigen::Matrix3d m)
 {
     Eigen::Quaterniond qd(m);
@@ -988,24 +875,30 @@ bool AstarHierarchicalFootstepPlanner::swingHeight(grid_map::Position start, gri
             }
             else
             {
+#ifdef DEBUG
                 LOG(ERROR)<<end.transpose();
                 LOG(ERROR)<<end_index.transpose();
                 LOG(ERROR)<<"can not get end elevation.";
+#endif
                 return false;
             }
         }
         else
         {
+#ifdef DEBUG
             LOG(ERROR)<<start.transpose();
             LOG(ERROR)<<start_index.transpose();
             LOG(ERROR)<<"can not get start elevation.";
+#endif
             return false;
         }
         return true;
     }
     else
     {
+#ifdef DEBUG
         LOG(ERROR)<<"start or end out of map";
+#endif
         return false;
     }
 }
@@ -1093,6 +986,9 @@ bool AstarHierarchicalFootstepPlanner::SqureHistogramVoting(Eigen::Vector2d TL, 
                 {
                     if (!std::isnan(cor_position.z()))
                     {
+#ifdef DEBUG
+                        LOG(INFO)<<label_localmap["label"](index_l.x(), index_l.y());
+#endif
                         if (!std::isnan(label_localmap["label"](index_l.x(), index_l.y())))
                         {
                             int label_index = static_cast<int>(label_localmap["label"](index_l.x(), index_l.y()));
@@ -1173,6 +1069,9 @@ bool AstarHierarchicalFootstepPlanner::getPointsInFootArea(Eigen::Vector3d ankle
     }
     else
     {
+#ifdef DEBUG
+        LOG(ERROR)<<"corner is out of map";
+#endif
         return false;
     }
 }
@@ -1210,7 +1109,6 @@ bool AstarHierarchicalFootstepPlanner::getPointsInFootArea(Eigen::Vector3d ankle
             grid_map::Index end_index(*iterator_end);
             for (grid_map::LineIterator iterator_l(label_localmap, start_index, end_index); !iterator_l.isPastEnd(); ++iterator_l)
             {
-                area_cells++;
                 const grid_map::Index index_l(*iterator_l);
                 grid_map::Position position_l;
                 if (label_localmap.getPosition(index_l, position_l))
@@ -1231,23 +1129,6 @@ bool AstarHierarchicalFootstepPlanner::getPointsInFootArea(Eigen::Vector3d ankle
                                 LOG(INFO)<<"nan";
 #endif
                             }
-                            // allpoints.emplace_back(cor_position);// 将所有点都添加
-                            // grid_map::Position3 label3;
-                            // if (label_localmap.getPosition3("label", index_l, label3))
-                            // {
-                            //     if (std::isnan(label_localmap["label"](index.x(), index.y())))
-                            //     {
-                            //         LOG(ERROR)<<"get error plane index, your plane segmentation may error.";
-                            //         return false;
-                            //     }
-                            //     label_index = static_cast<int>(label_localmap["label"](index.x(), index.y()));
-                            //     if (!std::isnan(label3.z()))
-                            //     {
-                            //         // LOG(INFO)<<"label3.z(): "<<label3.z();
-                            //         // points_planes.at(label3.z() -1).emplace_back(cor_position);
-                            //         index_plane.add(label3.z(), cor_position);
-                            //     }
-                            // }
                         }
 #ifdef DEBUG
                         else
@@ -1288,7 +1169,7 @@ bool AstarHierarchicalFootstepPlanner::getPointsInFootArea(Eigen::Vector3d ankle
     else
     {
 #ifdef DEBUG
-        LOG(INFO)<<"corner is out of map";
+        LOG(ERROR)<<"corner is out of map";
 #endif
         return false;
     }
@@ -1373,27 +1254,28 @@ bool AstarHierarchicalFootstepPlanner::getPointsInFootArea(Eigen::Vector3d ankle
 //     }
 // }
 
-// tested
-bool AstarHierarchicalFootstepPlanner::computeLandInfo(Eigen::Vector3d ankle, int & max_size, int & above_points, Eigen::Vector3d & plane_normal, double & step_height)
+// tested 粗略检查
+bool AstarHierarchicalFootstepPlanner::computeLandInfo(Eigen::Vector3d ankle, int & max_size, int & above_points, Eigen::Vector3d & plane_normal, double & step_height, int & plane_index, double & pitch, double & roll)
 {
     // 能否找到支撑平面
         // 前脚直方图
         // 后脚直方图
         // 匹配对
         // 支撑平面
+
+    // 论文中这个函数对应的可通行性检测，要记录这个函数被调用的次数及总时间消耗
+    checktime++;
+    clock_t start = clock();
+    max_size = 0;
+    above_points = 0;
+    plane_normal = Eigen::Vector3d::Zero();
+    step_height = -std::numeric_limits<double>::infinity();
+    plane_index = -1;
+    pitch = std::numeric_limits<double>::infinity();
+    roll = std::numeric_limits<double>::infinity();
     HistogramVoting fore_foot_HV, hind_foot_HV;
     if (getPointsInFootArea(ankle, fore_foot_HV, hind_foot_HV))
     {
-// #ifdef DEBUG
-//         for (auto & bin1 : fore_foot_HV.counter)
-//         {
-//             LOG(INFO)<<bin1.first<<" "<<bin1.second.size();
-//         }
-//         for (auto & bin2 : hind_foot_HV.counter)
-//         {
-//             LOG(INFO)<<bin2.first<<" "<<bin2.second.size();
-//         }
-// #endif
         vector<std::pair<int, int>> candidate_support_planes;
         for (auto & bin1 : fore_foot_HV.counter)
         {
@@ -1412,27 +1294,55 @@ bool AstarHierarchicalFootstepPlanner::computeLandInfo(Eigen::Vector3d ankle, in
                 }
             }
         }
-        int support_plane;
+
+#ifdef DEBUG
+        for (int i = 0; i < candidate_support_planes.size(); i++)
+        {
+            LOG(INFO)<<i<<": "<<candidate_support_planes.at(i).first<<" "<<candidate_support_planes.at(i).second;
+        }
+        
+#endif
+
         if (!candidate_support_planes.empty())
         {
             Eigen::Vector3d center;
             double max_height = -std::numeric_limits<double>::infinity();
-        for (auto & cand_plane : candidate_support_planes)
+            for (auto & cand_plane : candidate_support_planes)
             {
                 double tmp_elevation = planes_info.at(cand_plane.first).getZ(ankle.head(2));
                 // LOG(INFO)<<"tmp_elevation: "<<tmp_elevation;
                 if (max_height < tmp_elevation)
                 {
                     // LOG(INFO)<<"RESET...";
-                    support_plane = cand_plane.first;
+                    plane_index = cand_plane.first;
                     max_size = cand_plane.second;
                     plane_normal = Eigen::Vector3d(planes_info.at(cand_plane.first).normal.x(), planes_info.at(cand_plane.first).normal.y(), planes_info.at(cand_plane.first).normal.z());
                     center = Eigen::Vector3d(planes_info.at(cand_plane.first).center.x(), planes_info.at(cand_plane.first).center.y(), planes_info.at(cand_plane.first).center.z());
                     max_height = tmp_elevation;
                 }
             }
+#ifdef DEBUG
+            LOG(INFO)<<"plane_normal: "<<plane_normal.transpose();
+            LOG(INFO)<<"center: "<<center.transpose();
+#endif
             step_height = max_height;
+            Eigen::Vector3d eular;
+            computeRollPitch(plane_normal, ankle.z(), eular);
+            pitch = eular(1);
+            roll = eular(2);
             for (auto & points : fore_foot_HV.counter)
+            {
+                for (auto & point : points.second)
+                {
+                    if ((point - center).dot(plane_normal) > 0.01)
+                    {
+
+                        above_points ++;
+                    }
+                }
+            }
+
+            for (auto & points : hind_foot_HV.counter)
             {
                 for (auto & point : points.second)
                 {
@@ -1442,41 +1352,43 @@ bool AstarHierarchicalFootstepPlanner::computeLandInfo(Eigen::Vector3d ankle, in
                     }
                 }
             }
-
-            for (auto & points : hind_foot_HV.counter)
-            {
-                    for (auto & point : points.second)
-                    {
-                        if ((point - center).dot(plane_normal) > 0.01)
-                        {
-                            above_points ++;
-                        }
-                                                }
-                    }
                     
-                    if (above_points > 8)
+            if (above_points > 8)
             {
+#ifdef DEBUG
+                LOG(INFO)<<"too much above points";
+#endif
+                clock_t end = clock();
+                total_time += double(end - start) / CLOCKS_PER_SEC * 1000;
                 return false;
-                }
-                else
-                {
-                    return true;
-                }
-                                
             }
             else
             {
-                return false;
+                clock_t end = clock();
+                total_time += double(end - start) / CLOCKS_PER_SEC * 1000;
+                return true;
             }
-                }
+                            
+        }
+        else
+        {
+#ifdef DEBUG
+            LOG(INFO)<<"can not get support plane";
+#endif
+            clock_t end = clock();
+            total_time += double(end - start) / CLOCKS_PER_SEC * 1000;
+            return false;
+        }
+    }
     else
     {
+#ifdef DEBUG
+        LOG(ERROR)<<"can not get area";
+#endif
+        clock_t end = clock();
+        total_time += double(end - start) / CLOCKS_PER_SEC * 1000;
         return false;
     }
-    
-
-    
-
 }
 
 // tested
@@ -1769,13 +1681,18 @@ bool AstarHierarchicalFootstepPlanner::computerLeftRightGoal(Eigen::Vector3d goa
         // 还需要判断此状态下机器人能不能落脚
         vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> left_cands = fineLandPoint(left_goal);
         vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> right_cands = fineLandPoint(right_goal);
-        double score = -1000000000000;
-        // LOG(INFO)<<"score: "<<score;
+        double score = - std::numeric_limits<double>::infinity();
+        double opt_height, opt_pitch, opt_roll;
+        int opt_plane_index = -1;
         Eigen::Vector3d left_opt;
         for (auto & cand : left_cands)
         {
             double tmpscore;
-            if (computeLandPointScore(cand, tmpscore))
+            int plane_index = -1;
+            double height = -std::numeric_limits<double>::infinity();
+            double pitch = std::numeric_limits<double>::infinity();
+            double roll = std::numeric_limits<double>::infinity();
+            if (computeLandPointScore(cand, tmpscore, height, plane_index, pitch, roll))
             {
                 // LOG(INFO)<<"tmpscore: "<<tmpscore;
                 if (tmpscore > score)
@@ -1783,61 +1700,93 @@ bool AstarHierarchicalFootstepPlanner::computerLeftRightGoal(Eigen::Vector3d goa
                     left_opt = cand.second;
                     // LOG(INFO)<<left_opt.transpose();
                     score = tmpscore;
+                    opt_height = height;
+                    opt_pitch = pitch;
+                    opt_roll = roll; 
+                    opt_plane_index = plane_index;
                 }
             }
         }
-        score = -1000000000000;
+        if (opt_plane_index != -1)
+        {
+            end_left_p = std::make_shared<FootstepNode>(left_opt, opt_height, opt_roll, opt_pitch, 0);
+            end_left_p->plane_index = opt_plane_index;
+        }
+        else
+        {
+            return false;
+        }
+        
+        opt_plane_index = -1;
+        score = - std::numeric_limits<double>::infinity();
         Eigen::Vector3d right_opt;
         for (auto & cand : right_cands)
         {
             double tmpscore;
-            if (computeLandPointScore(cand, tmpscore))
+            int plane_index = -1;
+            double height = -std::numeric_limits<double>::infinity();
+            double pitch = std::numeric_limits<double>::infinity();
+            double roll = std::numeric_limits<double>::infinity();
+            if (computeLandPointScore(cand, tmpscore, height, plane_index, pitch, roll))
             {
                 // LOG(INFO)<<"tmpscore: "<<tmpscore;
                 if (tmpscore > score)
                 {
                     right_opt = cand.second;
-                    // LOG(INFO)<<right_opt.transpose();
+                    // LOG(INFO)<<left_opt.transpose();
                     score = tmpscore;
+                    opt_height = height;
+                    opt_pitch = pitch;
+                    opt_roll = roll; 
+                    opt_plane_index = plane_index;
                 }
             }
         }
+        if (opt_plane_index != -1)
+        {
+            end_right_p = std::make_shared<FootstepNode>(right_opt, opt_height, opt_roll, opt_pitch, 1);
+            end_right_p->plane_index = opt_plane_index;
+        }
+        else
+        {
+            return false;
+        }
+
 #ifdef DEBUG
         LOG(INFO)<<"left_opt: "<<left_opt.transpose();
         LOG(INFO)<<"right_opt: "<<right_opt.transpose();
 #endif
-        LOG(INFO)<<"left_opt: "<<left_opt.transpose();
-        LOG(INFO)<<"right_opt: "<<right_opt.transpose();
-        end_left_p = std::make_shared<FootstepNode>(left_opt, 0);
-        end_right_p = std::make_shared<FootstepNode>(right_opt, 1);
-        double z_left, z_right;
-        Eigen::Vector3d eular_left, eular_right;
-        int left_index, right_index;
-        if (computeZRollPitch(left_opt, z_left, eular_left, left_index) && computeZRollPitch(right_opt, z_right, eular_right, right_index))
-        {
-            end_left_p->footstep.z = z_left;
-            end_left_p->footstep.roll = eular_left(2);
-            end_left_p->footstep.pitch = eular_left(1);
-            end_left_p->footstep.yaw = eular_left(0);
-            end_left_p->plane_index = left_index;
-
-            end_right_p->footstep.z = z_right;
-            end_right_p->footstep.roll = eular_right(2);
-            end_right_p->footstep.pitch = eular_right(1);
-            end_right_p->footstep.yaw = eular_right(0);
-            end_right_p->plane_index = right_index;
-
-            cout<<"goal: left foot "<<end_left_p->footstep.x<<" "<<end_left_p->footstep.y<<" "<<end_left_p->footstep.z<<" "<<end_left_p->footstep.roll<<" "<<end_left_p->footstep.pitch<<" "<<end_left_p->footstep.yaw<<endl;
-            cout<<"goal: right foot "<<end_right_p->footstep.x<<" "<<end_right_p->footstep.y<<" "<<end_right_p->footstep.z<<" "<<end_right_p->footstep.roll<<" "<<end_right_p->footstep.pitch<<" "<<end_right_p->footstep.yaw<<endl;
-            return true;
-        }
-        else
-        {
-            LOG(INFO)<<"foot param is not suitable";
-            end_left_p = nullptr;
-            end_right_p = nullptr;
-            return false;
-        }
+        return true;
+        // LOG(INFO)<<"left_opt: "<<left_opt.transpose();
+        // LOG(INFO)<<"right_opt: "<<right_opt.transpose();
+        // end_left_p = std::make_shared<FootstepNode>(left_opt, 0);
+        // end_right_p = std::make_shared<FootstepNode>(right_opt, 1);
+        // double z_left, z_right;
+        // Eigen::Vector3d eular_left, eular_right;
+        // int left_index, right_index;
+        // if (computeZRollPitch(left_opt, z_left, eular_left, left_index) && computeZRollPitch(right_opt, z_right, eular_right, right_index))
+        // {
+        //     end_left_p->footstep.z = z_left;
+        //     end_left_p->footstep.roll = eular_left(2);
+        //     end_left_p->footstep.pitch = eular_left(1);
+        //     end_left_p->footstep.yaw = eular_left(0);
+        //     end_left_p->plane_index = left_index;
+        //     end_right_p->footstep.z = z_right;
+        //     end_right_p->footstep.roll = eular_right(2);
+        //     end_right_p->footstep.pitch = eular_right(1);
+        //     end_right_p->footstep.yaw = eular_right(0);
+        //     end_right_p->plane_index = right_index;
+        //     cout<<"goal: left foot "<<end_left_p->footstep.x<<" "<<end_left_p->footstep.y<<" "<<end_left_p->footstep.z<<" "<<end_left_p->footstep.roll<<" "<<end_left_p->footstep.pitch<<" "<<end_left_p->footstep.yaw<<endl;
+        //     cout<<"goal: right foot "<<end_right_p->footstep.x<<" "<<end_right_p->footstep.y<<" "<<end_right_p->footstep.z<<" "<<end_right_p->footstep.roll<<" "<<end_right_p->footstep.pitch<<" "<<end_right_p->footstep.yaw<<endl;
+        //     return true;
+        // }
+        // else
+        // {
+        //     LOG(INFO)<<"foot param is not suitable";
+        //     end_left_p = nullptr;
+        //     end_right_p = nullptr;
+        //     return false;
+        // }
     }
     else
     {
@@ -1952,13 +1901,17 @@ bool AstarHierarchicalFootstepPlanner::plan()
         if (arriveGoal(current_node))
         {
             LOG(INFO)<<"arr: "<<current_node->footstep.x<<" "<<current_node->footstep.y<<" "<<current_node->footstep.z<<" "<<current_node->footstep.roll<<" "<<current_node->footstep.pitch<<" "<<current_node->footstep.yaw<<" "<<current_node->footstep.robot_side;
+            
             if (getFootsteps(current_node))
             {
+                LOG(INFO)<<"times: "<<checktime<<" "<<total_time<<" "<<steps.size();
                 return true;
             }
             else
             {
+#ifdef DEBUG
                 LOG(ERROR)<<"some error ...";
+#endif
                 return false;
             }
             
@@ -2158,35 +2111,19 @@ bool AstarHierarchicalFootstepPlanner::repairStanceStep(Footstep current_step, F
     repair.z() = current_step.yaw;
     int max_size = 0; // 属于同一最大平面的点数
     int above_points = 0; // 超出限制部分的点数
-    Eigen::Vector3d plane_normal;
-    double height = 0;
-    if (!computeLandInfo(repair, max_size, above_points, plane_normal, height))
+    Eigen::Vector3d plane_normal = Eigen::Vector3d::Zero();
+    double height = -std::numeric_limits<double>::infinity();
+    int plane_index = -1;
+    double roll = std::numeric_limits<double>::infinity();
+    double pitch = std::numeric_limits<double>::infinity();
+    if (!computeLandInfo(repair, max_size, above_points, plane_normal, height, plane_index, pitch, roll))
     {
         return false;
     }
-    // double roll, pitch;
-    Eigen::Vector3d euler;
-    LOG(INFO)<<"plane_normal: "<<plane_normal.transpose();
-    LOG(INFO)<<"repair: "<<repair.transpose();
-    computeRollPitch(plane_normal, repair.z(), euler);
-    LOG(INFO)<<"euler: "<<euler.transpose();
-    grid_map::Index index;
-    if (localmap.getIndex(repair.head(2), index))
+    if (above_points == 0)
     {
-        grid_map::Position3 p3;
-        if (localmap.getPosition3("elevation", index, p3))
-        {
-            footstep = Footstep(repair, current_step.getInverseRobotSide());
-            footstep.z = p3.z();
-            footstep.roll = euler(2);
-            footstep.pitch = euler(1);
-            footstep.yaw = euler(0);
-            return true;
-        }
-        else
-        {
-            return false;
-        }
+        footstep = Footstep(repair, height, roll, pitch, current_step.getInverseRobotSide());
+        return true;
     }
     else
     {
@@ -2312,10 +2249,13 @@ bool AstarHierarchicalFootstepPlanner::checkFootstepsResult()
         LOG(INFO)<<step.robot_side<<" "<<step.x<<" "<<step.y<<" "<<step.z<<" "<<step.roll<<" "<<step.pitch<<" "<<step.yaw;
         int above_points = 0;
         int max_size = 0;
-        Eigen::Vector3d normal;
-        LOG(INFO)<<"footsize_inmap: "<<footsize_inmap;
-        double height = 0;
-        if (computeLandInfo(Eigen::Vector3d(step.x, step.y, step.yaw), max_size, above_points, normal, height))
+        Eigen::Vector3d normal = Eigen::Vector3d::Zero();
+        double height = -std::numeric_limits<double>::infinity();
+        int plane_index = -1;
+        double roll = std::numeric_limits<double>::infinity();
+        double pitch = std::numeric_limits<double>::infinity();
+        
+        if (computeLandInfo(Eigen::Vector3d(step.x, step.y, step.yaw), max_size, above_points, normal, height, plane_index, pitch, roll))
         {
             LOG(INFO)<<"above_points: "<<above_points;
             LOG(INFO)<<"max_size: "<<max_size;
@@ -2348,8 +2288,10 @@ bool AstarHierarchicalFootstepPlanner::checkFootstepsResult()
         
         if (dis > 0.6 || height_diff > 0.4 || yaw_diff > 15/57.3)
         {
+#ifdef DEBUG
             LOG(ERROR)<<"planned steps error";
             LOG(INFO)<<dis<<" "<<height_diff<<" "<<yaw_diff;
+#endif
             return false;
         }        
     }
@@ -2654,25 +2596,25 @@ bool AstarHierarchicalFootstepPlanner::testFineLandPoint()
     }
 }
 
-bool AstarHierarchicalFootstepPlanner::testComputeLandPointScore()
-{
-    // computeLandPointScore(std::pair<Eigen::Vector3d, Eigen::Vector3d> land_point, double & score)
-    Eigen::Vector3d p(1.2, 0.11, 0.1);
-    vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> left_cands = fineLandPoint(p);
-    for (auto & cand : left_cands)
-    {
-        double score = 0;
-        if (computeLandPointScore(cand, score))
-        {
-            LOG(INFO)<<"score: "<<score;
-        }
-        else
-        {
-            LOG(INFO)<<"****";
-        }
-    }
+// bool AstarHierarchicalFootstepPlanner::testComputeLandPointScore()
+// {
+//     // computeLandPointScore(std::pair<Eigen::Vector3d, Eigen::Vector3d> land_point, double & score)
+//     Eigen::Vector3d p(1.2, 0.11, 0.1);
+//     vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> left_cands = fineLandPoint(p);
+//     for (auto & cand : left_cands)
+//     {
+//         double score = 0;
+//         if (computeLandPointScore(cand, score))
+//         {
+//             LOG(INFO)<<"score: "<<score;
+//         }
+//         else
+//         {
+//             LOG(INFO)<<"****";
+//         }
+//     }
     
-}
+// }
 
 bool AstarHierarchicalFootstepPlanner::testComputeRollPitch()
 {
@@ -2698,47 +2640,47 @@ bool AstarHierarchicalFootstepPlanner::testSwingHeight()
     LOG(INFO)<<swing_height<<" "<<swing_height_max;
 }
 
-bool AstarHierarchicalFootstepPlanner::testComputeTransitionScore()
-{
-    vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> special_transitions = basicTransitions(start_p);
-    for (auto & trans : special_transitions)
-    {
-        double score = 0;
-        bool dangerous = false;
-        LOG(INFO)<<trans.second.transpose();
-        double height = 0;
-        Eigen::Vector3d normal;
-        if (computeTransitionScore(trans, start_p, prestart_p, dangerous, score, height, normal))
-        {
-            LOG(INFO)<<"score: "<<score;
-        }
-        else
-        {
-            LOG(INFO)<<"ERROR";
-        }   
-    }
-}
+// bool AstarHierarchicalFootstepPlanner::testComputeTransitionScore()
+// {
+//     vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> special_transitions = basicTransitions(start_p);
+//     for (auto & trans : special_transitions)
+//     {
+//         double score = 0;
+//         bool dangerous = false;
+//         LOG(INFO)<<trans.second.transpose();
+//         double height = 0;
+//         Eigen::Vector3d normal;
+//         if (computeTransitionScore(trans, start_p, prestart_p, dangerous, score, height, normal))
+//         {
+//             LOG(INFO)<<"score: "<<score;
+//         }
+//         else
+//         {
+//             LOG(INFO)<<"ERROR";
+//         }   
+//     }
+// }
 
-bool AstarHierarchicalFootstepPlanner::testComputeTransitionStrictScore()
-{
-    // computeTransitionStrictScore(std::pair<Eigen::Vector3d, Eigen::Vector3d> transition, FootstepNodePtr current_node, FootstepNodePtr pre_node, double & score)
-    vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> special_transitions = basicTransitions(start_p);
-    for (auto & trans : special_transitions)
-    {
-        double score = 0;
-        double height = 0;
-        LOG(INFO)<<trans.second.transpose();
-        Eigen::Vector3d normal;
-        if (computeTransitionStrictScore(trans, start_p, prestart_p, score, height, normal))
-        {
-            LOG(INFO)<<"score: "<<score;
-        }
-        else
-        {
-            LOG(INFO)<<"ERROR";
-        }   
-    }
-}
+// bool AstarHierarchicalFootstepPlanner::testComputeTransitionStrictScore()
+// {
+//     // computeTransitionStrictScore(std::pair<Eigen::Vector3d, Eigen::Vector3d> transition, FootstepNodePtr current_node, FootstepNodePtr pre_node, double & score)
+//     vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> special_transitions = basicTransitions(start_p);
+//     for (auto & trans : special_transitions)
+//     {
+//         double score = 0;
+//         double height = 0;
+//         LOG(INFO)<<trans.second.transpose();
+//         Eigen::Vector3d normal;
+//         if (computeTransitionStrictScore(trans, start_p, prestart_p, score, height, normal))
+//         {
+//             LOG(INFO)<<"score: "<<score;
+//         }
+//         else
+//         {
+//             LOG(INFO)<<"ERROR";
+//         }   
+//     }
+// }
 
 bool AstarHierarchicalFootstepPlanner::testPlan()
 {

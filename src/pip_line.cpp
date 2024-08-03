@@ -47,6 +47,7 @@
 #include <cv_bridge/cv_bridge.h>
 #include <grid_map_cv/GridMapCvConverter.hpp>
 #include <pcl/features/principal_curvatures.h>
+#include <pcl/visualization/pcl_visualizer.h>
 // #include <plane_detection/plane_new.h>
 
 #include <ros/package.h>
@@ -91,8 +92,8 @@ pip_line::pip_line(ros::NodeHandle & n):nh(n)
 
     timer = nh.createTimer(ros::Duration(1), &pip_line::timerCallback, this);
 
-    grid_map::Length length(3, 2);
-    grid_map::Position position(1.5, 0);
+    grid_map::Length length(5, 2);
+    grid_map::Position position(2.2, 0);
     map.setGeometry(length, 0.02, position);
     map.add("elevation", NAN);
 
@@ -120,7 +121,6 @@ pip_line::pip_line(ros::NodeHandle & n):nh(n)
     // T_world_camera = T_world_base * T_base_velodyne * T_velodyne_camera;
 
     // 45度L515相机使用的变换矩阵
-<<<<<<< HEAD
     // Eigen::Matrix4d T_install_depth = Eigen::Matrix4d::Identity();
     // T_install_depth(1, 3) = -0.001;
     // T_install_depth(2, 3) = 0.026 - 0.0045;
@@ -144,28 +144,27 @@ pip_line::pip_line(ros::NodeHandle & n):nh(n)
     T_world_camera.setIdentity();
     T_world_camera(0, 0) = -1;
     T_world_camera(2, 2) = -1;
-    T_world_camera(0, 3) = 0.8;
+    T_world_camera(0, 3) = 1.5;
     T_world_camera(2, 3) = 3;
 
-=======
-    Eigen::Matrix4d T_install_depth = Eigen::Matrix4d::Identity();
-    T_install_depth(1, 3) = -0.001;
-    T_install_depth(2, 3) = 0.026 - 0.0045;
-    Eigen::Matrix4d T_hole_install = Eigen::Matrix4d::Identity();
-    Eigen::Matrix3d R;
-    R<<- 0.7071, 0, 0.7071,
-        0, 1, 0,
-        - 0.7071, 0, -0.7071;
-    T_hole_install.block<3,3>(0,0) = R;
-    T_hole_install(0, 3) = 0.07025;
-    T_hole_install(2, 3) = 0.00424;
-    Eigen::Matrix4d T_base_hole = Eigen::Matrix4d::Identity();
-    T_base_hole(0, 3) = 0.05675;
-    T_base_hole(2, 3) = 0.49123;
-    Eigen::Matrix4d T_world_base = Eigen::Matrix4d::Identity();
-    // 一定要注意根据实际高度调节，控制端反馈
-    T_world_base.block<3,1>(0,3) = Eigen::Vector3d(0, 0, 0.71);
-    T_world_camera = T_world_base * T_base_hole * T_hole_install * T_install_depth;
+    // Eigen::Matrix4d T_install_depth = Eigen::Matrix4d::Identity();
+    // T_install_depth(1, 3) = -0.001;
+    // T_install_depth(2, 3) = 0.026 - 0.0045;
+    // Eigen::Matrix4d T_hole_install = Eigen::Matrix4d::Identity();
+    // Eigen::Matrix3d R;
+    // R<<- 0.7071, 0, 0.7071,
+    //     0, 1, 0,
+    //     - 0.7071, 0, -0.7071;
+    // T_hole_install.block<3,3>(0,0) = R;
+    // T_hole_install(0, 3) = 0.07025;
+    // T_hole_install(2, 3) = 0.00424;
+    // Eigen::Matrix4d T_base_hole = Eigen::Matrix4d::Identity();
+    // T_base_hole(0, 3) = 0.05675;
+    // T_base_hole(2, 3) = 0.49123;
+    // Eigen::Matrix4d T_world_base = Eigen::Matrix4d::Identity();
+    // // 一定要注意根据实际高度调节，控制端反馈
+    // T_world_base.block<3,1>(0,3) = Eigen::Vector3d(0, 0, 0.71);
+    // T_world_camera = T_world_base * T_base_hole * T_hole_install * T_install_depth;
 
 
     // 通过彩色图标定的位置
@@ -190,10 +189,6 @@ pip_line::pip_line(ros::NodeHandle & n):nh(n)
     // Eigen::Matrix4d T_base_base1 = Eigen::Matrix4d::Identity();
     // T_base_base1(2, 3) = 0.15;
     // T_world_camera = T_world_base * T_base_base1 * T_base1_color * T_color_depth;
-<<<<<<< HEAD
->>>>>>> 722a853174111366aacf8ef4ce86da998cc2cb24
-=======
->>>>>>> 722a853174111366aacf8ef4ce86da998cc2cb24
 }
 
 
@@ -531,7 +526,7 @@ void preprocessingColor(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_in, pcl::P
     // cout<<"preprocess3 cost: "<<(double)(end3 - start3)/CLOCKS_PER_SEC<<std::endl;
     // cout<<"after filter: "<<filtered_cloud->size()<<endl;
 
-    clock_t start4 = clock();
+    // clock_t start4 = clock();
     pcl::PassThrough<pcl::PointXYZRGB> pass;
 
     pass.setInputCloud(filtered_cloud);
@@ -539,12 +534,12 @@ void preprocessingColor(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_in, pcl::P
     // // 设置过滤轴和范围（这里以Z轴为例，过滤掉Z轴范围在[0.0, 1.0]之外的点）
     pass.setFilterFieldName("x");// 相机转动之前是y，转动之后是x
     // // 这个值需要根据数据调节，后面上楼梯肯定会改
-    pass.setFilterLimits(-4, 2);
+    pass.setFilterLimits(-8, 8);
 
     // // 执行直通滤波
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr pass_filtered_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
     pass.filter(*pass_filtered_cloud);
-    clock_t end4 = clock();
+    // clock_t end4 = clock();
     // cout<<"preprocess4 cost: "<<(double)(end4 - start4)/CLOCKS_PER_SEC<<std::endl;
     // 飞点去除
     // cout<<"after pass filter: "<<pass_filtered_cloud->size()<<endl;
@@ -629,6 +624,7 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     // pcl::PointCloud<pcl::PointXYZ>::Ptr pc(new pcl::PointCloud<pcl::PointXYZ>);
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr pc(new pcl::PointCloud<pcl::PointXYZRGB>);
     pcl::fromROSMsg(*msg, *pc);
+    pcl::io::savePCDFileASCII("/home/lichao/TCDS/src/pip_line/data/pc.pcd", *pc);
     LOG(INFO)<<pc->size();
     clock_t start = clock();
     // pcl::PointCloud<pcl::PointXYZ>::Ptr tmppc(new pcl::PointCloud<pcl::PointXYZ>);
@@ -684,7 +680,9 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     // colored_cloud->height = 1;
     // colored_cloud->width = colored_cloud->size();
     // 步骤1原时点云转成域处理后的点云
-    pcl::io::savePCDFileASCII("/home/bhr/TCDS/src/pip_line/data/processed.pcd", pub_cloud);
+    pcl::io::savePCDFileASCII("/home/lichao/TCDS/src/pip_line/data/processed.pcd", pub_cloud);
+
+    
 
     // 点云转成高程图，并对高程图内的空点云处理
     pcl::PointCloud<pcl::PointXYZ> pc_world;
@@ -709,62 +707,66 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
             }
         }
     }
-    pcl::io::savePCDFileASCII("/home/bhr/TCDS/src/pip_line/data/pc_world.pcd", pc_world);
+    pcl::io::savePCDFileASCII("/home/lichao/TCDS/src/pip_line/data/pc_world.pcd", pc_world);
+
+    
 
     // grid_map_msgs::GridMap map_msg;
     // grid_map::GridMapRosConverter::toMessage(map, map_msg);
     // map_msg.info.header.frame_id = "map";
     // raw_heightmap_pub.publish(map_msg);
 
-    const float minValue = map.get("elevation").minCoeffOfFinites();
-    const float maxValue = map.get("elevation").maxCoeffOfFinites();
-    cv::Mat originalImage;
-    grid_map::GridMapCvConverter::toImage<unsigned char, 1>(map, "elevation", CV_8UC1, minValue, maxValue, originalImage);
-    // cv::imshow("originalImage", originalImage);
-    // cv::waitKey(0);
-    // 对空洞进行补齐
-    // 创建一个标记小区域的掩码
-    cv::Mat smallRegionsMask = cv::Mat::zeros(originalImage.size(), CV_8UC1);
 
-    // // 标记连接组件
-    cv::Mat labels, stats, centroids;
-    int nLabels = cv::connectedComponentsWithStats(originalImage == 0, labels, stats, centroids, 8, CV_32S);
 
-    // 遍历每个连接组件
-    for (int label = 1; label < nLabels; ++label)
-    {
-        int area = stats.at<int>(label, cv::CC_STAT_AREA);
+    // 这是补齐实际采集点云的空洞，仿真数据时线不要这部分
+    // const float minValue = map.get("elevation").minCoeffOfFinites();
+    // const float maxValue = map.get("elevation").maxCoeffOfFinites();
+    // cv::Mat originalImage;
+    // grid_map::GridMapCvConverter::toImage<unsigned char, 1>(map, "elevation", CV_8UC1, minValue, maxValue, originalImage);
+    // // cv::imshow("originalImage", originalImage);
+    // // cv::waitKey(0);
+    // // 对空洞进行补齐
+    // // 创建一个标记小区域的掩码
+    // cv::Mat smallRegionsMask = cv::Mat::zeros(originalImage.size(), CV_8UC1);
 
-        if (area < 40)
-        {
-            // 对小区域进行标记
-            cv::Mat mask = (labels == label);
-            smallRegionsMask.setTo(255, mask);
-        }
-    }
-    // cv::imshow("smallRegionsMask", smallRegionsMask);
-    // cv::waitKey(0);
+    // // // 标记连接组件
+    // cv::Mat labels, stats, centroids;
+    // int nLabels = cv::connectedComponentsWithStats(originalImage == 0, labels, stats, centroids, 8, CV_32S);
 
-    // // 使用掩码进行图像修复
-    cv::Mat inpainted;
-    cv::inpaint(originalImage, smallRegionsMask, inpainted, 5, cv::INPAINT_TELEA);
-    // cv::imshow("inpainted", inpainted);
-    // cv::waitKey(0);
+    // // 遍历每个连接组件
+    // for (int label = 1; label < nLabels; ++label)
+    // {
+    //     int area = stats.at<int>(label, cv::CC_STAT_AREA);
 
-    map.erase("elevation");
-    grid_map::GridMapCvConverter::addLayerFromImage<unsigned char, 1>(inpainted, "elevation", map, minValue, maxValue);
+    //     if (area < 40)
+    //     {
+    //         // 对小区域进行标记
+    //         cv::Mat mask = (labels == label);
+    //         smallRegionsMask.setTo(255, mask);
+    //     }
+    // }
+    // // cv::imshow("smallRegionsMask", smallRegionsMask);
+    // // cv::waitKey(0);
 
-    for (int i = 0; i < map.getSize().x(); i++)
-    {
-        for (int j = 0; j < map.getSize().y(); j++)
-        {
-            if (originalImage.at<uchar>(i, j) == 0 && smallRegionsMask.at<uchar>(i, j) == 0)
-            {
-                map["elevation"](i, j) = NAN;
-            }
-        }
-    }
-    
+    // // // 使用掩码进行图像修复
+    // cv::Mat inpainted;
+    // cv::inpaint(originalImage, smallRegionsMask, inpainted, 5, cv::INPAINT_TELEA);
+    // // cv::imshow("inpainted", inpainted);
+    // // cv::waitKey(0);
+
+    // map.erase("elevation");
+    // grid_map::GridMapCvConverter::addLayerFromImage<unsigned char, 1>(inpainted, "elevation", map, minValue, maxValue);
+    // for (int i = 0; i < map.getSize().x(); i++)
+    // {
+    //     for (int j = 0; j < map.getSize().y(); j++)
+    //     {
+    //         if (originalImage.at<uchar>(i, j) == 0 && smallRegionsMask.at<uchar>(i, j) == 0)
+    //         {
+    //             map["elevation"](i, j) = NAN;
+    //         }
+    //     }
+    // }
+    // 此处空洞补齐的结束部分
 
     // grid_map::GridMapRosConverter::toMessage(map, map_msg);
     // map_msg.info.header.frame_id = "map";
@@ -888,7 +890,19 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     // // 使用地图转成有序点云
     pcl::PointCloud<pcl::PointXYZ> org_pc = gridMap2Pointcloud(map);
     pcl::io::savePCDFileASCII("/home/lichao/TCDS/src/pip_line/data/submap.pcd", org_pc);
-    
+
+    //   // 创建可视化对象
+    // pcl::visualization::PCLVisualizer viewer("Cloud Viewer");
+
+    // // 设置点云数据
+    // viewer.addPointCloud(org_pc.makeShared(), "sample cloud");
+
+    // // 添加坐标轴
+    // viewer.addCoordinateSystem(1.0); // 1.0 是坐标轴的尺度
+
+    // // 运行可视化
+    // viewer.spin();
+    // return ;
 
     // // 确定无效点和有效点的个数
     // // int valid_points = 0;
@@ -914,7 +928,7 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     size_t height = org_pc.height;
     LOG(INFO)<<width<<" "<<height;
     LOG(INFO)<<raw_points.width<<" "<<raw_points.height;
-    string package_path = "/home/bhr/TCDS/src/pip_line";
+    string package_path = "/home/lichao/TCDS/src/pip_line";
     // string package_path = "/home/lichao/TCDS/src/pip_line";
     // // initial_package_path("pip_line", package_path);
     parameter param;
@@ -966,47 +980,101 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     vector<plane_info> planes = ps.getPlaneResult();
     // 平面分割结果
     cv::Mat result = ps.getSegResult();
+    cv::imwrite("/home/lichao/TCDS/src/pip_line/data/result_raw.png", result);
     seg_result_image = result;
     
     vector<cv::Mat> single_results = ps.getSegResultSingle();
 
-    int i = 0, j = 0;
-    while (i < planes.size() - 1)
+    for (int i = 0; i < planes.size(); i++)
     {
-        j = i + 1;
-        while (j < planes.size())
+        LOG(INFO)<<i<<" "<<planes.at(i).normal.transpose()<<", "<<planes.at(i).center.transpose();
+        cv::imwrite("/home/lichao/TCDS/src/pip_line/data/result_x_" + std::to_string(i) + ".png", single_results.at(i));
+    }
+    
+    class Graph {
+    private:
+        unordered_map<int, vector<int>> adjList;
+
+        void DFS(int node, unordered_set<int>& visited, vector<int>& component) {
+            visited.insert(node);
+            component.push_back(node);
+            for (int neighbor : adjList[node]) {
+                if (visited.find(neighbor) == visited.end()) {
+                    DFS(neighbor, visited, component);
+                }
+            }
+        }
+
+    public:
+        void addEdge(int src, int dest) {
+            adjList[src].push_back(dest);
+            adjList[dest].push_back(src); // 因为是无向图
+        }
+
+        vector<vector<int>> findConnectedComponents() {
+            unordered_set<int> visited;
+            vector<vector<int>> components;
+
+            for (const auto& pair : adjList) {
+                int node = pair.first;
+                if (visited.find(node) == visited.end()) {
+                    vector<int> component;
+                    DFS(node, visited, component);
+                    components.push_back(component);
+                }
+            }
+
+            return components;
+        }
+    };
+
+    Graph g;
+
+    for (int i = 0; i < planes.size(); i++)
+    {
+        for (int j = 0; j < planes.size(); j++)
         {
             if (abs(planes.at(i).normal.dot(planes.at(j).normal)) > 0.995)
             {
-                if (abs((planes.at(i).center - planes.at(j).center).dot(planes.at(i).normal) < 0.02))
+                if (abs((planes.at(i).center - planes.at(j).center).dot(planes.at(i).normal)) < 0.02)
                 {
-                    // 创建一个掩码，仅保留白色区域
-                    cv::Mat mask;
-                    cv::inRange(single_results.at(j), cv::Scalar(255, 255, 255), cv::Scalar(255, 255, 255), mask);
-                    // 将白色区域从源图像复制到目标图像
-                    single_results.at(j).copyTo(single_results.at(i), mask);
-                    planes.erase(planes.begin() + j);
-                    single_results.erase(single_results.begin() + j);
+                    cout<<"add: "<<i<<"-"<<j<<endl;
+                    g.addEdge(i, j);
                 }
-                else
-                {
-                    j++;
-                }
-            }
-            else
-            {
-                j++;
             }
         }
-        i ++;
+    }
+    vector<vector<int>> components = g.findConnectedComponents();
+    for (int i = 0; i < components.size(); i++)
+    {
+        for (int j = 0; j < components.at(i).size(); j++)
+        {
+            cout<<components.at(i).at(j)<<" ";
+        }
+        cout<<endl;
+    }
+    
+    vector<cv::Mat> merge_results;
+    vector<plane_info> merge_planes;
+    for (int i = 0; i < components.size(); i++)
+    {
+        cv::Mat image = cv::Mat::zeros(seg_result_image.size(), seg_result_image.type());
+        for (int j = 0; j < components.at(i).size(); j++)
+        {
+            cv::Mat mask;
+            cv::inRange(single_results.at(components.at(i).at(j)), cv::Scalar(255, 255, 255), cv::Scalar(255, 255, 255), mask);
+            single_results.at(components.at(i).at(j)).copyTo(image, mask);
+        }
+        merge_results.emplace_back(image);
+        merge_planes.emplace_back(planes.at(components.at(i).front()));
     }
 
-    // // // LOG(INFO)<<"...";
-    LOG(INFO)<<single_results.size();
-    // for (int i = 0; i < single_results.size(); i++)
-    // {
-    //     cv::imwrite("/home/bhr/TCDS/src/pip_line/data/result" + std::to_string(i) + ".png", single_results.at(i));
-    // }
+    for (int i = 0; i < merge_planes.size(); i++)
+    {
+        LOG(INFO)<<i<<" "<<merge_planes.at(i).normal.transpose()<<", "<<merge_planes.at(i).center.transpose();
+        cv::imwrite("/home/lichao/TCDS/src/pip_line/data/result_xx" + std::to_string(i) + ".png", merge_results.at(i));
+    }
+    
     // auto image_paper = result.clone();
     // for (int i = 0; i < image_paper.rows; i++)
     // {
@@ -1016,24 +1084,18 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     //         {
     //             image_paper.at<cv::Vec3b>(j, i) = cv::Vec3b(255, 255, 255);
     //         }
-            
-    //     }
-        
+    //     } 
     // }
     
 
-<<<<<<< HEAD
-<<<<<<< HEAD
     // cv::imwrite("/home/lichao/TCDS/src/pip_line/data/image_paper.png", image_paper);
     cv::imwrite("/home/lichao/TCDS/src/pip_line/data/result.png", result);
-=======
+
     // cv::imwrite("/home/bhr/TCDS/src/pip_line/data/image_paper.png", image_paper);
     // cv::imwrite("/home/bhr/TCDS/src/pip_line/data/result.png", result);
->>>>>>> 722a853174111366aacf8ef4ce86da998cc2cb24
-=======
+
     // cv::imwrite("/home/bhr/TCDS/src/pip_line/data/image_paper.png", image_paper);
     // cv::imwrite("/home/bhr/TCDS/src/pip_line/data/result.png", result);
->>>>>>> 722a853174111366aacf8ef4ce86da998cc2cb24
 
     // cv::Mat enlarged_img;
     // int scale_factor = 5;  // 放大倍数
@@ -1047,9 +1109,9 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     double resolution = map.getResolution();
     double inflation_radius = 0.5;
     int inflation_pixel = 0.5/resolution;
-    for (int i = 0; i < single_results.size(); i++)
+    for (int i = 0; i < merge_results.size(); i++)
     {
-        cv::Mat image = single_results.at(i);
+        cv::Mat image = merge_results.at(i);
         // cv::imwrite("/home/bhr/TCDS/src/pip_line/data/image" + std::to_string(i) + ".png", image);
         // cv::imshow("image", image);
         // cv::waitKey(0);
@@ -1081,21 +1143,14 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
                 {
 
                     Eigen::Vector3f p3f(p3.x(), p3.y(), p3.z());
-                    double dis = (p3f - planes.at(i).center).dot(planes.at(i).normal);
+                    double dis = (p3f - merge_planes.at(i).center).dot(merge_planes.at(i).normal);
 
                     // LOG(INFO)<<"p3f: "<<p3f.transpose();
                     // LOG(INFO)<<"planes.at(i).center: "<<planes.at(i).center.transpose();
                     // LOG(INFO)<<"planes.at(i).normal: "<<planes.at(i).normal.transpose();
                     // cout<<"dis = "<<dis<<endl;
-<<<<<<< HEAD
-<<<<<<< HEAD
-                    if (dis > 0.4)// 上半身
-=======
+
                     if (dis > 0.45)// 上半身
->>>>>>> 722a853174111366aacf8ef4ce86da998cc2cb24
-=======
-                    if (dis > 0.45)// 上半身
->>>>>>> 722a853174111366aacf8ef4ce86da998cc2cb24
                     {
                         // cout<<"dis = "<<dis<<endl;
                         upper_body.at<uchar>(cv_p.y, cv_p.x) = 255;
@@ -1115,8 +1170,8 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
         // cv::imshow("upper_body", upper_body);
         // cv::waitKey(0);
         // // 进行不同半径的膨胀
-        double upper_inflation = 0.5;
-        double knee_inflation = 0.3;
+        double upper_inflation = 0.4;
+        double knee_inflation = 0.2;
         int inflation_radius_upper = upper_inflation/resolution;
         int inflation_radius_knee = knee_inflation/resolution;
         cv::Mat kernel_upper = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(inflation_radius_upper, inflation_radius_upper));
@@ -1179,31 +1234,39 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     is_finish = true;
     cv::imwrite("/home/lichao/TCDS/src/pip_line/data/plane_image.png", plane_image);
     // return ;
-    // while (!get_goal)
-    // {
-    //     sleep(1);
-    // }
-    cout<<"get goal"<<endl;
+    while (!get_goal)
+    {
+        sleep(1);
+    }
+    // cout<<"get goal"<<endl;
     // 落脚点规划的输入，带"label"的高程图，
     // 台阶用0.175更合适，斜坡0.16就可以
     FootParam footparam(0.16, 0.11, 0.065, 0.065);
-    AstarHierarchicalFootstepPlanner planner(map, plane_image, collision_free_images, planes, footparam, 0.2);
-<<<<<<< HEAD
-<<<<<<< HEAD
+    AstarHierarchicalFootstepPlanner planner(map, plane_image, collision_free_images, merge_planes, footparam, 0.2);
     Eigen::Vector3d left_foot(0.05, 0.1, 0);
     Eigen::Vector3d right_foot(0.05, -0.1, 0);
-    Eigen::Vector3d goal_p(1.5478, 0.1, 0);
+
+    // left_opt: 000002.81397 00000.206742 -3.66653e-06
+    // right_opt: 000002.81397 000.00674166 -3.66653e-06
+
+// left_opt: 00002.2527 000.211396 -0.0270239
+// I20240803 10:01:17.361481 33866 AstarHierarchicalFootstepPlanner.cpp:1757] right_opt: 00002.2473 00.0114695 -0.0270239
+
+    // Eigen::Vector3d goal_p(2.81397, 0.106, 0.0);
+    // Eigen::Vector3d goal_p(1.5478, 0.1, 0);
     // goal_p.x() = goal.position.x;
     // goal_p.y() = goal.position.y;
     // Eigen::Quaterniond qd(goal.orientation.w, goal.orientation.x, goal.orientation.y, goal.orientation.z);
     // Eigen::Vector3d v_t = qd.toRotationMatrix() * Eigen::Vector3d::UnitX();
     // double yaw = atan(v_t.y()/v_t.x());
     // goal_p.z() = yaw;
-=======
-=======
->>>>>>> 722a853174111366aacf8ef4ce86da998cc2cb24
-    Eigen::Vector3d left_foot(0.03, 0.1, 0);
-    Eigen::Vector3d right_foot(0.03, -0.1, 0);
+    // Eigen::Vector3d left_foot(0.03, 0.1, 0);
+    // Eigen::Vector3d right_foot(0.03, -0.1, 0);
+
+    // left_opt: 002.13755 00.272319 0.0499546
+    // right_opt: 002.14754 0.0725685 0.0499546
+    // left_opt: 002.13755 00.272319 0.0499546
+    // right_opt: 002.14754 0.0725685 0.0499546
     Eigen::Vector3d goal_p;
     goal_p.x() = goal.position.x;
     goal_p.y() = goal.position.y;
@@ -1211,13 +1274,20 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     Eigen::Vector3d v_t = qd.toRotationMatrix() * Eigen::Vector3d::UnitX();
     double yaw = atan(v_t.y()/v_t.x());
     goal_p.z() = yaw;
->>>>>>> 722a853174111366aacf8ef4ce86da998cc2cb24
-    
+
+    clock_t start_plane = clock();
     if (planner.initial(right_foot, left_foot, 1, goal_p))// 先迈右脚
     {
         LOG(INFO)<<"set start and goal";
         if (planner.plan())
         {
+             // 记录结束时间
+            clock_t end_plan = clock();
+    
+            // 计算消耗的时间（毫秒）
+            double duration_plan = double(end_plan - start_plane) / CLOCKS_PER_SEC * 1000;
+
+            LOG(INFO)<<"TOTAL TIME: "<<duration_plan;
             steps = planner.getResultSteps();
             avoid_points = planner.computeAvoidPoints();
             // for (auto & step : steps)

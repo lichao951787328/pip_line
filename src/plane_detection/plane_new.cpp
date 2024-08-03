@@ -115,7 +115,8 @@ void plane::regionGrowing()
       
       addPoints2Plane(points);
 
-      if (points.size() == tmpnode->initial_size)
+      // if (points.size() == tmpnode->initial_size)
+      if (points.size() == tmpnode->width*tmpnode->width)
       {
         // 将邻近节点加入
         for (auto & n : tmpnode->neighbors)
