@@ -190,20 +190,18 @@ struct ScoreMarkerNode
     Eigen::Vector3d normal;
     double score;
     double height;
-    int plane_index;
     double roll, pitch;
     ScoreMarkerNode(Eigen::Vector3d point_, double score_)
     {
         point = point_;
         score = score_;
     }
-    ScoreMarkerNode(Eigen::Vector3d point_, double score_, double height_, Eigen::Vector3d normal_, int plane_index_, double roll_, double pitch_)
+    ScoreMarkerNode(Eigen::Vector3d point_, double score_, double height_, Eigen::Vector3d normal_, double roll_, double pitch_)
     {
         point = point_;
         score = score_;
         height = height_;
         normal = normal_;
-        plane_index = plane_index_;
         roll = roll_;
         pitch = pitch_;
     }
@@ -437,7 +435,7 @@ public:
      * @return true 
      * @return false 
      */
-    bool getPointInfoInPlane(Eigen::Vector3d p, double & height, int & plane_index, double & pitch, double & roll);
+    bool getPointInfoInPlane(Eigen::Vector3d p, double & height, double & pitch, double & roll);
 
     /**
      * @brief 对落脚点进行精修，根据goal得到的左右脚可能有些缺陷，通过精修获得更合适的终点左右脚的姿态。这里只是为了获得候选节点
@@ -475,7 +473,7 @@ public:
      * @return true 
      * @return false 
      */
-    bool computeZRollPitch(Eigen::Vector3d point, double & z, Eigen::Vector3d & eular, int & plane_index);
+    // bool computeZRollPitch(Eigen::Vector3d point, double & z, Eigen::Vector3d & eular, int & plane_index);
 
     /**
      * @brief 计算localmap对应的含平面编号的平面信息
@@ -508,7 +506,7 @@ public:
     Eigen::Vector3d Quaterniond2EulerAngles(Eigen::Quaterniond q);
     Eigen::Vector3d Matrix3d2EulerAngles(Eigen::Matrix3d m);
 
-    bool computeTransitionScore(std::pair<Eigen::Vector3d, Eigen::Vector3d> transition, FootstepNodePtr current_node, FootstepNodePtr pre_node, bool & dangerous, double & score, double & height, Eigen::Vector3d & plane_normal, int & plane_index, double & pitch, double & roll);
+    bool computeTransitionScore(std::pair<Eigen::Vector3d, Eigen::Vector3d> transition, FootstepNodePtr current_node, FootstepNodePtr pre_node, bool & dangerous, double & score, double & height, Eigen::Vector3d & plane_normal, double & pitch, double & roll);
 
     /**
      * @brief 计算每个落脚点的得分，目的是为了找到终点处最佳的左右脚站立点
@@ -518,7 +516,7 @@ public:
      * @return true 
      * @return false 
     //  */
-    bool computeLandPointScore(std::pair<Eigen::Vector3d, Eigen::Vector3d> land_point, double & score, double & height, int & plane_index, double & pitch, double & roll);
+    bool computeLandPointScore(std::pair<Eigen::Vector3d, Eigen::Vector3d> land_point, double & score, double & height, double & pitch, double & roll);
 
 
     /**
@@ -573,6 +571,7 @@ public:
      */
     bool getPointsInFootArea(Eigen::Vector3d ankle, IndexPlanePoints & index_plane, int & area_cells);
 
+
     /**
      * @brief 根据localmap计算在ankle处，支撑点数、超出点数、平面法向量
      * 
@@ -583,7 +582,7 @@ public:
      * @return true 
      * @return false 
      */
-    bool computeLandInfo(Eigen::Vector3d ankle, int & max_size, int & above_points, Eigen::Vector3d & plane_normal, double & step_height, int & plane_index, double & pitch, double & roll);
+    bool computeLandInfo(Eigen::Vector3d ankle, int & max_size, int & above_points, Eigen::Vector3d & plane_normal, double & step_height, double & pitch, double & roll);
 
     /**
      * @brief 根据地图坐标系下的normal，计算在经过yaw旋转后，平面的roll和pitch角

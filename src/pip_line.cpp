@@ -145,7 +145,7 @@ pip_line::pip_line(ros::NodeHandle & n):nh(n)
     T_world_camera(0, 0) = -1;
     T_world_camera(2, 2) = -1;
     T_world_camera(0, 3) = 1.5;
-    T_world_camera(2, 3) = 3;
+    T_world_camera(2, 3) = 2.5;
 
     // Eigen::Matrix4d T_install_depth = Eigen::Matrix4d::Identity();
     // T_install_depth(1, 3) = -0.001;
@@ -566,21 +566,22 @@ void preprocessingColor(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_in, pcl::P
             result.emplace_back(pass_filtered_cloud->at(i));
         }
     }
+    cloud_out = result;
     // cout<<"after Normal filter: "<<result.size()<<endl;
-    clock_t start5 = clock();
-    pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> sor;
-    sor.setInputCloud(result.makeShared());
-    // sor.setInputCloud(pass_filtered_cloud);
+    // clock_t start5 = clock();
+    // pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> sor;
+    // sor.setInputCloud(result.makeShared());
+    // // sor.setInputCloud(pass_filtered_cloud);
     
-    // 设置统计滤波器参数
-    sor.setMeanK(50);  // 设置邻域中点的数量
-    sor.setStddevMulThresh(1.0);  // 设置标准差的倍数阈值
+    // // 设置统计滤波器参数
+    // sor.setMeanK(50);  // 设置邻域中点的数量
+    // sor.setStddevMulThresh(1.0);  // 设置标准差的倍数阈值
 
-    // 应用统计滤波器
-    // pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZ>);
-    sor.filter(cloud_out);
-    clock_t end5 = clock();
-    cout<<"preprocess5 cost: "<<(double)(end5 - start5)/CLOCKS_PER_SEC<<std::endl;
+    // // 应用统计滤波器
+    // // pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZ>);
+    // sor.filter(cloud_out);
+    // clock_t end5 = clock();
+    // cout<<"preprocess5 cost: "<<(double)(end5 - start5)/CLOCKS_PER_SEC<<std::endl;
     // LOG(INFO)<<"after StatisticalOutlierRemoval filter: "<<cloud_out.size();
 
 }
@@ -715,8 +716,6 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     // grid_map::GridMapRosConverter::toMessage(map, map_msg);
     // map_msg.info.header.frame_id = "map";
     // raw_heightmap_pub.publish(map_msg);
-
-
 
     // 这是补齐实际采集点云的空洞，仿真数据时线不要这部分
     // const float minValue = map.get("elevation").minCoeffOfFinites();
@@ -890,7 +889,7 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     // // 使用地图转成有序点云
     pcl::PointCloud<pcl::PointXYZ> org_pc = gridMap2Pointcloud(map);
     pcl::io::savePCDFileASCII("/home/lichao/TCDS/src/pip_line/data/submap.pcd", org_pc);
-
+    // return;
     //   // 创建可视化对象
     // pcl::visualization::PCLVisualizer viewer("Cloud Viewer");
 
@@ -1226,6 +1225,7 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
             {
                 map["label"](i,j) = NAN;
                 feasible_map["elevation"](i, j) = NAN;
+                map["elevation"](i, j) = NAN;
             }
         }
     }
