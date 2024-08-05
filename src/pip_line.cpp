@@ -1234,10 +1234,10 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     is_finish = true;
     cv::imwrite("/home/lichao/TCDS/src/pip_line/data/plane_image.png", plane_image);
     // return ;
-    while (!get_goal)
-    {
-        sleep(1);
-    }
+    // while (!get_goal)
+    // {
+    //     sleep(1);
+    // }
     // cout<<"get goal"<<endl;
     // 落脚点规划的输入，带"label"的高程图，
     // 台阶用0.175更合适，斜坡0.16就可以
@@ -1253,7 +1253,7 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
 // I20240803 10:01:17.361481 33866 AstarHierarchicalFootstepPlanner.cpp:1757] right_opt: 00002.2473 00.0114695 -0.0270239
 
     // Eigen::Vector3d goal_p(2.81397, 0.106, 0.0);
-    // Eigen::Vector3d goal_p(1.5478, 0.1, 0);
+    Eigen::Vector3d goal_p(2.54366, 0.08128, 0.00499635);
     // goal_p.x() = goal.position.x;
     // goal_p.y() = goal.position.y;
     // Eigen::Quaterniond qd(goal.orientation.w, goal.orientation.x, goal.orientation.y, goal.orientation.z);
@@ -1267,13 +1267,13 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     // right_opt: 002.14754 0.0725685 0.0499546
     // left_opt: 002.13755 00.272319 0.0499546
     // right_opt: 002.14754 0.0725685 0.0499546
-    Eigen::Vector3d goal_p;
-    goal_p.x() = goal.position.x;
-    goal_p.y() = goal.position.y;
-    Eigen::Quaterniond qd(goal.orientation.w, goal.orientation.x, goal.orientation.y, goal.orientation.z);
-    Eigen::Vector3d v_t = qd.toRotationMatrix() * Eigen::Vector3d::UnitX();
-    double yaw = atan(v_t.y()/v_t.x());
-    goal_p.z() = yaw;
+    // Eigen::Vector3d goal_p;
+    // goal_p.x() = goal.position.x;
+    // goal_p.y() = goal.position.y;
+    // Eigen::Quaterniond qd(goal.orientation.w, goal.orientation.x, goal.orientation.y, goal.orientation.z);
+    // Eigen::Vector3d v_t = qd.toRotationMatrix() * Eigen::Vector3d::UnitX();
+    // double yaw = atan(v_t.y()/v_t.x());
+    // goal_p.z() = yaw;
 
     clock_t start_plane = clock();
     if (planner.initial(right_foot, left_foot, 1, goal_p))// 先迈右脚
