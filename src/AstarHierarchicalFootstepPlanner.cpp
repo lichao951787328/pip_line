@@ -1042,14 +1042,69 @@ bool AstarHierarchicalFootstepPlanner::getPointsInHindFoot(Eigen::Vector3d ankle
     return SqureHistogramVoting(mid_left.head(2), mid_right.head(2), down_left.head(2), down_right.head(2), hind_foot_HV);
 }
 
+void AstarHierarchicalFootstepPlanner::getSquareHistogramVoting(Eigen::Vector2d TL, Eigen::Vector2d TR, Eigen::Vector2d BL, Eigen::Vector2d BR, HistogramVoting & HV)
+{
+    grid_map::LineIterator iterator_start(label_localmap, BR, BL);
+    grid_map::LineIterator iterator_end(label_localmap, TR, TL);
+    for (; !iterator_start.isPastEnd()&&!iterator_end.isPastEnd(); ++iterator_start, ++iterator_end)
+    {
+        grid_map::Index start_index(*iterator_start);
+        grid_map::Index end_index(*iterator_end);
+        for (grid_map::LineIterator iterator_l(label_localmap, start_index, end_index); !iterator_l.isPastEnd(); ++iterator_l)
+        {
+            const grid_map::Index index_l(*iterator_l);
+            grid_map::Position3 cor_position;
+            if (label_localmap.getPosition3("elevation", index_l, cor_position))
+            {
+                if (!std::isnan(cor_position.z()))
+                {
+#ifdef DEBUG
+                    LOG(INFO)<<label_localmap["label"](index_l.x(), index_l.y());
+#endif
+                    if (!std::isnan(label_localmap["label"](index_l.x(), index_l.y())))
+                    {
+                        int label_index = static_cast<int>(label_localmap["label"](index_l.x(), index_l.y()));
+                        HV.add(label_index, cor_position);
+                    }
+                    else
+                    {
+                        HV.addNANPoints();// 编号是nan
+#ifdef DEBUG
+                        LOG(INFO)<<"nan";
+#endif
+                    }
+                }
+                else
+                {
+                    HV.addNANPoints(); // 点是nan
+#ifdef DEBUG
+                    LOG(INFO)<<"cor nan";
+#endif
+                }
+            }
+            else
+            {
+                HV.addNANPoints(); // 不能得到此栅格处的点
+#ifdef DEBUG
+                LOG(INFO)<<"can not get cor";
+#endif
+            }
+
+        }
+    }
+}
+
 bool AstarHierarchicalFootstepPlanner::getPointsInFootArea(Eigen::Vector3d ankle, HistogramVoting & fore_foot_HV, HistogramVoting & hind_foot_HV)
 {
+    clock_t start = clock();
     Eigen::AngleAxisd ax(ankle.z(), Eigen::Vector3d::UnitZ());
-
     Eigen::Vector3d mid(ankle.x(), ankle.y(), 0);
 
     Eigen::Vector3d mid_top = ax.toRotationMatrix() * Eigen::Vector3d(footparam.x_upper, 0, 0) + mid;
     Eigen::Vector3d mid_down = ax.toRotationMatrix() * Eigen::Vector3d(- footparam.x_button, 0, 0) + mid;
+
+    Eigen::Vector3d mid_left = ax.toRotationMatrix() * Eigen::Vector3d(0, footparam.y_left, 0) + mid;
+    Eigen::Vector3d mid_right = ax.toRotationMatrix() * Eigen::Vector3d(0, - footparam.y_right, 0) + mid;
 
     Eigen::Vector3d top_left = ax.toRotationMatrix() * Eigen::Vector3d(0, footparam.y_left, 0) + mid_top;
     Eigen::Vector3d top_right = ax.toRotationMatrix() * Eigen::Vector3d(0, - footparam.y_right, 0) + mid_top;
@@ -1065,7 +1120,34 @@ bool AstarHierarchicalFootstepPlanner::getPointsInFootArea(Eigen::Vector3d ankle
     // points_planes.resize(planes);
     if (label_localmap.isInside(top_left_l) && label_localmap.isInside(top_right_l) && label_localmap.isInside(down_left_l) && label_localmap.isInside(down_right_l))
     {
-        return getPointsInForeFoot(ankle, fore_foot_HV) && getPointsInHindFoot(ankle, hind_foot_HV);
+        // clock_t start1 = clock();
+        // bool flag1 = getPointsInForeFoot(ankle, fore_foot_HV);
+        // clock_t end1 = clock();
+        // LOG(INFO)<<"get point cost time 1: "<<double(end1 - start1) / CLOCKS_PER_SEC * 1000;
+        // clock_t start2 = clock();
+        // bool flag2 = getPointsInHindFoot(ankle, hind_foot_HV);
+        // clock_t end2 = clock();
+        // LOG(INFO)<<"get point cost time 2: "<<double(end2 - start2) / CLOCKS_PER_SEC * 1000;
+        // clock_t end = clock();
+        // LOG(INFO)<<"get point cost time: "<<double(end - start) / CLOCKS_PER_SEC * 1000;
+        // return flag1&&flag2;
+#ifdef DEBUG
+        clock_t start1 = clock();
+#endif
+        getSquareHistogramVoting(top_left_l, top_right_l, mid_left.head(2), mid_right.head(2), fore_foot_HV);
+#ifdef DEBUG
+        clock_t end1 = clock();
+        LOG(INFO)<<"get point cost time 1: "<<double(end1 - start1) / CLOCKS_PER_SEC * 1000;
+        clock_t start2 = clock();
+#endif
+        getSquareHistogramVoting(mid_left.head(2), mid_right.head(2), down_left_l, down_right_l, hind_foot_HV);
+#ifdef DEBUG
+        clock_t end2 = clock();
+        LOG(INFO)<<"get point cost time 2: "<<double(end2 - start2) / CLOCKS_PER_SEC * 1000;
+        clock_t end = clock();
+        LOG(INFO)<<"get point cost time: "<<double(end - start) / CLOCKS_PER_SEC * 1000;
+#endif
+        return true;
     }
     else
     {
@@ -1305,6 +1387,9 @@ bool AstarHierarchicalFootstepPlanner::computeLandInfo(Eigen::Vector3d ankle, in
 
         if (!candidate_support_planes.empty())
         {
+#ifdef debug
+            clock_t start_check = clock();
+#endif
             Eigen::Vector3d center;
             double max_height = -std::numeric_limits<double>::infinity();
             for (auto & cand_plane : candidate_support_planes)
@@ -1352,7 +1437,10 @@ bool AstarHierarchicalFootstepPlanner::computeLandInfo(Eigen::Vector3d ankle, in
                     }
                 }
             }
-                    
+#ifdef debug
+            clock_t end_check = clock();
+            LOG(INFO)<<"check time: "<<double(end_check - start_check) / CLOCKS_PER_SEC * 1000;
+#endif
             if (above_points > 8)
             {
 #ifdef DEBUG

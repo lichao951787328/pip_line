@@ -562,6 +562,8 @@ public:
 
     bool SqureHistogramVoting(Eigen::Vector2d TL, Eigen::Vector2d TR, Eigen::Vector2d BL, Eigen::Vector2d BR, HistogramVoting & HV);
 
+    void getSquareHistogramVoting(Eigen::Vector2d TL, Eigen::Vector2d TR, Eigen::Vector2d BL, Eigen::Vector2d BR, HistogramVoting & HV);
+
     /**
      * @brief 获取在ankle处落脚时，机器人包含几个平面点，及位于此区域所有的点集
      * 
