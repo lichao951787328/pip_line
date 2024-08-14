@@ -216,7 +216,7 @@ void plaanner(grid_map::GridMap & map, grid_map::GridMap & feasible_map)
         }
     }
 
-    FootParam footparam(0.15, 0.11, 0.065, 0.065);
+    FootParam footparam(0.15, 0.11, 0.065, 0.065, 0, 0);
     AstarHierarchicalFootstepPlanner planner(map, plane_image, collision_free_images, planes, footparam, 0.2);
     Eigen::Vector3d left_foot(0.05, 0.1, 0);
     Eigen::Vector3d right_foot(0.05, -0.1, 0);

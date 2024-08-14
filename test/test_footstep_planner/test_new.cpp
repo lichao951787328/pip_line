@@ -481,7 +481,7 @@ void multiTest::goal_point_callback(geometry_msgs::PoseStamped::ConstPtr pose_p)
     LOG(INFO)<<goal.position.x<<" "<<goal.position.y<<" "<<goal.position.z;
     get_goal = true;
 
-    FootParam footparam(0.15, 0.11, 0.065, 0.065);
+    FootParam footparam(0.15, 0.11, 0.065, 0.065, 0, 0);
     AstarHierarchicalFootstepPlanner planner(feasible_map, plane_image, collision_free_images, planes, footparam, 0.2);
     Eigen::Vector3d left_foot(0.05, 0.1, 0.3);
     Eigen::Vector3d right_foot(0.05, -0.1, 0.3);

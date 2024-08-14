@@ -16,7 +16,7 @@
 #include <plane_info.h>
 using namespace std;
 
-#define DEBUG
+// #define DEBUG
 enum RobotSide{LEFT, RIGHT, _NAN_};
 
 struct Footstep
@@ -157,18 +157,21 @@ struct FootstepNodeCompare
 
 struct FootParam
 {
-    double x_upper, x_button, y_left, y_right;
+    double x_upper, x_button, y_left, y_right, x_fore_button, x_hind_top;
     FootParam()
     {
 
     }
-    FootParam(double x_u, double x_b, double y_l, double y_r)
+    FootParam(double x_u, double x_b, double y_l, double y_r, double x_f_b, double x_h_t)
     {
         CHECK(x_u > 0 && x_b > 0 && y_l > 0 && y_r > 0);
+        CHECK(x_f_b >= 0 && x_h_t >= 0);
         x_upper = x_u;
         x_button = x_b;
         y_left = y_l;
         y_right = y_r;
+        x_fore_button = x_f_b;
+        x_hind_top = x_h_t;
     }
     FootParam & operator=(const FootParam & other)
     {
@@ -180,6 +183,8 @@ struct FootParam
         this->x_upper = other.x_upper;
         this->y_left = other.y_left;
         this->y_right = other.y_right;
+        this->x_fore_button = other.x_fore_button;
+        this->x_hind_top = other.x_hind_top;
         return *this;
     }
 };
@@ -225,7 +230,7 @@ struct ScoreMarkerNodeCompare
 // 直方图投票
 struct HistogramVoting
 {
-    std::unordered_map<int, vector<Eigen::Vector3d>> counter;
+    std::unordered_map<int, int> counter;
     int nan_points = 0;
     int all_points = 0;
     void add(int index, Eigen::Vector3d & p)
@@ -237,7 +242,7 @@ struct HistogramVoting
         }
         else
         {
-            counter[index].emplace_back(p);
+            counter[index]++;
         }
         all_points++;
     }
@@ -565,6 +570,11 @@ public:
     bool SqureHistogramVoting(Eigen::Vector2d TL, Eigen::Vector2d TR, Eigen::Vector2d BL, Eigen::Vector2d BR, HistogramVoting & HV);
 
     void getSquareHistogramVoting(Eigen::Vector2d TL, Eigen::Vector2d TR, Eigen::Vector2d BL, Eigen::Vector2d BR, HistogramVoting & HV);
+
+    bool getLandAreaPoints(Eigen::Vector3d ankle, vector<Eigen::Vector3d> & points);
+
+
+
 
     /**
      * @brief 获取在ankle处落脚时，机器人包含几个平面点，及位于此区域所有的点集
