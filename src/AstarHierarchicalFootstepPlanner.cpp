@@ -1284,7 +1284,8 @@ bool AstarHierarchicalFootstepPlanner::SqurePoints(Eigen::Vector2d TL, Eigen::Ve
 bool AstarHierarchicalFootstepPlanner::computeLandInfo(Eigen::Vector3d ankle, int & max_size, int & above_points, Eigen::Vector3d & plane_normal, double & step_height, double & pitch, double & roll)
 {
     checktime++;
-    clock_t start = clock();
+    auto start = std::chrono::high_resolution_clock::now();
+   
     max_size = 0;
     above_points = 0;
     plane_normal = Eigen::Vector3d::Zero();
@@ -1357,21 +1358,14 @@ bool AstarHierarchicalFootstepPlanner::computeLandInfo(Eigen::Vector3d ankle, in
                 if (above_points > 8)
                 {
                     // 结束计时
-                    clock_t end = clock();
-
-                    // 计算耗费的时间（单位：秒）
-                    double elapsed_time = double(end - start) / CLOCKS_PER_SEC * 1000;
-                    total_time += elapsed_time;
+                    auto end = std::chrono::high_resolution_clock::now();
+                    total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
                     return false;
                 }
                 if (max_size < (0.16/(0.11+0.15))* footsize_inmap)
                 {
-                    // 结束计时
-                    clock_t end = clock();
-
-                    // 计算耗费的时间（单位：秒）
-                    double elapsed_time = double(end - start) / CLOCKS_PER_SEC * 1000;
-                    total_time += elapsed_time;
+                    auto end = std::chrono::high_resolution_clock::now();
+                    total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
                     return false;
                 }
                 
@@ -1383,45 +1377,30 @@ bool AstarHierarchicalFootstepPlanner::computeLandInfo(Eigen::Vector3d ankle, in
                 double d = -center.dot(plane_normal);
                 step_height = (-d - ankle.head(2).dot(plane_normal.head(2)))/plane_normal(2);
                 // 结束计时
-                clock_t end = clock();
-
-                // 计算耗费的时间（单位：秒）
-                double elapsed_time = double(end - start) / CLOCKS_PER_SEC * 1000;
-                total_time += elapsed_time;
+                auto end = std::chrono::high_resolution_clock::now();
+                total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
                 return true;
             }
             else
             {
-                // 结束计时
-                clock_t end = clock();
-
-                // 计算耗费的时间（单位：秒）
-                double elapsed_time = double(end - start) / CLOCKS_PER_SEC * 1000;
-                total_time += elapsed_time;
+                auto end = std::chrono::high_resolution_clock::now();
+                total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
                 return false;
             }
             
         }
         else
         {
-            // 结束计时
-            clock_t end = clock();
-
-            // 计算耗费的时间（单位：秒）
-            double elapsed_time = double(end - start) / CLOCKS_PER_SEC * 1000;
-            total_time += elapsed_time;
+            auto end = std::chrono::high_resolution_clock::now();
+            total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
             return false;
         }
         
     }
     else
     {
-        // 结束计时
-        clock_t end = clock();
-
-        // 计算耗费的时间（单位：秒）
-        double elapsed_time = double(end - start) / CLOCKS_PER_SEC * 1000;
-        total_time += elapsed_time;
+        auto end = std::chrono::high_resolution_clock::now();
+        total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
         return false;
     }
     
