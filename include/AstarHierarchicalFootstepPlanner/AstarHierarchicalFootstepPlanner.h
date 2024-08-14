@@ -16,7 +16,7 @@
 #include <plane_info.h>
 using namespace std;
 
-// #define DEBUG
+#define DEBUG
 enum RobotSide{LEFT, RIGHT, _NAN_};
 
 struct Footstep
@@ -351,7 +351,7 @@ private:
 
     // 后续计算障碍点时会用到
     cv::Mat plane_image;
-    unsigned char default_colors[10][3] =
+    unsigned char default_colors[12][3] =
 			{
 				{255, 0, 0},
 				{255, 255, 0},
@@ -362,7 +362,9 @@ private:
 				{0, 255, 200},
 				{10, 60, 60},
 				{255, 0, 128},
-				{60, 128, 128}
+				{60, 128, 128},
+                {10, 255, 60},
+                {100, 20, 50}
 			};
     // 这是灰度图
     vector<cv::Mat> plane_images;

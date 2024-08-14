@@ -25,7 +25,7 @@ int main(int argc, char** argv)
     ros::NodeHandle n;
     pip_line ppl(n);
 
-    ros::AsyncSpinner spinner(2);  // Use n threads
+    ros::AsyncSpinner spinner(4);  // Use n threads
     spinner.start();
     ros::waitForShutdown();
     
