@@ -70,7 +70,7 @@ void AstarHierarchicalFootstepPlanner::initial_transitions()
     {
         for (int j = -2; j < 5; j++)
         {
-            for (int k = -1; k < 2; k++)
+            for (int k = -1; k < 3; k++)
             {
                 if (j == -1 && (k == -3 || k == -2))// 靠的太近时角度不允许内转太多
                 {
@@ -204,7 +204,7 @@ bool AstarHierarchicalFootstepPlanner::getPointInfoInPlane(Eigen::Vector3d p, do
         {
             if (above_points == 0)
             {
-                if (max_size > 0.7 * footsize_inmap)
+                if (max_size > 0.65 * footsize_inmap)
                 {
                     return true;
                 }

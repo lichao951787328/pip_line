@@ -208,7 +208,7 @@ plane_segmentation::plane_segmentation(size_t rows, size_t cols, quatree::quatre
       // std::cout<<"refresh quatree costs "<<refresh_quatree <<" s."<<std::endl;
 
       segmented_index++;
-      std::cout<<"segmented_index: "<<segmented_index<<std::endl;
+      // std::cout<<"segmented_index: "<<segmented_index<<std::endl;
     }
     else
       break;

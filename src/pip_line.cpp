@@ -92,8 +92,8 @@ pip_line::pip_line(ros::NodeHandle & n):nh(n)
 
     timer = nh.createTimer(ros::Duration(1), &pip_line::timerCallback, this);
 
-    grid_map::Length length(6, 6);
-    grid_map::Position position(3, 0);
+    grid_map::Length length(8, 6);
+    grid_map::Position position(4, 0);
     map.setGeometry(length, 0.01, position);
     map.add("elevation", NAN);
 
@@ -144,8 +144,8 @@ pip_line::pip_line(ros::NodeHandle & n):nh(n)
     T_world_camera.setIdentity();
     T_world_camera(0, 0) = -1;
     T_world_camera(2, 2) = -1;
-    T_world_camera(0, 3) = 1.5;
-    T_world_camera(2, 3) = 5;
+    T_world_camera(0, 3) = 2.5;
+    T_world_camera(2, 3) = 6;
 
     // Eigen::Matrix4d T_install_depth = Eigen::Matrix4d::Identity();
     // T_install_depth(1, 3) = -0.001;
@@ -516,7 +516,7 @@ void preprocessingColor(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_in, pcl::P
     voxel_grid_filter.setInputCloud(cloud_in);
 
     // 设置体素大小（体素的边长）这个值不能设成0.01，否则太耗时
-    voxel_grid_filter.setLeafSize(0.018f, 0.018f, 0.018f);  // 设置为0.01米
+    voxel_grid_filter.setLeafSize(0.008f, 0.008f, 0.008f);  // 设置为0.01米
 
     // 执行体素滤波
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr filtered_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
@@ -543,30 +543,30 @@ void preprocessingColor(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud_in, pcl::P
     // cout<<"preprocess4 cost: "<<(double)(end4 - start4)/CLOCKS_PER_SEC<<std::endl;
     // 飞点去除
     // cout<<"after pass filter: "<<pass_filtered_cloud->size()<<endl;
-    pcl::NormalEstimation<pcl::PointXYZRGB, pcl::Normal> ne;
-    ne.setInputCloud(pass_filtered_cloud);// 注意衔接的输入输出
+    // pcl::NormalEstimation<pcl::PointXYZRGB, pcl::Normal> ne;
+    // ne.setInputCloud(pass_filtered_cloud);// 注意衔接的输入输出
 
-    // // 创建KdTree用于法向量估计
-    pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZRGB>);
-    ne.setSearchMethod(tree);
+    // // // 创建KdTree用于法向量估计
+    // pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZRGB>);
+    // ne.setSearchMethod(tree);
 
-    // // 设置搜索半径，用于确定每个点的邻域
-    ne.setRadiusSearch(0.08);  // 设置为0.03米
+    // // // 设置搜索半径，用于确定每个点的邻域
+    // ne.setRadiusSearch(0.03);  // 设置为0.03米
 
-    // // 计算法向量
-    pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
-    ne.compute(*normals);
-    pcl::PointCloud<pcl::PointXYZRGB> result;
-    for (size_t i = 0; i < pass_filtered_cloud->size(); i++)
-    {
-        Eigen::Vector3d p(pass_filtered_cloud->at(i).x, pass_filtered_cloud->at(i).y, pass_filtered_cloud->at(i).z);
-        Eigen::Vector3d n(normals->at(i).normal_x, normals->at(i).normal_y, normals->at(i).normal_z);
-        if (std::abs(p.normalized().dot(n)) > 0.3)// 虽然这是一个阈值，但应该能满足要求
-        {
-            result.emplace_back(pass_filtered_cloud->at(i));
-        }
-    }
-    cloud_out = result;
+    // // // 计算法向量
+    // pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
+    // ne.compute(*normals);
+    // pcl::PointCloud<pcl::PointXYZRGB> result;
+    // for (size_t i = 0; i < pass_filtered_cloud->size(); i++)
+    // {
+    //     Eigen::Vector3d p(pass_filtered_cloud->at(i).x, pass_filtered_cloud->at(i).y, pass_filtered_cloud->at(i).z);
+    //     Eigen::Vector3d n(normals->at(i).normal_x, normals->at(i).normal_y, normals->at(i).normal_z);
+    //     if (std::abs(p.normalized().dot(n)) > 0.3)// 虽然这是一个阈值，但应该能满足要求
+    //     {
+    //         result.emplace_back(pass_filtered_cloud->at(i));
+    //     }
+    // }
+    cloud_out = *pass_filtered_cloud;
     // cout<<"after Normal filter: "<<result.size()<<endl;
     // clock_t start5 = clock();
     // pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> sor;
@@ -627,7 +627,7 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     pcl::fromROSMsg(*msg, *pc);
     pcl::io::savePCDFileASCII("/home/lichao/TCDS/src/pip_line/data/pc.pcd", *pc);
     LOG(INFO)<<pc->size();
-    clock_t start = clock();
+    // clock_t start = clock();
     // pcl::PointCloud<pcl::PointXYZ>::Ptr tmppc(new pcl::PointCloud<pcl::PointXYZ>);
     // for (auto & point : *pc)
     // {
@@ -639,9 +639,11 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     
     // auto start_o = clock();
     pcl::PointCloud<pcl::PointXYZRGB> pub_cloud;
-
+    auto time_clock1 = std::chrono::high_resolution_clock::now();
     preprocessingColor(pc, pub_cloud);
-
+    auto time_clock2 = std::chrono::high_resolution_clock::now();
+    auto duration1 = std::chrono::duration_cast<std::chrono::milliseconds>(time_clock2 - time_clock1).count();
+    std::cout << "Time 1 taken by function: " << duration1 << " milliseconds" << std::endl;
     // // 法线估计
     // pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
     // pcl::PointCloud<pcl::Normal>::Ptr cloud_normals(new pcl::PointCloud<pcl::Normal>);
@@ -681,7 +683,7 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     // colored_cloud->height = 1;
     // colored_cloud->width = colored_cloud->size();
     // 步骤1原时点云转成域处理后的点云
-    pcl::io::savePCDFileASCII("/home/lichao/TCDS/src/pip_line/data/processed.pcd", pub_cloud);
+    // pcl::io::savePCDFileASCII("/home/lichao/TCDS/src/pip_line/data/processed.pcd", pub_cloud);
 
     
 
@@ -716,6 +718,8 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     // grid_map::GridMapRosConverter::toMessage(map, map_msg);
     // map_msg.info.header.frame_id = "map";
     // raw_heightmap_pub.publish(map_msg);
+
+
 
     // 这是补齐实际采集点云的空洞，仿真数据时线不要这部分
     // const float minValue = map.get("elevation").minCoeffOfFinites();
@@ -784,7 +788,6 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     //     {
     //         LOG(INFO)<<"fill_start: "<<fill_start.transpose();
     //         LOG(INFO)<<"fill_end: "<<fill_end.transpose();
-
     //         for (int i = fill_start.x(); i < fill_end.x(); i++)
     //         {
     //             for (int j = fill_start.y(); j < fill_end.y(); j++)
@@ -865,7 +868,6 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     // {
     //     cout<<"can get start"<<endl;
     // }
-    
     // for (int i = 0; i < map.getSize().x(); i++)
     // {
     //     for (int j = 0; j < map.getSize().y(); j++)
@@ -890,6 +892,7 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     pcl::PointCloud<pcl::PointXYZ> org_pc = gridMap2Pointcloud(map);
     pcl::io::savePCDFileASCII("/home/lichao/TCDS/src/pip_line/data/submap.pcd", org_pc);
     // return;
+
     //   // 创建可视化对象
     // pcl::visualization::PCLVisualizer viewer("Cloud Viewer");
 
@@ -979,16 +982,18 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     vector<plane_info> planes = ps.getPlaneResult();
     // 平面分割结果
     cv::Mat result = ps.getSegResult();
-    cv::imwrite("/home/lichao/TCDS/src/pip_line/data/result_raw.png", result);
+    // cv::imwrite("/home/lichao/TCDS/src/pip_line/data/result_raw.png", result);
     seg_result_image = result;
     
     vector<cv::Mat> single_results = ps.getSegResultSingle();
-
-    for (int i = 0; i < planes.size(); i++)
-    {
-        LOG(INFO)<<i<<" "<<planes.at(i).normal.transpose()<<", "<<planes.at(i).center.transpose();
-        cv::imwrite("/home/lichao/TCDS/src/pip_line/data/result_x_" + std::to_string(i) + ".png", single_results.at(i));
-    }
+    auto time_clock3 = std::chrono::high_resolution_clock::now();
+    auto duration2 = std::chrono::duration_cast<std::chrono::milliseconds>(time_clock3 - time_clock2).count();
+    std::cout << "Time 2 taken by function: " << duration2 << " milliseconds" << std::endl;
+    // for (int i = 0; i < planes.size(); i++)
+    // {
+    //     LOG(INFO)<<i<<" "<<planes.at(i).normal.transpose()<<", "<<planes.at(i).center.transpose();
+    //     cv::imwrite("/home/lichao/TCDS/src/pip_line/data/result_x_" + std::to_string(i) + ".png", single_results.at(i));
+    // }
     
     class Graph {
     private:
@@ -1037,7 +1042,7 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
             {
                 if (abs((planes.at(i).center - planes.at(j).center).dot(planes.at(i).normal)) < 0.02)
                 {
-                    cout<<"add: "<<i<<"-"<<j<<endl;
+                    // cout<<"add: "<<i<<"-"<<j<<endl;
                     g.addEdge(i, j);
                 }
             }
@@ -1074,6 +1079,24 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
         cv::imwrite("/home/lichao/TCDS/src/pip_line/data/result_xx" + std::to_string(i) + ".png", merge_results.at(i));
     }
     
+    // cv::Mat tmp_image = cv::Mat::zeros(result.size(), result.type());
+    // for (int i = 0; i < merge_results.size(); i++)
+    // {
+    //     cv::Mat mask;
+    //     cv::inRange(merge_results.at(i), cv::Scalar(200, 200, 200), cv::Scalar(255, 255, 255), mask); // 检测白色区域 (可以调整阈值)
+    //     // 在红色通道上应用掩码default_colors[(static_cast<int>(label))%12][0]
+    //     tmp_image.setTo(cv::Scalar(default_colors[i%12][0], default_colors[i%12][1], default_colors[i%12][2]), mask); // 255 表示红色
+    // }
+    // cv::imwrite("/home/lichao/TCDS/src/pip_line/data/merge.png", tmp_image);
+    // for (auto & image : merge_results)
+    // {
+    //     cv::Mat mask;
+    //     cv::inRange(src, Scalar(200, 200, 200), Scalar(255, 255, 255), mask); // 检测白色区域 (可以调整阈值)
+    //     // 在红色通道上应用掩码default_colors[(static_cast<int>(label))%12][0]
+    //     dst.setTo(cv::Scalar(0, 0, 255), mask); // 255 表示红色
+    // }
+    
+
     // auto image_paper = result.clone();
     // for (int i = 0; i < image_paper.rows; i++)
     // {
@@ -1088,14 +1111,11 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     
 
     // cv::imwrite("/home/lichao/TCDS/src/pip_line/data/image_paper.png", image_paper);
-    cv::imwrite("/home/lichao/TCDS/src/pip_line/data/result.png", result);
-
+    // cv::imwrite("/home/lichao/TCDS/src/pip_line/data/result.png", result);
     // cv::imwrite("/home/bhr/TCDS/src/pip_line/data/image_paper.png", image_paper);
     // cv::imwrite("/home/bhr/TCDS/src/pip_line/data/result.png", result);
-
     // cv::imwrite("/home/bhr/TCDS/src/pip_line/data/image_paper.png", image_paper);
     // cv::imwrite("/home/bhr/TCDS/src/pip_line/data/result.png", result);
-
     // cv::Mat enlarged_img;
     // int scale_factor = 5;  // 放大倍数
     // cv::resize(result, enlarged_img, cv::Size(), scale_factor, scale_factor, cv::INTER_LINEAR);
@@ -1193,7 +1213,7 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
         // 计算膨胀后的边缘
         cv::Mat collision_layer1 = image - dilated_image_upper;
         cv::Mat free_collision = collision_layer1 - dilated_image_knee;
-        // cv::imwrite("/home/bhr/TCDS/src/pip_line/data/free_collision" + std::to_string(i) + ".png", free_collision);
+        // cv::imwrite("/home/lichao/TCDS/src/pip_line/data/free_collision" + std::to_string(i) + ".png", free_collision);
         // cv::imshow("free_collision", free_collision);
         // cv::waitKey(0);
         collision_free_images.emplace_back(free_collision);
@@ -1217,7 +1237,7 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
                     flag = true;
                     map["label"](i ,j) = label;
                     // 后续计算
-                    plane_image.at<cv::Vec3b>(i, j) = cv::Vec3b(default_colors[int(label)][0], default_colors[int(label)][1], default_colors[int(label)][2]);
+                    plane_image.at<cv::Vec3b>(i, j) = cv::Vec3b(default_colors[(static_cast<int>(label))%12][0], default_colors[(static_cast<int>(label))%10][1], default_colors[(static_cast<int>(label))%12][2]);
                     break;
                 }
             }
@@ -1225,12 +1245,14 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
             {
                 map["label"](i,j) = NAN;
                 feasible_map["elevation"](i, j) = NAN;
-                map["elevation"](i, j) = NAN;
             }
         }
     }
-    clock_t end_preprocess = clock();
-    cout<<"preprocess cost: "<<(double)(end_preprocess - start)/CLOCKS_PER_SEC<<std::endl;
+    auto time_clock4 = std::chrono::high_resolution_clock::now();
+    auto duration3 = std::chrono::duration_cast<std::chrono::milliseconds>(time_clock4 - time_clock3).count();
+    std::cout << "Time 3 taken by function: " << duration3 << " milliseconds" << std::endl;
+    // clock_t end_preprocess = clock();
+    // cout<<"preprocess cost: "<<(double)(end_preprocess - start)/CLOCKS_PER_SEC<<std::endl;
     is_finish = true;
     cv::imwrite("/home/lichao/TCDS/src/pip_line/data/plane_image.png", plane_image);
     // return ;
@@ -1243,8 +1265,8 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     // 台阶用0.175更合适，斜坡0.16就可以
     FootParam footparam(0.16, 0.11, 0.065, 0.065);
     AstarHierarchicalFootstepPlanner planner(map, plane_image, collision_free_images, merge_planes, footparam, 0.2);
-    Eigen::Vector3d left_foot(0.05, 0.1, 0);
-    Eigen::Vector3d right_foot(0.05, -0.1, 0);
+    Eigen::Vector3d left_foot(0.6, 0.1, 0);
+    Eigen::Vector3d right_foot(0.6, -0.1, 0);
 
     // left_opt: 000002.81397 00000.206742 -3.66653e-06
     // right_opt: 000002.81397 000.00674166 -3.66653e-06
@@ -1252,8 +1274,8 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
 // left_opt: 00002.2527 000.211396 -0.0270239
 // I20240803 10:01:17.361481 33866 AstarHierarchicalFootstepPlanner.cpp:1757] right_opt: 00002.2473 00.0114695 -0.0270239
 
-    // Eigen::Vector3d goal_p(2.81397, 0.106, 0.0);
-    Eigen::Vector3d goal_p(2.54366, 0.08128, 0.00499635);
+    Eigen::Vector3d goal_p(2.51416, 0.6697765, 0.223473);
+    // Eigen::Vector3d goal_p(2.84476, 0.0554689, 0);
     // goal_p.x() = goal.position.x;
     // goal_p.y() = goal.position.y;
     // Eigen::Quaterniond qd(goal.orientation.w, goal.orientation.x, goal.orientation.y, goal.orientation.z);
