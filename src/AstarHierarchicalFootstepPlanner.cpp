@@ -68,7 +68,7 @@ void AstarHierarchicalFootstepPlanner::initial_transitions()
 {
     for (int i = -1; i < 5; i++)
     {
-        for (int j = -2; j < 4; j++)
+        for (int j = -2; j < 5; j++)
         {
             for (int k = -1; k < 2; k++)
             {
@@ -81,7 +81,7 @@ void AstarHierarchicalFootstepPlanner::initial_transitions()
                     continue;
                 }
                 
-                Eigen::Vector3d transition = Eigen::Vector3d(i * 0.1,   0.02 * j + 0.22,  k*3/57.3);
+                Eigen::Vector3d transition = Eigen::Vector3d(i * 0.1,   0.02 * j + 0.24,  k*3/57.3);
                 // LOG(INFO)<<transition.transpose();
                 transitions.emplace_back(transition);
             }
@@ -1195,9 +1195,9 @@ void AstarHierarchicalFootstepPlanner::getSquareHistogramVoting(Eigen::Vector2d 
 bool AstarHierarchicalFootstepPlanner::getPointsInFootArea(Eigen::Vector3d ankle, HistogramVoting & fore_foot_HV, HistogramVoting & hind_foot_HV)
 {
 #ifdef DEBUG
-    // clock_t start = clock();
+    clock_t start = clock();
 #endif
-    auto start = std::chrono::high_resolution_clock::now();
+    // auto start = std::chrono::high_resolution_clock::now();
     Eigen::AngleAxisd ax(ankle.z(), Eigen::Vector3d::UnitZ());
     Eigen::Vector3d mid(ankle.x(), ankle.y(), 0);
 

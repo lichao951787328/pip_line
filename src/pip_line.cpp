@@ -92,8 +92,8 @@ pip_line::pip_line(ros::NodeHandle & n):nh(n)
 
     timer = nh.createTimer(ros::Duration(1), &pip_line::timerCallback, this);
 
-    grid_map::Length length(5, 4);
-    grid_map::Position position(2.2, -1.2);
+    grid_map::Length length(6, 6);
+    grid_map::Position position(3, 0);
     map.setGeometry(length, 0.01, position);
     map.add("elevation", NAN);
 
@@ -144,8 +144,8 @@ pip_line::pip_line(ros::NodeHandle & n):nh(n)
     T_world_camera.setIdentity();
     T_world_camera(0, 0) = -1;
     T_world_camera(2, 2) = -1;
-    T_world_camera(0, 3) = 1.5;
-    T_world_camera(2, 3) = 3;
+    T_world_camera(0, 3) = 1.8;
+    T_world_camera(2, 3) = 5;
 
     // Eigen::Matrix4d T_install_depth = Eigen::Matrix4d::Identity();
     // T_install_depth(1, 3) = -0.001;
@@ -710,7 +710,7 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
             }
         }
     }
-    // pcl::io::savePCDFileASCII("/home/lichao/TCDS/src/pip_line/data/pc_world.pcd", pc_world);
+    pcl::io::savePCDFileASCII("/home/lichao/TCDS/src/pip_line/data/pc_world.pcd", pc_world);
 
     
 
@@ -891,7 +891,8 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
 
     // // 使用地图转成有序点云
     pcl::PointCloud<pcl::PointXYZ> org_pc = gridMap2Pointcloud(map);
-    // pcl::io::savePCDFileASCII("/home/lichao/TCDS/src/pip_line/data/submap.pcd", org_pc);
+    pcl::io::savePCDFileASCII("/home/lichao/TCDS/src/pip_line/data/submap.pcd", org_pc);
+    // return;
 
     //   // 创建可视化对象
     // pcl::visualization::PCLVisualizer viewer("Cloud Viewer");
@@ -1049,14 +1050,14 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
         }
     }
     vector<vector<int>> components = g.findConnectedComponents();
-    // for (int i = 0; i < components.size(); i++)
-    // {
-    //     for (int j = 0; j < components.at(i).size(); j++)
-    //     {
-    //         cout<<components.at(i).at(j)<<" ";
-    //     }
-    //     cout<<endl;
-    // }
+    for (int i = 0; i < components.size(); i++)
+    {
+        for (int j = 0; j < components.at(i).size(); j++)
+        {
+            cout<<components.at(i).at(j)<<" ";
+        }
+        cout<<endl;
+    }
     
     vector<cv::Mat> merge_results;
     vector<plane_info> merge_planes;
@@ -1073,11 +1074,11 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
         merge_planes.emplace_back(planes.at(components.at(i).front()));
     }
 
-    // for (int i = 0; i < merge_planes.size(); i++)
-    // {
-    //     LOG(INFO)<<i<<" "<<merge_planes.at(i).normal.transpose()<<", "<<merge_planes.at(i).center.transpose();
-    //     cv::imwrite("/home/lichao/TCDS/src/pip_line/data/result_xx" + std::to_string(i) + ".png", merge_results.at(i));
-    // }
+    for (int i = 0; i < merge_planes.size(); i++)
+    {
+        LOG(INFO)<<i<<" "<<merge_planes.at(i).normal.transpose()<<", "<<merge_planes.at(i).center.transpose();
+        cv::imwrite("/home/lichao/TCDS/src/pip_line/data/result_xx" + std::to_string(i) + ".png", merge_results.at(i));
+    }
     
     // cv::Mat tmp_image = cv::Mat::zeros(result.size(), result.type());
     // for (int i = 0; i < merge_results.size(); i++)
@@ -1256,17 +1257,17 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     is_finish = true;
     cv::imwrite("/home/lichao/TCDS/src/pip_line/data/plane_image.png", plane_image);
     // return ;
-    // while (!get_goal)
-    // {
-    //     sleep(1);
-    // }
+    while (!get_goal)
+    {
+        sleep(1);
+    }
     // cout<<"get goal"<<endl;
     // 落脚点规划的输入，带"label"的高程图，
     // 台阶用0.175更合适，斜坡0.16就可以
     FootParam footparam(0.16, 0.11, 0.065, 0.065, 0.1, 0);
     AstarHierarchicalFootstepPlanner planner(map, plane_image, collision_free_images, merge_planes, footparam, 0.2);
-    Eigen::Vector3d left_foot(0.05, 0.1, 0);
-    Eigen::Vector3d right_foot(0.05, -0.1, 0);
+    Eigen::Vector3d left_foot(0.37, 0.1, 0);
+    Eigen::Vector3d right_foot(0.37, -0.1, 0);
 
     // left_opt: 000002.81397 00000.206742 -3.66653e-06
     // right_opt: 000002.81397 000.00674166 -3.66653e-06
@@ -1274,7 +1275,7 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
 // left_opt: 00002.2527 000.211396 -0.0270239
 // I20240803 10:01:17.361481 33866 AstarHierarchicalFootstepPlanner.cpp:1757] right_opt: 00002.2473 00.0114695 -0.0270239
 
-    Eigen::Vector3d goal_p(2.0215, 0.092987, -0.0125);
+    // Eigen::Vector3d goal_p(1.365265, -0.235266, 0);
     // Eigen::Vector3d goal_p(2.84476, 0.0554689, 0);
     // goal_p.x() = goal.position.x;
     // goal_p.y() = goal.position.y;
@@ -1289,13 +1290,13 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     // right_opt: 002.14754 0.0725685 0.0499546
     // left_opt: 002.13755 00.272319 0.0499546
     // right_opt: 002.14754 0.0725685 0.0499546
-    // Eigen::Vector3d goal_p;
-    // goal_p.x() = goal.position.x;
-    // goal_p.y() = goal.position.y;
-    // Eigen::Quaterniond qd(goal.orientation.w, goal.orientation.x, goal.orientation.y, goal.orientation.z);
-    // Eigen::Vector3d v_t = qd.toRotationMatrix() * Eigen::Vector3d::UnitX();
-    // double yaw = atan(v_t.y()/v_t.x());
-    // goal_p.z() = yaw;
+    Eigen::Vector3d goal_p;
+    goal_p.x() = goal.position.x;
+    goal_p.y() = goal.position.y;
+    Eigen::Quaterniond qd(goal.orientation.w, goal.orientation.x, goal.orientation.y, goal.orientation.z);
+    Eigen::Vector3d v_t = qd.toRotationMatrix() * Eigen::Vector3d::UnitX();
+    double yaw = atan(v_t.y()/v_t.x());
+    goal_p.z() = yaw;
 
     clock_t start_plane = clock();
     if (planner.initial(right_foot, left_foot, 1, goal_p))// 先迈右脚
