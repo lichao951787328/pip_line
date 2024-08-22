@@ -43,7 +43,7 @@ plane_segmentation::plane_segmentation(size_t rows, size_t cols, quatree::quatre
     // showNodeAndNeisImage(seed);
     // LOG(INFO)<<seed->start_rows<<" "<<seed->start_cols;
     // std::cout<<"seed: "<<seed<<std::endl;
-    if (seed && seed->valid_points_size >= 6)
+    if (seed && seed->valid_points_size >= 10)
     {
       plane tmpplane(rows, cols, seed, raw_points, param);
       // cout<<"tmp plane"<<endl;

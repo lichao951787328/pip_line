@@ -92,8 +92,8 @@ pip_line::pip_line(ros::NodeHandle & n):nh(n)
 
     timer = nh.createTimer(ros::Duration(1), &pip_line::timerCallback, this);
 
-    grid_map::Length length(6, 6);
-    grid_map::Position position(3, 0);
+    grid_map::Length length(8, 6);
+    grid_map::Position position(4, 0);
     map.setGeometry(length, 0.01, position);
     map.add("elevation", NAN);
 
@@ -144,8 +144,8 @@ pip_line::pip_line(ros::NodeHandle & n):nh(n)
     T_world_camera.setIdentity();
     T_world_camera(0, 0) = -1;
     T_world_camera(2, 2) = -1;
-    T_world_camera(0, 3) = 1.8;
-    T_world_camera(2, 3) = 5;
+    T_world_camera(0, 3) = 2.5;
+    T_world_camera(2, 3) = 6;
 
     // Eigen::Matrix4d T_install_depth = Eigen::Matrix4d::Identity();
     // T_install_depth(1, 3) = -0.001;
@@ -868,7 +868,6 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     // {
     //     cout<<"can get start"<<endl;
     // }
-    
     // for (int i = 0; i < map.getSize().x(); i++)
     // {
     //     for (int j = 0; j < map.getSize().y(); j++)
@@ -1266,8 +1265,8 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     // 台阶用0.175更合适，斜坡0.16就可以
     FootParam footparam(0.16, 0.11, 0.065, 0.065, 0.1, 0);
     AstarHierarchicalFootstepPlanner planner(map, plane_image, collision_free_images, merge_planes, footparam, 0.2);
-    Eigen::Vector3d left_foot(0.37, 0.1, 0);
-    Eigen::Vector3d right_foot(0.37, -0.1, 0);
+    Eigen::Vector3d left_foot(0.6, 0.1, 0);
+    Eigen::Vector3d right_foot(0.6, -0.1, 0);
 
     // left_opt: 000002.81397 00000.206742 -3.66653e-06
     // right_opt: 000002.81397 000.00674166 -3.66653e-06

@@ -2534,7 +2534,7 @@ bool AstarHierarchicalFootstepPlanner::checkFootstepsResult()
         if (last_step.robot_side == LEFT)
         {
             // x-y平面
-            if (!(direct_v.x() >= -0.15 && direct_v.x() <= 0.4 && direct_v.y() > - 0.4 && direct_v.y() <= -0.1))
+            if (!(direct_v.x() >= -0.15 && direct_v.x() <= 0.5 && direct_v.y() > - 0.45 && direct_v.y() <= -0.1))
             {
                 LOG(ERROR)<<direct_v.transpose();
                 LOG(ERROR)<<ad.toRotationMatrix();
