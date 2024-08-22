@@ -92,9 +92,9 @@ pip_line::pip_line(ros::NodeHandle & n):nh(n)
 
     timer = nh.createTimer(ros::Duration(1), &pip_line::timerCallback, this);
 
-    grid_map::Length length(5, 2);
-    grid_map::Position position(2.2, 0);
-    map.setGeometry(length, 0.02, position);
+    grid_map::Length length(6, 6);
+    grid_map::Position position(3, 0);
+    map.setGeometry(length, 0.01, position);
     map.add("elevation", NAN);
 
     height_map_upper = map;
@@ -145,7 +145,7 @@ pip_line::pip_line(ros::NodeHandle & n):nh(n)
     T_world_camera(0, 0) = -1;
     T_world_camera(2, 2) = -1;
     T_world_camera(0, 3) = 1.5;
-    T_world_camera(2, 3) = 2.5;
+    T_world_camera(2, 3) = 5;
 
     // Eigen::Matrix4d T_install_depth = Eigen::Matrix4d::Identity();
     // T_install_depth(1, 3) = -0.001;

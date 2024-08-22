@@ -68,7 +68,7 @@ void AstarHierarchicalFootstepPlanner::initial_transitions()
 {
     for (int i = -1; i < 4; i++)
     {
-        for (int j = -2; j < 4; j++)
+        for (int j = -2; j < 5; j++)
         {
             for (int k = -1; k < 2; k++)
             {
@@ -81,7 +81,7 @@ void AstarHierarchicalFootstepPlanner::initial_transitions()
                     continue;
                 }
                 
-                Eigen::Vector3d transition = Eigen::Vector3d(i * 0.1,   0.02 * j + 0.22,  k*3/57.3);
+                Eigen::Vector3d transition = Eigen::Vector3d(i * 0.1,   0.02 * j + 0.24,  k*3/57.3);
                 // LOG(INFO)<<transition.transpose();
                 transitions.emplace_back(transition);
             }
