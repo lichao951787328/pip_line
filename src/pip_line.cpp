@@ -2,7 +2,7 @@
  * @Author: lichao951787328 951787328@qq.com
  * @Date: 2024-06-07 11:01:20
  * @LastEditors: lichao951787328 951787328@qq.com
- * @LastEditTime: 2024-07-17 17:46:13
+ * @LastEditTime: 2024-09-07 16:33:07
  * @FilePath: /pip_line/src/pip_line.cpp
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -64,7 +64,7 @@ void initial_package_path(string package_name, string & package_path)
 
 pip_line::pip_line(ros::NodeHandle & n):nh(n)
 {
-    pointcloud_sub = nh.subscribe("/depth_camera/depth_camera/points", 1, &pip_line::pointcloud_callback, this);
+    pointcloud_sub = nh.subscribe("/camera/depth/color/points", 1, &pip_line::pointcloud_callback, this);
     // pointcloud_sub = nh.subscribe("/camera/depth/color/points", 1, &pip_line::pointcloud_callback, this);
     // pointcloud_sub = nh.subscribe("/trigger_points", 1, &pip_line::pointcloud_callback, this);
     string goal_point_topic = "/move_base_simple/goal";
@@ -92,8 +92,8 @@ pip_line::pip_line(ros::NodeHandle & n):nh(n)
 
     timer = nh.createTimer(ros::Duration(1), &pip_line::timerCallback, this);
 
-    grid_map::Length length(8, 6);
-    grid_map::Position position(4, 0);
+    grid_map::Length length(2, 2);
+    grid_map::Position position(1, 0);
     map.setGeometry(length, 0.01, position);
     map.add("elevation", NAN);
 
@@ -121,31 +121,31 @@ pip_line::pip_line(ros::NodeHandle & n):nh(n)
     // T_world_camera = T_world_base * T_base_velodyne * T_velodyne_camera;
 
     // 45度L515相机使用的变换矩阵
-    // Eigen::Matrix4d T_install_depth = Eigen::Matrix4d::Identity();
-    // T_install_depth(1, 3) = -0.001;
-    // T_install_depth(2, 3) = 0.026 - 0.0045;
-    // Eigen::Matrix4d T_hole_install = Eigen::Matrix4d::Identity();
-    // Eigen::Matrix3d R;
-    // R<<- 0.7071, 0, 0.7071,
-    //     0, 1, 0,
-    //     - 0.7071, 0, -0.7071;
-    // T_hole_install.block<3,3>(0,0) = R;
-    // T_hole_install(0, 3) = 0.07025;
-    // T_hole_install(2, 3) = 0.00424;
-    // Eigen::Matrix4d T_base_hole = Eigen::Matrix4d::Identity();
-    // T_base_hole(0, 3) = 0.05675;
-    // T_base_hole(2, 3) = 0.49123;
-    // Eigen::Matrix4d T_world_base = Eigen::Matrix4d::Identity();
-    // // 一定要注意根据实际高度调节，控制端反馈
-    // T_world_base.block<3,1>(0,3) = Eigen::Vector3d(0, 0, 0.71);
-    // T_world_camera = T_world_base * T_base_hole * T_hole_install * T_install_depth;
+    Eigen::Matrix4d T_install_depth = Eigen::Matrix4d::Identity();
+    T_install_depth(1, 3) = -0.001;
+    T_install_depth(2, 3) = 0.026 - 0.0045;
+    Eigen::Matrix4d T_hole_install = Eigen::Matrix4d::Identity();
+    Eigen::Matrix3d R;
+    R<<- 0.7071, 0, 0.7071,
+        0, 1, 0,
+        - 0.7071, 0, -0.7071;
+    T_hole_install.block<3,3>(0,0) = R;
+    T_hole_install(0, 3) = 0.07025;
+    T_hole_install(2, 3) = 0.00424;
+    Eigen::Matrix4d T_base_hole = Eigen::Matrix4d::Identity();
+    T_base_hole(0, 3) = 0.05675;
+    T_base_hole(2, 3) = 0.49123;
+    Eigen::Matrix4d T_world_base = Eigen::Matrix4d::Identity();
+    // 一定要注意根据实际高度调节，控制端反馈
+    T_world_base.block<3,1>(0,3) = Eigen::Vector3d(0, 0, 0.71);
+    T_world_camera = T_world_base * T_base_hole * T_hole_install * T_install_depth;
 
     // sim_terrain
-    T_world_camera.setIdentity();
-    T_world_camera(0, 0) = -1;
-    T_world_camera(2, 2) = -1;
-    T_world_camera(0, 3) = 2.5;
-    T_world_camera(2, 3) = 6;
+    // T_world_camera.setIdentity();
+    // T_world_camera(0, 0) = -1;
+    // T_world_camera(2, 2) = -1;
+    // T_world_camera(0, 3) = 2.5;
+    // T_world_camera(2, 3) = 6;
 
     // Eigen::Matrix4d T_install_depth = Eigen::Matrix4d::Identity();
     // T_install_depth(1, 3) = -0.001;
@@ -625,7 +625,7 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     // pcl::PointCloud<pcl::PointXYZ>::Ptr pc(new pcl::PointCloud<pcl::PointXYZ>);
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr pc(new pcl::PointCloud<pcl::PointXYZRGB>);
     pcl::fromROSMsg(*msg, *pc);
-    pcl::io::savePCDFileASCII("/home/lichao/TCDS/src/pip_line/data/pc.pcd", *pc);
+    pcl::io::savePCDFileASCII("/home/bhr/TCDS/src/pip_line/data/pc.pcd", *pc);
     LOG(INFO)<<pc->size();
     // clock_t start = clock();
     // pcl::PointCloud<pcl::PointXYZ>::Ptr tmppc(new pcl::PointCloud<pcl::PointXYZ>);
@@ -686,7 +686,6 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     // pcl::io::savePCDFileASCII("/home/lichao/TCDS/src/pip_line/data/processed.pcd", pub_cloud);
 
     
-
     // 点云转成高程图，并对高程图内的空点云处理
     pcl::PointCloud<pcl::PointXYZ> pc_world;
     LOG(INFO)<<pub_cloud.size();
@@ -710,7 +709,7 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
             }
         }
     }
-    pcl::io::savePCDFileASCII("/home/lichao/TCDS/src/pip_line/data/pc_world.pcd", pc_world);
+    pcl::io::savePCDFileASCII("/home/bhr/TCDS/src/pip_line/data/pc_world.pcd", pc_world);
 
     
 
@@ -722,53 +721,53 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
 
 
     // 这是补齐实际采集点云的空洞，仿真数据时线不要这部分
-    // const float minValue = map.get("elevation").minCoeffOfFinites();
-    // const float maxValue = map.get("elevation").maxCoeffOfFinites();
-    // cv::Mat originalImage;
-    // grid_map::GridMapCvConverter::toImage<unsigned char, 1>(map, "elevation", CV_8UC1, minValue, maxValue, originalImage);
+    const float minValue = map.get("elevation").minCoeffOfFinites();
+    const float maxValue = map.get("elevation").maxCoeffOfFinites();
+    cv::Mat originalImage;
+    grid_map::GridMapCvConverter::toImage<unsigned char, 1>(map, "elevation", CV_8UC1, minValue, maxValue, originalImage);
     // // cv::imshow("originalImage", originalImage);
     // // cv::waitKey(0);
     // // 对空洞进行补齐
     // // 创建一个标记小区域的掩码
-    // cv::Mat smallRegionsMask = cv::Mat::zeros(originalImage.size(), CV_8UC1);
+    cv::Mat smallRegionsMask = cv::Mat::zeros(originalImage.size(), CV_8UC1);
 
     // // // 标记连接组件
-    // cv::Mat labels, stats, centroids;
-    // int nLabels = cv::connectedComponentsWithStats(originalImage == 0, labels, stats, centroids, 8, CV_32S);
+    cv::Mat labels, stats, centroids;
+    int nLabels = cv::connectedComponentsWithStats(originalImage == 0, labels, stats, centroids, 8, CV_32S);
 
     // // 遍历每个连接组件
-    // for (int label = 1; label < nLabels; ++label)
-    // {
-    //     int area = stats.at<int>(label, cv::CC_STAT_AREA);
+    for (int label = 1; label < nLabels; ++label)
+    {
+        int area = stats.at<int>(label, cv::CC_STAT_AREA);
 
-    //     if (area < 40)
-    //     {
-    //         // 对小区域进行标记
-    //         cv::Mat mask = (labels == label);
-    //         smallRegionsMask.setTo(255, mask);
-    //     }
-    // }
+        if (area < 40)
+        {
+            // 对小区域进行标记
+            cv::Mat mask = (labels == label);
+            smallRegionsMask.setTo(255, mask);
+        }
+    }
     // // cv::imshow("smallRegionsMask", smallRegionsMask);
     // // cv::waitKey(0);
 
     // // // 使用掩码进行图像修复
-    // cv::Mat inpainted;
-    // cv::inpaint(originalImage, smallRegionsMask, inpainted, 5, cv::INPAINT_TELEA);
+    cv::Mat inpainted;
+    cv::inpaint(originalImage, smallRegionsMask, inpainted, 5, cv::INPAINT_TELEA);
     // // cv::imshow("inpainted", inpainted);
     // // cv::waitKey(0);
 
-    // map.erase("elevation");
-    // grid_map::GridMapCvConverter::addLayerFromImage<unsigned char, 1>(inpainted, "elevation", map, minValue, maxValue);
-    // for (int i = 0; i < map.getSize().x(); i++)
-    // {
-    //     for (int j = 0; j < map.getSize().y(); j++)
-    //     {
-    //         if (originalImage.at<uchar>(i, j) == 0 && smallRegionsMask.at<uchar>(i, j) == 0)
-    //         {
-    //             map["elevation"](i, j) = NAN;
-    //         }
-    //     }
-    // }
+    map.erase("elevation");
+    grid_map::GridMapCvConverter::addLayerFromImage<unsigned char, 1>(inpainted, "elevation", map, minValue, maxValue);
+    for (int i = 0; i < map.getSize().x(); i++)
+    {
+        for (int j = 0; j < map.getSize().y(); j++)
+        {
+            if (originalImage.at<uchar>(i, j) == 0 && smallRegionsMask.at<uchar>(i, j) == 0)
+            {
+                map["elevation"](i, j) = NAN;
+            }
+        }
+    }
     // 此处空洞补齐的结束部分
 
     // grid_map::GridMapRosConverter::toMessage(map, map_msg);
@@ -890,7 +889,9 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
 
     // // 使用地图转成有序点云
     pcl::PointCloud<pcl::PointXYZ> org_pc = gridMap2Pointcloud(map);
-    pcl::io::savePCDFileASCII("/home/lichao/TCDS/src/pip_line/data/submap.pcd", org_pc);
+    pcl::io::savePCDFileASCII("/home/bhr/TCDS/src/pip_line/data/submap.pcd", org_pc);
+    LOG(INFO)<<"-------------------------";
+    is_finish = true;
     // return;
 
     //   // 创建可视化对象
@@ -930,7 +931,7 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     size_t height = org_pc.height;
     LOG(INFO)<<width<<" "<<height;
     LOG(INFO)<<raw_points.width<<" "<<raw_points.height;
-    string package_path = "/home/lichao/TCDS/src/pip_line";
+    string package_path = "/home/bhr/TCDS/src/pip_line";
     // string package_path = "/home/lichao/TCDS/src/pip_line";
     // // initial_package_path("pip_line", package_path);
     parameter param;
@@ -980,11 +981,12 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     plane_segmentation ps(height, width, &qq, raw_points, param);
     // // // LOG(INFO)<<"---";
     vector<plane_info> planes = ps.getPlaneResult();
+    LOG(INFO)<<planes.size();
     // 平面分割结果
     cv::Mat result = ps.getSegResult();
-    // cv::imwrite("/home/lichao/TCDS/src/pip_line/data/result_raw.png", result);
+    cv::imwrite("/home/bhr/TCDS/src/pip_line/data/result_raw.png", result);
     seg_result_image = result;
-    
+    // return;
     vector<cv::Mat> single_results = ps.getSegResultSingle();
     auto time_clock3 = std::chrono::high_resolution_clock::now();
     auto duration2 = std::chrono::duration_cast<std::chrono::milliseconds>(time_clock3 - time_clock2).count();
@@ -1076,9 +1078,9 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     for (int i = 0; i < merge_planes.size(); i++)
     {
         LOG(INFO)<<i<<" "<<merge_planes.at(i).normal.transpose()<<", "<<merge_planes.at(i).center.transpose();
-        cv::imwrite("/home/lichao/TCDS/src/pip_line/data/result_xx" + std::to_string(i) + ".png", merge_results.at(i));
+        cv::imwrite("/home/bhr/TCDS/src/pip_line/data/result_xx" + std::to_string(i) + ".png", merge_results.at(i));
     }
-    
+    // return ;
     // cv::Mat tmp_image = cv::Mat::zeros(result.size(), result.type());
     // for (int i = 0; i < merge_results.size(); i++)
     // {
@@ -1251,11 +1253,13 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     auto time_clock4 = std::chrono::high_resolution_clock::now();
     auto duration3 = std::chrono::duration_cast<std::chrono::milliseconds>(time_clock4 - time_clock3).count();
     std::cout << "Time 3 taken by function: " << duration3 << " milliseconds" << std::endl;
+    
+    
     // clock_t end_preprocess = clock();
     // cout<<"preprocess cost: "<<(double)(end_preprocess - start)/CLOCKS_PER_SEC<<std::endl;
     is_finish = true;
-    cv::imwrite("/home/lichao/TCDS/src/pip_line/data/plane_image.png", plane_image);
-    // return ;
+    cv::imwrite("/home/bhr/TCDS/src/pip_line/data/plane_image.png", plane_image);
+    return ;
     while (!get_goal)
     {
         sleep(1);
@@ -1534,34 +1538,34 @@ void pip_line::timerCallback(const ros::TimerEvent & event)
         // raw_heightmap_pc.header.frame_id = "map";
         // raw_heightmap_pc_pub.publish(raw_heightmap_pc);
 
-        std::vector<cv::Point> white_points;
-        cv::findNonZero(upper_body_image, white_points);
-        for (auto & cv_p : white_points)
-        {
-            height_map_upper["elevation"](cv_p.y, cv_p.x) = map["elevation"](cv_p.y, cv_p.x);
-        }
+        // std::vector<cv::Point> white_points;
+        // cv::findNonZero(upper_body_image, white_points);
+        // for (auto & cv_p : white_points)
+        // {
+        //     height_map_upper["elevation"](cv_p.y, cv_p.x) = map["elevation"](cv_p.y, cv_p.x);
+        // }
         
-        white_points.clear();
-        cv::findNonZero(knee_image, white_points);
-        for (auto & cv_p : white_points)
-        {
-            height_map_lower["elevation"](cv_p.y, cv_p.x) = map["elevation"](cv_p.y, cv_p.x);
-        }
+        // white_points.clear();
+        // cv::findNonZero(knee_image, white_points);
+        // for (auto & cv_p : white_points)
+        // {
+        //     height_map_lower["elevation"](cv_p.y, cv_p.x) = map["elevation"](cv_p.y, cv_p.x);
+        // }
 
-        grid_map_msgs::GridMap upper_msg;
-        grid_map::GridMapRosConverter::toMessage(height_map_upper, upper_msg);
-        upper_msg.info.header.frame_id = "map";
-        height_map_upper_pub.publish(upper_msg);
+        // grid_map_msgs::GridMap upper_msg;
+        // grid_map::GridMapRosConverter::toMessage(height_map_upper, upper_msg);
+        // upper_msg.info.header.frame_id = "map";
+        // height_map_upper_pub.publish(upper_msg);
 
-        grid_map_msgs::GridMap lower_msg;
-        grid_map::GridMapRosConverter::toMessage(height_map_lower, lower_msg);
-        lower_msg.info.header.frame_id = "map";
-        height_map_lower_pub.publish(lower_msg);
+        // grid_map_msgs::GridMap lower_msg;
+        // grid_map::GridMapRosConverter::toMessage(height_map_lower, lower_msg);
+        // lower_msg.info.header.frame_id = "map";
+        // height_map_lower_pub.publish(lower_msg);
 
-        sensor_msgs::ImagePtr result = cv_bridge::CvImage(std_msgs::Header(), "bgr8", seg_result_image).toImageMsg();
+        // sensor_msgs::ImagePtr result = cv_bridge::CvImage(std_msgs::Header(), "bgr8", seg_result_image).toImageMsg();
 
-        result->header.frame_id = "map";
-        seg_result_image_pub.publish(result);
+        // result->header.frame_id = "map";
+        // seg_result_image_pub.publish(result);
         // grid_map_msgs::GridMap foot_msg;
         // grid_map::GridMapRosConverter::toMessage(height_map_foot, foot_msg);
         // foot_msg.info.header.frame_id = "map";
