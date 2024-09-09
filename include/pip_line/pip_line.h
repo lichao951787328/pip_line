@@ -19,6 +19,7 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <visualization_msgs/Marker.h>
+
 #include <AstarHierarchicalFootstepPlanner/AstarHierarchicalFootstepPlanner.h>
 using namespace std;
 class pip_line
@@ -64,8 +65,12 @@ private:
     // grid_map::GridMap plane_cutted;
     cv::Mat seg_result_image;// 这是一张彩色图
     grid_map::GridMap feasible_map;
-    
+    string package_path;
     vector<cv::Mat> plane_images;
+
+    // 平面检测 注意这里面存储的结果是mm的，不是m
+    plane_detection pd;
+
     // visualization_msgs::MarkerArray planes_msg;
     // visualization_msgs::MarkerArray planes_cutted_msg;
 

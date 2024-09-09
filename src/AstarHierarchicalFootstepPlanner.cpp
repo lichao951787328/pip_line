@@ -40,7 +40,7 @@ AstarHierarchicalFootstepPlanner::AstarHierarchicalFootstepPlanner(grid_map::Gri
 }
 
 // 请确保不会出现某个栅格点的label为nan，而其周围的栅格点label确实一个值，如果按照自己的平面提取算法，应该不会出现这个情况
-AstarHierarchicalFootstepPlanner::AstarHierarchicalFootstepPlanner(grid_map::GridMap & label_map, cv::Mat & plane_iamage_, vector<cv::Mat> & planes_image_, vector<plane_info> & planes_info_, FootParam footparam_, double hip_width_):label_localmap(label_map),footparam(footparam_), hip_width(hip_width_), plane_image(plane_iamage_), plane_images(planes_image_),planes_info(planes_info_)
+AstarHierarchicalFootstepPlanner::AstarHierarchicalFootstepPlanner(grid_map::GridMap & label_map, cv::Mat & plane_iamage_, vector<cv::Mat> & planes_image_, vector<planeInfo> & planes_info_, FootParam footparam_, double hip_width_):label_localmap(label_map),footparam(footparam_), hip_width(hip_width_), plane_image(plane_iamage_), plane_images(planes_image_),planes_info(planes_info_)
 {
     localmap = label_localmap;
 
@@ -1554,15 +1554,18 @@ bool AstarHierarchicalFootstepPlanner::computeLandInfo(Eigen::Vector3d ankle, in
             {
                 for (auto & point : allpoints)
                 {
-                    if ((point - center).dot(plane_normal) > 0.01)
+                    if ((point - center).dot(plane_normal) > 0.02)
                     {
+#ifdef DEBUG
+                        LOG(INFO)<<"into foot"<<(point - center).dot(plane_normal);
+#endif
                         above_points ++;
                     }
                 }
                 if (above_points > 8)
                 {
 #ifdef DEBUG
-                    LOG(INFO)<<"too much above points";
+                    LOG(INFO)<<"too much above points"<<above_points;
 #endif
                     auto end = std::chrono::high_resolution_clock::now();
                     total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;

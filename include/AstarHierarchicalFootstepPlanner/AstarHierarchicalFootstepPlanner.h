@@ -13,7 +13,7 @@
 #include <ros/ros.h>
 #include <fstream>
 #include <glog/logging.h>
-#include <plane_info.h>
+#include <peac/PEAC_plane_detection.hpp>
 using namespace std;
 
 // #define DEBUG
@@ -353,6 +353,7 @@ private:
     // 初始化参数 支撑脚为右脚，扩展参数为左脚
     vector<Eigen::Vector3d> transitions;
     vector<Eigen::Vector3d> combine_transitions;
+    
 
     // 后续计算障碍点时会用到
     cv::Mat plane_image;
@@ -373,7 +374,7 @@ private:
 			};
     // 这是灰度图
     vector<cv::Mat> plane_images;
-    vector<plane_info> planes_info;
+    vector<planeInfo> planes_info;
     // for debug
     std::ofstream outfile;
     
@@ -400,7 +401,7 @@ public:
      * @param footparam_ 脚参数
      * @param hip_width_ 髋宽
      */
-    AstarHierarchicalFootstepPlanner(grid_map::GridMap & label_map, cv::Mat & plane_iamage_, vector<cv::Mat> & planes_image_, vector<plane_info> & planes_info_, FootParam footparam_, double hip_width_);
+    AstarHierarchicalFootstepPlanner(grid_map::GridMap & label_map, cv::Mat & plane_iamage_, vector<cv::Mat> & planes_image_, vector<planeInfo> & planes_info_, FootParam footparam_, double hip_width_);
 
     void initial_transitions();
 

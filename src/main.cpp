@@ -11,6 +11,7 @@
 #include <ros/ros.h>
 #include <iostream>
 #include <pip_line/pip_line.h>
+#include <glog/logging.h>
 using namespace std;
 
 int main(int argc, char** argv)

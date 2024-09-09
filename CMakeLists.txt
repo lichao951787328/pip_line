@@ -19,6 +19,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   diy_msgs
   cv_bridge
+  peac
 )
 
 # set(grid_map_core_DIR "/home/bhr/catkin_gridmap/install/share")
@@ -183,25 +184,25 @@ src/plane_detection/plane_new.cpp
 src/plane_detection/plane_segmentation.cpp 
 )
 
-add_executable(test_planner 
-test/test_footstep_planner/test.cpp
-src/plane_detection/quatree_node_20240618.cpp
-src/plane_detection/type.cpp
-src/plane_detection/quadtree_new.cpp
-src/plane_detection/plane_new.cpp 
-src/plane_detection/plane_segmentation.cpp 
-src/AstarHierarchicalFootstepPlanner.cpp
-)
+# add_executable(test_planner 
+# test/test_footstep_planner/test.cpp
+# src/plane_detection/quatree_node_20240618.cpp
+# src/plane_detection/type.cpp
+# src/plane_detection/quadtree_new.cpp
+# src/plane_detection/plane_new.cpp 
+# src/plane_detection/plane_segmentation.cpp 
+# src/AstarHierarchicalFootstepPlanner.cpp
+# )
 
-add_executable(test_multi
-test/test_footstep_planner/test_new.cpp
-src/plane_detection/quatree_node_20240618.cpp
-src/plane_detection/type.cpp
-src/plane_detection/quadtree_new.cpp
-src/plane_detection/plane_new.cpp 
-src/plane_detection/plane_segmentation.cpp 
-src/AstarHierarchicalFootstepPlanner.cpp
-)
+# add_executable(test_multi
+# test/test_footstep_planner/test_new.cpp
+# src/plane_detection/quatree_node_20240618.cpp
+# src/plane_detection/type.cpp
+# src/plane_detection/quadtree_new.cpp
+# src/plane_detection/plane_new.cpp 
+# src/plane_detection/plane_segmentation.cpp 
+# src/AstarHierarchicalFootstepPlanner.cpp
+# )
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -227,32 +228,32 @@ target_link_libraries(${PROJECT_NAME}_node
   tinyxml2::tinyxml2
 )
 
-target_link_libraries(test_planner
-  ${catkin_LIBRARIES}
-  ${PCL_LIBRARIES}
-  ${OpenCV_LIBRARIES} 
-  ${grid_map_core_LIBRARIES}
-  ${OpenCV_LIBRARIES}
-  # ${grid_map_msgs_LIBRARIES}
-  # ${grid_map_ros_LIBRARIES}
-  # ${grid_map_filters_LIBRARIES}
-  glog::glog
-  tinyxml2::tinyxml2
-)
+# target_link_libraries(test_planner
+#   ${catkin_LIBRARIES}
+#   ${PCL_LIBRARIES}
+#   ${OpenCV_LIBRARIES} 
+#   ${grid_map_core_LIBRARIES}
+#   ${OpenCV_LIBRARIES}
+#   # ${grid_map_msgs_LIBRARIES}
+#   # ${grid_map_ros_LIBRARIES}
+#   # ${grid_map_filters_LIBRARIES}
+#   glog::glog
+#   tinyxml2::tinyxml2
+# )
 
 
-target_link_libraries(test_multi
-  ${catkin_LIBRARIES}
-  ${PCL_LIBRARIES}
-  ${OpenCV_LIBRARIES} 
-  ${grid_map_core_LIBRARIES}
-  ${OpenCV_LIBRARIES}
-  # ${grid_map_msgs_LIBRARIES}
-  # ${grid_map_ros_LIBRARIES}
-  # ${grid_map_filters_LIBRARIES}
-  glog::glog
-  tinyxml2::tinyxml2
-)
+# target_link_libraries(test_multi
+#   ${catkin_LIBRARIES}
+#   ${PCL_LIBRARIES}
+#   ${OpenCV_LIBRARIES} 
+#   ${grid_map_core_LIBRARIES}
+#   ${OpenCV_LIBRARIES}
+#   # ${grid_map_msgs_LIBRARIES}
+#   # ${grid_map_ros_LIBRARIES}
+#   # ${grid_map_filters_LIBRARIES}
+#   glog::glog
+#   tinyxml2::tinyxml2
+# )
 
 #############
 ## Install ##
