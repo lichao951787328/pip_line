@@ -3,13 +3,14 @@ project(pip_line)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
-# set(CMAKE_BUILD_TYPE Debug)
-set(CMAKE_BUILD_TYPE Release)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
+set(CMAKE_BUILD_TYPE Debug)
+# set(CMAKE_BUILD_TYPE Release)
+# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
 set(PYTHON_EXECUTABLE /usr/bin/python3.8)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
+add_definitions(-DOURMETHOD)
 find_package(catkin REQUIRED COMPONENTS
   grid_map_core
   grid_map_msgs
@@ -21,6 +22,7 @@ find_package(catkin REQUIRED COMPONENTS
   cv_bridge
   peac
 )
+set(USING_OURMETHOD OFF)
 
 # set(grid_map_core_DIR "/home/bhr/catkin_gridmap/install/share")
 # find_package(grid_map_core REQUIRED)
@@ -171,18 +173,21 @@ include
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-add_executable(${PROJECT_NAME}_node 
-src/main.cpp 
-src/pip_line.cpp
-# /home/bhr/catkin_beijing4th/src/elevation_mapping/AstarHierarchicalFootstepPlanner/src/AstarHierarchicalFootstepPlanner.cpp
-# /home/lichao/Darwin-op/src/elevation_map_ours/elevation_mapping/AstarHierarchicalFootstepPlanner/
-src/AstarHierarchicalFootstepPlanner.cpp
-src/plane_detection/quatree_node_20240618.cpp
-src/plane_detection/type.cpp
-src/plane_detection/quadtree_new.cpp
-src/plane_detection/plane_new.cpp 
-src/plane_detection/plane_segmentation.cpp 
-)
+
+if(USING_OURMETHOD)
+  add_executable(${PROJECT_NAME}_node 
+  src/main.cpp 
+  src/pip_line.cpp
+  src/AstarHierarchicalFootstepPlanner.cpp
+  )
+  target_compile_definitions(${PROJECT_NAME}_node  PRIVATE OURMETHOD)
+else()
+  add_executable(${PROJECT_NAME}_node 
+  src/main.cpp 
+  src/pip_line.cpp
+  src/AstarHierarchicalFootstepPlannerTra.cpp
+  )
+endif()
 
 # add_executable(test_planner 
 # test/test_footstep_planner/test.cpp

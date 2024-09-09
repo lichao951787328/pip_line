@@ -19,8 +19,11 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <visualization_msgs/Marker.h>
+#include <peac/PEAC_plane_detection.hpp>
 
-#include <AstarHierarchicalFootstepPlanner/AstarHierarchicalFootstepPlanner.h>
+#include <AstarHierarchicalFootstepPlanner/AstarHierarchicalFootstepPlannerTra.h>
+
+
 using namespace std;
 class pip_line
 {

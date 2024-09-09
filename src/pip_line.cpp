@@ -48,6 +48,14 @@
 #include <pcl/visualization/pcl_visualizer.h>
 // #include <plane_detection/plane_new.h>
 
+// #ifdef OURMETHOD
+// #include <AstarHierarchicalFootstepPlanner/AstarHierarchicalFootstepPlanner.h>
+// #else
+// #include <AstarHierarchicalFootstepPlanner/AstarHierarchicalFootstepPlannerTra.h>
+// #endif
+
+
+
 #include <ros/package.h>
 #include <ctime>
 void initial_package_path(string package_name, string & package_path)
@@ -760,6 +768,12 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     // // 平面分割结果
     cv::Mat result = pd.result;
     vector<cv::Mat> single_results = pd.planes;
+    for (auto & tmp_image : single_results)
+    {
+        cv::imshow("tmp_image", tmp_image);
+        cv::waitKey(0);
+    }
+    
     
     class Graph {
     private:
@@ -978,7 +992,12 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     
     // 落脚点规划的输入，带"label"的高程图，
     // 台阶用0.175更合适，斜坡0.16就可以
-    FootParam footparam(0.16, 0.11, 0.065, 0.065, 0.1, 0);
+// #ifdef OURMETHOD
+//     FootParam footparam(0.16, 0.11, 0.065, 0.065, 0.1, 0);
+// #else
+//     FootParam footparam(0.16, 0.11, 0.065, 0.065);
+// #endif
+FootParam footparam(0.16, 0.11, 0.065, 0.065);
     AstarHierarchicalFootstepPlanner planner(map, plane_image, collision_free_images, merge_planes, footparam, 0.2);
     Eigen::Vector3d left_foot(0.0, 0.1, 0);
     Eigen::Vector3d right_foot(0.0, -0.1, 0);
@@ -1004,13 +1023,16 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
 
             LOG(INFO)<<"TOTAL TIME: "<<duration_plan;
             steps = planner.getResultSteps();
+            LOG(INFO)<<"ERROR";
             avoid_points = planner.computeAvoidPoints();
+            LOG(INFO)<<"ERROR";
+
             // for (auto & step : steps)
             // {
             //     cout<<setw(8)<<"step: "<<step.x<<" "<<step.y<<" "<<step.z<<" "<<step.roll<<" "<<step.pitch<<" "<<step.yaw*57.3<<" "<<step.robot_side<<endl;
             //     cout<<setw(8)<<"points: "<<
             // }
-
+            LOG(INFO)<<steps.size();
             for (int i = 0; i < steps.size(); i++)
             {
                 cout<<setw(8)<<"step "<<i<<": "<<steps.at(i).x<<" "<<steps.at(i).y<<" "<<steps.at(i).z<<" "<<steps.at(i).roll*57.3<<" "<<steps.at(i).pitch*57.3<<" "<<steps.at(i).yaw*57.3<<" "<<steps.at(i).robot_side<<endl;
@@ -1023,9 +1045,13 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
                 }
             }
             publishSteps();
+            // LOG(INFO)<<"ERROR";
             publishAvoidpoints();
+            // LOG(INFO)<<"ERROR";
             publishVisualSteps();
+            // LOG(INFO)<<"ERROR";
             publishVisualAvoidpoints();
+            // LOG(INFO)<<"ERROR";
         }
         else
         {
@@ -1037,6 +1063,7 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
 
 void pip_line::publishSteps()
 {
+    // LOG(INFO)<<"steps: "<<steps.size();
     diy_msgs::footSteps steps_pub;
     steps_pub.header.frame_id = "map";
     for (auto & s : steps)
