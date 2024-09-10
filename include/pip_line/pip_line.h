@@ -2,7 +2,7 @@
  * @Author: lichao951787328 951787328@qq.com
  * @Date: 2024-06-07 11:01:20
  * @LastEditors: lichao951787328 951787328@qq.com
- * @LastEditTime: 2024-06-24 22:08:56
+ * @LastEditTime: 2024-09-09 22:53:05
  * @FilePath: /pip_line/include/pip_line/pip_line.h
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -21,7 +21,7 @@
 #include <visualization_msgs/Marker.h>
 #include <peac/PEAC_plane_detection.hpp>
 
-#include <AstarHierarchicalFootstepPlanner/AstarHierarchicalFootstepPlannerTra.h>
+#include <AstarHierarchicalFootstepPlanner/AstarHierarchicalFootstepPlanner.h>
 
 
 using namespace std;

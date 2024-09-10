@@ -2,7 +2,7 @@
  * @Author: lichao951787328 951787328@qq.com
  * @Date: 2024-06-07 11:01:20
  * @LastEditors: lichao951787328 951787328@qq.com
- * @LastEditTime: 2024-09-07 16:33:07
+ * @LastEditTime: 2024-09-09 23:06:04
  * @FilePath: /pip_line/src/pip_line.cpp
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -147,7 +147,7 @@ pip_line::pip_line(ros::NodeHandle & n):nh(n)
     T_base_hole(2, 3) = 0.49123;
     Eigen::Matrix4d T_world_base = Eigen::Matrix4d::Identity();
     // 一定要注意根据实际高度调节，控制端反馈
-    T_world_base.block<3,1>(0,3) = Eigen::Vector3d(0, 0, 0.71);
+    T_world_base.block<3,1>(0,3) = Eigen::Vector3d(0, 0, 0.67);
     T_world_camera = T_world_base * T_base_hole * T_hole_install * T_install_depth;
 
     // sim_terrain
@@ -768,11 +768,11 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     // // 平面分割结果
     cv::Mat result = pd.result;
     vector<cv::Mat> single_results = pd.planes;
-    for (auto & tmp_image : single_results)
-    {
-        cv::imshow("tmp_image", tmp_image);
-        cv::waitKey(0);
-    }
+    // for (auto & tmp_image : single_results)
+    // {
+    //     cv::imshow("tmp_image", tmp_image);
+    //     cv::waitKey(0);
+    // }
     
     
     class Graph {
@@ -993,11 +993,11 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     // 落脚点规划的输入，带"label"的高程图，
     // 台阶用0.175更合适，斜坡0.16就可以
 // #ifdef OURMETHOD
-//     FootParam footparam(0.16, 0.11, 0.065, 0.065, 0.1, 0);
+    FootParam footparam(0.16, 0.11, 0.065, 0.065, 0.1, 0);
 // #else
 //     FootParam footparam(0.16, 0.11, 0.065, 0.065);
 // #endif
-FootParam footparam(0.16, 0.11, 0.065, 0.065);
+// FootParam footparam(0.16, 0.11, 0.065, 0.065);
     AstarHierarchicalFootstepPlanner planner(map, plane_image, collision_free_images, merge_planes, footparam, 0.2);
     Eigen::Vector3d left_foot(0.0, 0.1, 0);
     Eigen::Vector3d right_foot(0.0, -0.1, 0);

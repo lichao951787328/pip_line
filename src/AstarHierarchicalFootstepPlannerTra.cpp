@@ -81,7 +81,7 @@ void AstarHierarchicalFootstepPlanner::initial_transitions()
                     continue;
                 }
                 
-                Eigen::Vector3d transition = Eigen::Vector3d(i * 0.1,   0.02 * j + 0.24,  k*3/57.3);
+                Eigen::Vector3d transition = Eigen::Vector3d(i * 0.095,   0.02 * j + 0.24,  k*3/57.3);
                 // LOG(INFO)<<transition.transpose();
                 transitions.emplace_back(transition);
             }
@@ -99,7 +99,7 @@ void AstarHierarchicalFootstepPlanner::initial_transitions()
                     continue;
                 }
                 
-                Eigen::Vector3d transition = Eigen::Vector3d(i * 0.1,   0.02 * j + 0.24,  k*3/57.3);
+                Eigen::Vector3d transition = Eigen::Vector3d(i * 0.06,   0.02 * j + 0.24,  k*3/57.3);
                 // LOG(INFO)<<transition.transpose();
                 combine_transitions.emplace_back(transition);
             }
@@ -669,21 +669,21 @@ bool AstarHierarchicalFootstepPlanner::nodeExtension(FootstepNodePtr current_nod
         FootstepNodePtr stepnode = std::make_shared<FootstepNode>(node->point, node->height, node->roll, node->pitch, current_node->footstep.getInverseRobotSide());
         stepnode->PreFootstepNode = current_node;
         // 跨平面运动时对规划的落脚点限制
-        // if (stepnode->plane_index != stepnode->PreFootstepNode->plane_index)
-        // {
-        //     Eigen::Vector2d dis_v1(stepnode->footstep.x, stepnode->footstep.y);
-        //     Eigen::Vector2d dis_v2(stepnode->PreFootstepNode->PreFootstepNode->footstep.x, stepnode->PreFootstepNode->PreFootstepNode->footstep.y);
-        //     // 距离超过0.4
-        //     if (abs((dis_v1 - dis_v2).norm()) > 0.45)
-        //     {
-        //         continue;
-        //     }
-        //     // 不在同一平面上且角度相差太大，也舍弃
-        //     if (abs(stepnode->footstep.yaw - stepnode->PreFootstepNode->footstep.yaw) > 3 /57.3)
-        //     {
-        //         continue;
-        //     }
-        // }
+        if (stepnode->plane_index != stepnode->PreFootstepNode->plane_index)
+        {
+            Eigen::Vector2d dis_v1(stepnode->footstep.x, stepnode->footstep.y);
+            Eigen::Vector2d dis_v2(stepnode->PreFootstepNode->PreFootstepNode->footstep.x, stepnode->PreFootstepNode->PreFootstepNode->footstep.y);
+            // 距离超过0.4
+            if (abs((dis_v1 - dis_v2).norm()) > 0.35)
+            {
+                continue;
+            }
+            // 不在同一平面上且角度相差太大，也舍弃
+            if (abs(stepnode->footstep.yaw - stepnode->PreFootstepNode->footstep.yaw) > 3 /57.3)
+            {
+                continue;
+            }
+        }
         // 如果两脚pitch较大，那就不要迈大步长，5关节可能会达到62度
         if (stepnode->footstep.pitch <= - 5/57.3 && stepnode->PreFootstepNode->footstep.pitch <= - 5/57.3)
         {

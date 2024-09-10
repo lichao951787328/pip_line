@@ -58,7 +58,7 @@ AstarHierarchicalFootstepPlanner::AstarHierarchicalFootstepPlanner(grid_map::Gri
     LOG(INFO)<<"hip_width: "<<hip_width;
     LOG(INFO)<<"footsize_inmap: "<<footsize_inmap;
     // outfile = std::ofstream("/home/lichao/Darwin-op/src/elevation_map_ours/elevation_mapping/AstarHierarchicalFootstepPlanner/data/out.txt");
-    outfile = std::ofstream("/home/lichao/TCDS/src/pip_line/data/out.txt");
+    outfile = std::ofstream("/home/bhr/TCDS/src/pip_line/data/out.txt");
 #endif
     initial_transitions();
     LOG(INFO)<<"construct planner over";
@@ -66,7 +66,7 @@ AstarHierarchicalFootstepPlanner::AstarHierarchicalFootstepPlanner(grid_map::Gri
 
 void AstarHierarchicalFootstepPlanner::initial_transitions()
 {
-    for (int i = -1; i < 5; i++)
+    for (int i = -1; i < 4; i++)
     {
         for (int j = -2; j < 5; j++)
         {
@@ -81,7 +81,7 @@ void AstarHierarchicalFootstepPlanner::initial_transitions()
                     continue;
                 }
                 
-                Eigen::Vector3d transition = Eigen::Vector3d(i * 0.1,   0.02 * j + 0.24,  k*3/57.3);
+                Eigen::Vector3d transition = Eigen::Vector3d(i * 0.09,   0.02 * j + 0.24,  k*3/57.3);
                 // LOG(INFO)<<transition.transpose();
                 transitions.emplace_back(transition);
             }
@@ -99,7 +99,7 @@ void AstarHierarchicalFootstepPlanner::initial_transitions()
                     continue;
                 }
                 
-                Eigen::Vector3d transition = Eigen::Vector3d(i * 0.1,   0.02 * j + 0.24,  k*3/57.3);
+                Eigen::Vector3d transition = Eigen::Vector3d(i * 0.08,   0.02 * j + 0.24,  k*3/57.3);
                 // LOG(INFO)<<transition.transpose();
                 combine_transitions.emplace_back(transition);
             }
@@ -681,7 +681,7 @@ bool AstarHierarchicalFootstepPlanner::nodeExtension(FootstepNodePtr current_nod
             Eigen::Vector2d dis_v1(stepnode->footstep.x, stepnode->footstep.y);
             Eigen::Vector2d dis_v2(stepnode->PreFootstepNode->PreFootstepNode->footstep.x, stepnode->PreFootstepNode->PreFootstepNode->footstep.y);
             // 距离超过0.4
-            if (abs((dis_v1 - dis_v2).norm()) > 0.45)
+            if (abs((dis_v1 - dis_v2).norm()) > 0.35)
             {
                 continue;
             }
@@ -691,12 +691,14 @@ bool AstarHierarchicalFootstepPlanner::nodeExtension(FootstepNodePtr current_nod
                 continue;
             }
         }
+
+
         // 如果两脚pitch较大，那就不要迈大步长，5关节可能会达到62度
         if (stepnode->footstep.pitch <= - 5/57.3 && stepnode->PreFootstepNode->footstep.pitch <= - 5/57.3)
         {
             Eigen::Vector2d dis_v1(stepnode->footstep.x, stepnode->footstep.y);
             Eigen::Vector2d dis_v2(stepnode->PreFootstepNode->PreFootstepNode->footstep.x, stepnode->PreFootstepNode->PreFootstepNode->footstep.y);
-            if (abs((dis_v1 - dis_v2).norm()) > 0.32)
+            if (abs((dis_v1 - dis_v2).norm()) > 0.33)
             {
                 continue;
             }

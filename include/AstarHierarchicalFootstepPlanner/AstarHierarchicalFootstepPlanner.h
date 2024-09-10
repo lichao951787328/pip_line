@@ -16,7 +16,7 @@
 #include <peac/PEAC_plane_detection.hpp>
 using namespace std;
 
-// #define DEBUG
+#define DEBUG
 enum RobotSide{LEFT, RIGHT, _NAN_};
 
 struct Footstep
