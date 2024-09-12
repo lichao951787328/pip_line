@@ -32,7 +32,7 @@ AstarHierarchicalFootstepPlanner::AstarHierarchicalFootstepPlanner(grid_map::Gri
     LOG(INFO)<<"hip_width: "<<hip_width;
     LOG(INFO)<<"footsize_inmap: "<<footsize_inmap;
     // outfile = std::ofstream("/home/lichao/Darwin-op/src/elevation_map_ours/elevation_mapping/AstarHierarchicalFootstepPlanner/data/out.txt");
-    outfile = std::ofstream("/home/lichao/TCDS/src/pip_line/data/out.txt");
+    // outfile = std::ofstream("/home/lichao/TCDS/src/pip_line/data/out.txt");
 #endif
     // 每个transition x y yaw 右脚往左扩展的步态点
     initial_transitions();
@@ -58,7 +58,7 @@ AstarHierarchicalFootstepPlanner::AstarHierarchicalFootstepPlanner(grid_map::Gri
     LOG(INFO)<<"hip_width: "<<hip_width;
     LOG(INFO)<<"footsize_inmap: "<<footsize_inmap;
     // outfile = std::ofstream("/home/lichao/Darwin-op/src/elevation_map_ours/elevation_mapping/AstarHierarchicalFootstepPlanner/data/out.txt");
-    outfile = std::ofstream("/home/bhr/TCDS/src/pip_line/data/out.txt");
+    // outfile = std::ofstream("/home/lichao/TCDS/src/pip_line/data/out.txt");
 #endif
     initial_transitions();
     LOG(INFO)<<"construct planner over";
@@ -81,7 +81,7 @@ void AstarHierarchicalFootstepPlanner::initial_transitions()
                     continue;
                 }
                 
-                Eigen::Vector3d transition = Eigen::Vector3d(i * 0.09,   0.02 * j + 0.24,  k*3/57.3);
+                Eigen::Vector3d transition = Eigen::Vector3d(i * 0.1,   0.02 * j + 0.24,  k*3/57.3);
                 // LOG(INFO)<<transition.transpose();
                 transitions.emplace_back(transition);
             }
@@ -99,7 +99,7 @@ void AstarHierarchicalFootstepPlanner::initial_transitions()
                     continue;
                 }
                 
-                Eigen::Vector3d transition = Eigen::Vector3d(i * 0.08,   0.02 * j + 0.24,  k*3/57.3);
+                Eigen::Vector3d transition = Eigen::Vector3d(i * 0.1,   0.02 * j + 0.24,  k*3/57.3);
                 // LOG(INFO)<<transition.transpose();
                 combine_transitions.emplace_back(transition);
             }
@@ -179,11 +179,11 @@ bool AstarHierarchicalFootstepPlanner::initial(Eigen::Vector3d start, Eigen::Vec
     }
     LOG(INFO)<<"GOAL FINISH";
 #ifdef DEBUG
-    if (!outfile.is_open()) 
-    {
-        std::cerr << "无法打开文件" << std::endl;
-        return false;
-    }
+    // if (!outfile.is_open()) 
+    // {
+    //     std::cerr << "无法打开文件--" << std::endl;
+    //     return false;
+    // }
 #endif
     return true;
 }
@@ -2089,7 +2089,7 @@ bool AstarHierarchicalFootstepPlanner::plan()
     {
         auto current_node = p_queue.top();
 #ifdef DEBUG
-        outfile<<current_node->footstep.x<<" "<<current_node->footstep.y<<" "<<current_node->footstep.z<<" "<<current_node->footstep.roll<<" "<<current_node->footstep.pitch<<" "<<current_node->footstep.yaw<<" "<<current_node->footstep.robot_side<<endl;
+        // outfile<<current_node->footstep.x<<" "<<current_node->footstep.y<<" "<<current_node->footstep.z<<" "<<current_node->footstep.roll<<" "<<current_node->footstep.pitch<<" "<<current_node->footstep.yaw<<" "<<current_node->footstep.robot_side<<endl;
         // if (abs(current_node->footstep.yaw) > 5/57.3)
         // {
         //     auto debug_q = p_queue;
@@ -3027,6 +3027,6 @@ AstarHierarchicalFootstepPlanner::~AstarHierarchicalFootstepPlanner()
     transitions.clear();
     steps.clear();
 #ifdef DEBUG
-    outfile.close();
+    // outfile.close();
 #endif
 }
