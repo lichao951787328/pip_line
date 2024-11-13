@@ -70,7 +70,7 @@ void initial_package_path(string package_name, string & package_path)
 
 pip_line::pip_line(ros::NodeHandle & n):nh(n)
 {
-    pointcloud_sub = nh.subscribe("/camera/depth/color/points", 1, &pip_line::pointcloud_callback, this);
+    pointcloud_sub = nh.subscribe("/depth_camera/depth_camera/points", 1, &pip_line::pointcloud_callback, this);
     // pointcloud_sub = nh.subscribe("/camera/depth/color/points", 1, &pip_line::pointcloud_callback, this);
     // pointcloud_sub = nh.subscribe("/trigger_points", 1, &pip_line::pointcloud_callback, this);
     string goal_point_topic = "/move_base_simple/goal";
@@ -97,9 +97,11 @@ pip_line::pip_line(ros::NodeHandle & n):nh(n)
     avoid_points_visual_pub = nh.advertise<visualization_msgs::MarkerArray>("avoid_points_visual", 1);
 
     timer = nh.createTimer(ros::Duration(1), &pip_line::timerCallback, this);
-
-    grid_map::Length length(3, 2);
-    grid_map::Position position(0.5, 0);
+    // 具有连续和不连续地形的尺寸
+    // grid_map::Length length(3, 2);
+    // 纯不连续共面平面的尺寸
+    grid_map::Length length(6, 6);
+    grid_map::Position position(3, 0);
     map.setGeometry(length, 0.01, position);
     map.add("elevation", NAN);
 
@@ -131,31 +133,31 @@ pip_line::pip_line(ros::NodeHandle & n):nh(n)
     // T_world_camera = T_world_base * T_base_velodyne * T_velodyne_camera;
 
     // 45度L515相机使用的变换矩阵
-    Eigen::Matrix4d T_install_depth = Eigen::Matrix4d::Identity();
-    T_install_depth(1, 3) = -0.001;
-    T_install_depth(2, 3) = 0.026 - 0.0045;
-    Eigen::Matrix4d T_hole_install = Eigen::Matrix4d::Identity();
-    Eigen::Matrix3d R;
-    R<<- 0.7071, 0, 0.7071,
-        0, 1, 0,
-        - 0.7071, 0, -0.7071;
-    T_hole_install.block<3,3>(0,0) = R;
-    T_hole_install(0, 3) = 0.07025;
-    T_hole_install(2, 3) = 0.00424;
-    Eigen::Matrix4d T_base_hole = Eigen::Matrix4d::Identity();
-    T_base_hole(0, 3) = 0.05675;
-    T_base_hole(2, 3) = 0.49123;
-    Eigen::Matrix4d T_world_base = Eigen::Matrix4d::Identity();
-    // 一定要注意根据实际高度调节，控制端反馈
-    T_world_base.block<3,1>(0,3) = Eigen::Vector3d(0, 0, 0.67);
-    T_world_camera = T_world_base * T_base_hole * T_hole_install * T_install_depth;
+    // Eigen::Matrix4d T_install_depth = Eigen::Matrix4d::Identity();
+    // T_install_depth(1, 3) = -0.001;
+    // T_install_depth(2, 3) = 0.026 - 0.0045;
+    // Eigen::Matrix4d T_hole_install = Eigen::Matrix4d::Identity();
+    // Eigen::Matrix3d R;
+    // R<<- 0.7071, 0, 0.7071,
+    //     0, 1, 0,
+    //     - 0.7071, 0, -0.7071;
+    // T_hole_install.block<3,3>(0,0) = R;
+    // T_hole_install(0, 3) = 0.07025;
+    // T_hole_install(2, 3) = 0.00424;
+    // Eigen::Matrix4d T_base_hole = Eigen::Matrix4d::Identity();
+    // T_base_hole(0, 3) = 0.05675;
+    // T_base_hole(2, 3) = 0.49123;
+    // Eigen::Matrix4d T_world_base = Eigen::Matrix4d::Identity();
+    // // 一定要注意根据实际高度调节，控制端反馈
+    // T_world_base.block<3,1>(0,3) = Eigen::Vector3d(0, 0, 0.67);
+    // T_world_camera = T_world_base * T_base_hole * T_hole_install * T_install_depth;
 
-    // sim_terrain
-    // T_world_camera.setIdentity();
-    // T_world_camera(0, 0) = -1;
-    // T_world_camera(2, 2) = -1;
-    // T_world_camera(0, 3) = 2.5;
-    // T_world_camera(2, 3) = 6;
+    // sim_terrain 纯不连续共面平面的时间消耗
+    T_world_camera.setIdentity();
+    T_world_camera(0, 0) = -1;
+    T_world_camera(2, 2) = -1;
+    T_world_camera(0, 3) = 3;
+    T_world_camera(2, 3) = 3.5;
 
     // Eigen::Matrix4d T_install_depth = Eigen::Matrix4d::Identity();
     // T_install_depth(1, 3) = -0.001;
@@ -660,7 +662,8 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
         }
     }
     pcl::io::savePCDFileASCII(package_path + "/data/pc_world.pcd", pc_world);
-
+    is_finish = true;
+    return;
     // 这是补齐实际采集点云的空洞，仿真数据时线不要这部分
     const float minValue = map.get("elevation").minCoeffOfFinites();
     const float maxValue = map.get("elevation").maxCoeffOfFinites();
@@ -711,49 +714,53 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     }
 
     // 对小区域内补齐 (0.4, -0.4) (0, 0.4)
-    grid_map::Index fill_start, fill_end;
-    if (map.getIndex(grid_map::Position(0.55, 0.5), fill_start))
-    {
-        if (map.getIndex(grid_map::Position(-0.45, -0.5), fill_end))
-        {
-            LOG(INFO)<<"fill_start: "<<fill_start.transpose();
-            LOG(INFO)<<"fill_end: "<<fill_end.transpose();
-            for (int i = fill_start.x(); i < fill_end.x(); i++)
-            {
-                for (int j = fill_start.y(); j < fill_end.y(); j++)
-                {
-                    grid_map::Position3 p3;
-                    if (map.getPosition3("elevation", grid_map::Index(i, j), p3))
-                    {
-                        if (std::isnan(p3.z()))
-                        {
-                            map["elevation"](i, j) = 0;
-                        }
-                    }
-                    else
-                    {
-                        map["elevation"](i, j) = 0;
-                    }
-                }
-            }
-        }
-        else
-        {
-            cout<<"can not get end"<<endl;
-        }
-    }
-    else
-    {
-        cout<<"can get start"<<endl;
-    }
-
+    // grid_map::Index fill_start, fill_end;
+    // if (map.getIndex(grid_map::Position(0.55, 0.5), fill_start))
+    // {
+    //     if (map.getIndex(grid_map::Position(-0.45, -0.5), fill_end))
+    //     {
+    //         LOG(INFO)<<"fill_start: "<<fill_start.transpose();
+    //         LOG(INFO)<<"fill_end: "<<fill_end.transpose();
+    //         for (int i = fill_start.x(); i < fill_end.x(); i++)
+    //         {
+    //             for (int j = fill_start.y(); j < fill_end.y(); j++)
+    //             {
+    //                 grid_map::Position3 p3;
+    //                 if (map.getPosition3("elevation", grid_map::Index(i, j), p3))
+    //                 {
+    //                     if (std::isnan(p3.z()))
+    //                     {
+    //                         map["elevation"](i, j) = 0;
+    //                     }
+    //                 }
+    //                 else
+    //                 {
+    //                     map["elevation"](i, j) = 0;
+    //                 }
+    //             }
+    //         }
+    //     }
+    //     else
+    //     {
+    //         cout<<"can not get end"<<endl;
+    //     }
+    // }
+    // else
+    // {
+    //     cout<<"can get start"<<endl;
+    // }
+    
     // // 使用地图转成有序点云
     pcl::PointCloud<pcl::PointXYZ> org_pc = gridMap2Pointcloud(map);
     pcl::io::savePCDFileASCII(package_path + "/data/submap.pcd", org_pc);
     LOG(INFO)<<"-------------------------";
     // is_finish = true;
-
+    auto detect_start = std::chrono::high_resolution_clock::now();
     pd.detect(org_pc);
+    auto detect_end = std::chrono::high_resolution_clock::now();
+    // 微妙
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(detect_end - detect_start).count();
+    std::cout << "执行时间: " << duration << " 微秒" << std::endl;
     for (int i = 0; i < pd.planes_info.size(); i++)
     {
         if (pd.planes_info.at(i).normal.z() < 0)
@@ -983,31 +990,31 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     
     is_finish = true;
     cv::imwrite(package_path + "/data/plane_image.png", plane_image);
-    
-    while (!get_goal)
-    {
-        sleep(1);
-    }
-    cout<<"get goal"<<endl;
+    return ;
+    // while (!get_goal)
+    // {
+    //     sleep(1);
+    // }
+    // cout<<"get goal"<<endl;
     
     // 落脚点规划的输入，带"label"的高程图，
     // 台阶用0.175更合适，斜坡0.16就可以
 // #ifdef OURMETHOD
-    FootParam footparam(0.16, 0.11, 0.065, 0.065, 0.1, 0);
+    // FootParam footparam(0.16, 0.11, 0.065, 0.065, 0.1, 0);
 // #else
-//     FootParam footparam(0.16, 0.11, 0.065, 0.065);
+    FootParam footparam(0.16, 0.11, 0.065, 0.065);
 // #endif
 // FootParam footparam(0.16, 0.11, 0.065, 0.065);
     AstarHierarchicalFootstepPlanner planner(map, plane_image, collision_free_images, merge_planes, footparam, 0.2);
     Eigen::Vector3d left_foot(0.0, 0.1, 0);
     Eigen::Vector3d right_foot(0.0, -0.1, 0);
-    Eigen::Vector3d goal_p;
-    goal_p.x() = goal.position.x;
-    goal_p.y() = goal.position.y;
-    Eigen::Quaterniond qd(goal.orientation.w, goal.orientation.x, goal.orientation.y, goal.orientation.z);
-    Eigen::Vector3d v_t = qd.toRotationMatrix() * Eigen::Vector3d::UnitX();
-    double yaw = atan(v_t.y()/v_t.x());
-    goal_p.z() = yaw;
+    Eigen::Vector3d goal_p(1.22464, 0.042007, 0);
+    // goal_p.x() = goal.position.x;
+    // goal_p.y() = goal.position.y;
+    // Eigen::Quaterniond qd(goal.orientation.w, goal.orientation.x, goal.orientation.y, goal.orientation.z);
+    // Eigen::Vector3d v_t = qd.toRotationMatrix() * Eigen::Vector3d::UnitX();
+    // double yaw = atan(v_t.y()/v_t.x());
+    // goal_p.z() = yaw;
 
     clock_t start_plane = clock();
     if (planner.initial(right_foot, left_foot, 1, goal_p))// 先迈右脚

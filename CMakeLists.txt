@@ -3,9 +3,9 @@ project(pip_line)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
-set(CMAKE_BUILD_TYPE Debug)
-# set(CMAKE_BUILD_TYPE Release)
-# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
+# set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_BUILD_TYPE Release)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
 set(PYTHON_EXECUTABLE /usr/bin/python3.8)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -22,7 +22,7 @@ find_package(catkin REQUIRED COMPONENTS
   cv_bridge
   peac
 )
-set(USING_OURMETHOD ON)
+set(USING_OURMETHOD OFF)
 
 # set(grid_map_core_DIR "/home/bhr/catkin_gridmap/install/share")
 # find_package(grid_map_core REQUIRED)
