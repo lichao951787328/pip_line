@@ -107,6 +107,66 @@ void AstarHierarchicalFootstepPlanner::initial_transitions()
     }
 }
 
+
+bool AstarHierarchicalFootstepPlanner::isStartFeasibleTradition(Eigen::Vector3d start, Eigen::Vector3d & left_foot, Eigen::Vector3d & right_foot)
+{
+    if (label_localmap.isInside(start.head(2)))
+    {
+        // 保证四个点都在地图内
+        Eigen::AngleAxisd ad(start.z(), Eigen::Vector3d::UnitZ());
+        Eigen::Vector3d mid = Eigen::Vector3d::Zero();
+        mid.head(2) = start.head(2);
+        Eigen::Vector3d left_offset(0, footparam.y_left, 0);
+        Eigen::Vector3d right_offset(0, -footparam.y_right, 0);
+        Eigen::Vector3d left_mid = ad.toRotationMatrix() * left_offset + mid;
+        Eigen::Vector3d right_mid = ad.toRotationMatrix() * right_offset + mid;
+        Eigen::Vector3d up_offset(footparam.x_upper, 0, 0);
+        Eigen::Vector3d up_left = ad.toRotationMatrix() * up_offset + left_mid;
+        Eigen::Vector3d up_right = ad.toRotationMatrix() * up_offset + right_mid;
+        Eigen::Vector3d button_offset(-footparam.x_button, 0, 0);
+        Eigen::Vector3d button_left = ad.toRotationMatrix() * button_offset + left_mid;
+        Eigen::Vector3d button_right = ad.toRotationMatrix() * button_offset + right_mid;
+        if (label_localmap.isInside(left_mid.head(2)) && label_localmap.isInside(right_mid.head(2)) && label_localmap.isInside(up_left.head(2)) && label_localmap.isInside(up_right.head(2)))
+        {
+            // 计算左右脚的位置，并返回合适的左右落脚点
+            Eigen::Vector3d half_hip_width = Eigen::Vector3d(0, hip_width/2, 0);
+            Eigen::Vector3d left_foot_tmp = ad.toRotationMatrix() * half_hip_width + mid;
+            Eigen::Vector3d right_foot_tmp = ad.toRotationMatrix() * -half_hip_width + mid;
+            int max_size_left, max_size_right;
+            int above_points_left, above_points_right;
+            Eigen::Vector3d left_plane_normal, right_plane_normal;
+            double left_step_height, right_step_height;
+            double left_roll, right_roll, left_pitch, right_pitch;
+            if (computeLandInfo(left_foot_tmp, max_size_left, above_points_left, left_plane_normal, left_step_height, left_pitch, left_roll) && computeLandInfo(right_foot_tmp, max_size_right, above_points_right, right_plane_normal, right_step_height, right_pitch, right_roll))
+            {
+                if (max_size_left < footsize_inmap || max_size_right < footsize_inmap)
+                {
+                    return false;
+                }
+                if (above_points_left > 0 || above_points_right > 0)
+                {
+                    return false;
+                }
+                left_foot = left_foot_tmp;
+                right_foot = right_foot_tmp;
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+        else
+        {
+            return false;
+        }
+    }
+    else
+    {
+        return false;
+    }
+}
+
 // 默认起点和终点位置是对的
 bool AstarHierarchicalFootstepPlanner::initial(Eigen::Vector3d start, Eigen::Vector3d prestart, int support_side, Eigen::Vector3d goal)
 {

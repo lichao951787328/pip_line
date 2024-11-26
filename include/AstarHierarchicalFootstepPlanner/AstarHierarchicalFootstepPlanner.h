@@ -383,6 +383,7 @@ private:
     double total_time = 0.;
 
 public:
+    AstarHierarchicalFootstepPlanner();
     /**
      * @brief Construct a new Astar Hierarchical Footstep Planner object
      * 
@@ -403,7 +404,16 @@ public:
      */
     AstarHierarchicalFootstepPlanner(grid_map::GridMap & label_map, cv::Mat & plane_iamage_, vector<cv::Mat> & planes_image_, vector<planeInfo> & planes_info_, FootParam footparam_, double hip_width_);
 
+    void setBasicInfor(grid_map::GridMap & label_map, cv::Mat & plane_iamage_, vector<cv::Mat> & planes_image_, vector<planeInfo> & planes_info_, FootParam footparam_, double hip_width_);
+
     void initial_transitions();
+
+    // 使用自己提出的方法来确定初始左右脚
+    bool isStartFeasiblePropose(Eigen::Vector3d start, Eigen::Vector3d & left_foot, Eigen::Vector3d & right_foot);
+
+    // 使用传统方法来确定初始左右脚
+    bool isStartFeasibleTradition(Eigen::Vector3d start, Eigen::Vector3d & left_foot, Eigen::Vector3d & right_foot);
+
 
     // 使用起始状态来初始化机器人起点及终点
     /**
@@ -417,6 +427,9 @@ public:
      * @return false 
      */
     bool initial(Eigen::Vector3d start, Eigen::Vector3d prestart, int support_side, Eigen::Vector3d goal);
+
+
+    bool traversibilityCheck(ScoreMarkerNodePtr node);
 
     /**
      * @brief 节点扩展
@@ -643,6 +656,8 @@ public:
      * @return false 
      */
     bool computerLeftRightGoal(Eigen::Vector3d goal);
+
+    bool checkFeasibleGoal(Eigen::Vector3d goal);
 
     /**
      * @brief 根据当前节点是哪只脚判断是否达到终点

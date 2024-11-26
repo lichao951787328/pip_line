@@ -111,6 +111,7 @@ pip_line::pip_line(ros::NodeHandle & n):nh(n)
     height_map_upper.clearAll();
     height_map_lower.clearAll();
     // height_map_foot.clearAll();
+    // 这是为了避免上半身发生碰撞的高程图，这个在实际避障时也是需要的
     height_map_upper.add("elevation", NAN);
     height_map_lower.add("elevation", NAN);
     // height_map_foot.add("elevation", NAN);
@@ -868,7 +869,7 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
     }
     
     vector<cv::Mat> collision_free_images;
-    // // // 地图膨胀层
+    // 地图膨胀层
     double resolution = map.getResolution();
     double inflation_radius = 0.5;
     int inflation_pixel = 0.5/resolution;
@@ -957,6 +958,7 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
         // cv::waitKey(0);
         collision_free_images.emplace_back(free_collision);
     }
+    
     // // 构造适合落脚点规划的地图
     // 显示可通行地图
     
@@ -1065,6 +1067,7 @@ void pip_line::pointcloud_callback(const sensor_msgs::PointCloud2::ConstPtr msg)
             LOG(INFO)<<"planning error";
         }
     }
+
 }
 
 

@@ -395,6 +395,10 @@ public:
 
     void initial_transitions();
 
+    bool isStartFeasibleTradition(Eigen::Vector3d start, Eigen::Vector3d & left_foot, Eigen::Vector3d & right_foot);
+
+
+
     // 使用起始状态来初始化机器人起点及终点
     /**
      * @brief 根据起点，终点进行初始化
@@ -407,6 +411,8 @@ public:
      * @return false 
      */
     bool initial(Eigen::Vector3d start, Eigen::Vector3d prestart, int support_side, Eigen::Vector3d goal);
+
+    
 
     /**
      * @brief 节点扩展

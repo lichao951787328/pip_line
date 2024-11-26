@@ -21,6 +21,9 @@ find_package(catkin REQUIRED COMPONENTS
   diy_msgs
   cv_bridge
   peac
+  tf2
+  tf2_ros
+  tf2_geometry_msgs
 )
 set(USING_OURMETHOD OFF)
 
@@ -51,9 +54,6 @@ find_package(PythonLibs REQUIRED)
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
 ## See http://ros.org/doc/api/catkin/html/user_guide/setup_dot_py.html
-
-
-
 
 catkin_package(
 #  INCLUDE_DIRS include
@@ -111,6 +111,16 @@ else()
   )
 endif()
 
+add_executable(local_planner_nav
+src/AstarHierarchicalFootstepPlanner.cpp
+src/local_plan_node.cpp
+src/local_planner.cpp
+)
+
+
+add_executable(various_terrain
+  src/various_terrain.cpp
+)
 # add_executable(test_planner 
 # test/test_footstep_planner/test.cpp
 # src/plane_detection/quatree_node_20240618.cpp
@@ -154,6 +164,22 @@ target_link_libraries(${PROJECT_NAME}_node
   glog::glog
   tinyxml2::tinyxml2
 )
+
+target_link_libraries(local_planner_nav
+  ${catkin_LIBRARIES}
+  ${PCL_LIBRARIES}
+  ${OpenCV_LIBRARIES} 
+  ${grid_map_core_LIBRARIES}
+  ${OpenCV_LIBRARIES}
+  glog::glog
+  tinyxml2::tinyxml2
+)
+
+target_link_libraries(various_terrain
+  ${catkin_LIBRARIES}
+  ${OpenCV_LIBRARIES} 
+)
+
 
 # target_link_libraries(test_planner
 #   ${catkin_LIBRARIES}

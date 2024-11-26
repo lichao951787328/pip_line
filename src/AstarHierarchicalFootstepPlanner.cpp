@@ -5,7 +5,8 @@
 #include <PEAC_AHFP/plane_fitter_pcl_AHFP.hpp>
 #include <grid_map_core/iterators/LineIterator.hpp>
 #include <pcl/io/pcd_io.h>
-#include <grid_map_core/iterators/LineIterator.hpp>
+// #include <grid_map_core/iterators/LineIterator.hpp>
+#include <grid_map_core/iterators/CircleIterator.hpp>
 #include <chrono>
 // 这个构造函数，有问题，暂时不要使用
 AstarHierarchicalFootstepPlanner::AstarHierarchicalFootstepPlanner(grid_map::GridMap & lm, FootParam footparam_, double hip_width_)
@@ -45,7 +46,6 @@ AstarHierarchicalFootstepPlanner::AstarHierarchicalFootstepPlanner(grid_map::Gri
     localmap = label_localmap;
 
     // localmap.erase("label");  // 不知道为什么会报错
-
     resolution = localmap.getResolution();
     mapsize = localmap.getSize().x() * localmap.getSize().y();
     footsize_inmap = ((ceil)((footparam.x_button + footparam.x_upper)/resolution)) * ((ceil)((footparam.y_left + footparam.y_right)/resolution));
@@ -61,6 +61,39 @@ AstarHierarchicalFootstepPlanner::AstarHierarchicalFootstepPlanner(grid_map::Gri
     // outfile = std::ofstream("/home/lichao/TCDS/src/pip_line/data/out.txt");
 #endif
     initial_transitions();
+    LOG(INFO)<<"construct planner over";
+}
+
+AstarHierarchicalFootstepPlanner::AstarHierarchicalFootstepPlanner()
+{
+    initial_transitions();
+}
+
+// plane_image是调试，显示时所用的平面分割结果图
+// plane_images 仅仅在计算障碍点，避障点时用到
+void AstarHierarchicalFootstepPlanner::setBasicInfor(grid_map::GridMap & label_map, cv::Mat & plane_iamage_, vector<cv::Mat> & planes_image_, vector<planeInfo> & planes_info_, FootParam footparam_, double hip_width_)
+{
+    label_localmap = label_map;
+    plane_image = plane_iamage_;
+    plane_images = planes_image_;
+    planes_info = planes_info_;
+    footparam = footparam_;
+    hip_width = hip_width_;
+
+    resolution = localmap.getResolution();
+    mapsize = localmap.getSize().x() * localmap.getSize().y();
+    footsize_inmap = ((ceil)((footparam.x_button + footparam.x_upper)/resolution)) * ((ceil)((footparam.y_left + footparam.y_right)/resolution));
+    planes = plane_images.size();
+#ifdef DEBUG
+    LOG(INFO)<<"resolution: "<<resolution;
+    LOG(INFO)<<"mapsize: "<<mapsize;
+
+    LOG(INFO)<<"footparam: "<<footparam.x_upper<<" "<<footparam.x_button<<" "<<footparam.y_left<<" "<<footparam.y_right;
+    LOG(INFO)<<"hip_width: "<<hip_width;
+    LOG(INFO)<<"footsize_inmap: "<<footsize_inmap;
+    // outfile = std::ofstream("/home/lichao/Darwin-op/src/elevation_map_ours/elevation_mapping/AstarHierarchicalFootstepPlanner/data/out.txt");
+    // outfile = std::ofstream("/home/lichao/TCDS/src/pip_line/data/out.txt");
+#endif
     LOG(INFO)<<"construct planner over";
 }
 
@@ -81,7 +114,7 @@ void AstarHierarchicalFootstepPlanner::initial_transitions()
                     continue;
                 }
                 
-                Eigen::Vector3d transition = Eigen::Vector3d(i * 0.1,   0.02 * j + 0.24,  k*3/57.3);
+                Eigen::Vector3d transition = Eigen::Vector3d(i * 0.11,   0.015 * j + 0.23,  k*3/57.3);
                 // LOG(INFO)<<transition.transpose();
                 transitions.emplace_back(transition);
             }
@@ -99,13 +132,67 @@ void AstarHierarchicalFootstepPlanner::initial_transitions()
                     continue;
                 }
                 
-                Eigen::Vector3d transition = Eigen::Vector3d(i * 0.1,   0.02 * j + 0.24,  k*3/57.3);
+                Eigen::Vector3d transition = Eigen::Vector3d(i * 0.05,   0.015 * j + 0.23,  k*3/57.3);
                 // LOG(INFO)<<transition.transpose();
                 combine_transitions.emplace_back(transition);
             }
         }
     }
 }
+
+bool AstarHierarchicalFootstepPlanner::isStartFeasiblePropose(Eigen::Vector3d start, Eigen::Vector3d & left_foot, Eigen::Vector3d & right_foot)
+{
+    if (label_localmap.isInside(start.head(2)))
+    {
+        // 保证四个点都在地图内
+        Eigen::AngleAxisd ad(start.z(), Eigen::Vector3d::UnitZ());
+        Eigen::Vector3d mid = Eigen::Vector3d::Zero();
+        mid.head(2) = start.head(2);
+        Eigen::Vector3d left_offset(0, footparam.y_left, 0);
+        Eigen::Vector3d right_offset(0, -footparam.y_right, 0);
+        Eigen::Vector3d left_mid = ad.toRotationMatrix() * left_offset + mid;
+        Eigen::Vector3d right_mid = ad.toRotationMatrix() * right_offset + mid;
+        Eigen::Vector3d up_offset(footparam.x_upper, 0, 0);
+        Eigen::Vector3d up_left = ad.toRotationMatrix() * up_offset + left_mid;
+        Eigen::Vector3d up_right = ad.toRotationMatrix() * up_offset + right_mid;
+        Eigen::Vector3d button_offset(-footparam.x_button, 0, 0);
+        Eigen::Vector3d button_left = ad.toRotationMatrix() * button_offset + left_mid;
+        Eigen::Vector3d button_right = ad.toRotationMatrix() * button_offset + right_mid;
+        if (label_localmap.isInside(left_mid.head(2)) && label_localmap.isInside(right_mid.head(2)) && label_localmap.isInside(up_left.head(2)) && label_localmap.isInside(up_right.head(2)))
+        {
+            // 计算左右脚的位置，并返回合适的左右落脚点
+            Eigen::Vector3d half_hip_width = Eigen::Vector3d(0, hip_width/2, 0);
+            Eigen::Vector3d left_foot_tmp = ad.toRotationMatrix() * half_hip_width + mid;
+            Eigen::Vector3d right_foot_tmp = ad.toRotationMatrix() * -half_hip_width + mid;
+            double height_left,  height_right;
+            int left_support_index = -1;
+            int right_support_index = -1;
+            double left_roll, right_roll, left_pitch, right_pitch;
+            if (getPointInfoInPlane(left_foot_tmp, height_left, left_support_index, left_pitch, left_roll) && getPointInfoInPlane(right_foot_tmp, height_right, right_support_index, right_pitch, right_roll))
+            {
+                left_foot = left_foot_tmp;
+                right_foot = right_foot_tmp;
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+        else
+        {
+            return false;
+        }
+        // 保证传统方法下左右脚都共面
+    }
+    else
+    {
+        return false;
+    }
+}
+
+
+
 
 // 默认起点和终点位置是对的
 bool AstarHierarchicalFootstepPlanner::initial(Eigen::Vector3d start, Eigen::Vector3d prestart, int support_side, Eigen::Vector3d goal)
@@ -413,8 +500,7 @@ bool AstarHierarchicalFootstepPlanner::computeTransitionScore(std::pair<Eigen::V
 //         LOG(INFO)<<"can not set node";
 // #endif
 //         return false;
-//     }
-    
+//     }   
 // }
 
 // tested 计算落脚点的得分
@@ -547,6 +633,59 @@ bool AstarHierarchicalFootstepPlanner::computeLandPointScore(std::pair<Eigen::Ve
 //     return true;
 // }
 
+
+bool AstarHierarchicalFootstepPlanner::traversibilityCheck(ScoreMarkerNodePtr node)
+{
+    
+    grid_map::Position position = node->point.head(2);
+    if (!label_localmap.isInside(position))
+    {
+        return false;
+    }
+
+    grid_map::Position start_position, end_position;
+    label_localmap.getPosition(grid_map::Index(0, 0), start_position);
+    label_localmap.getPosition(grid_map::Index(label_localmap.getSize().x() - 1, label_localmap.getSize().y() - 1), end_position);
+
+    double knee_radius = 0.2;
+    double upperbody_radius = 0.5;
+    if (position.x() - upperbody_radius < end_position.x() || position.x() + upperbody_radius > start_position.x())
+    {
+        return false;
+    }
+    if (position.y() - upperbody_radius < end_position.y() || position.y() - upperbody_radius > start_position.y())
+    {
+        return false;
+    }
+    Eigen::Vector3d normal(planes_info.at(node->plane_index).normal.x(), planes_info.at(node->plane_index).normal.y(), planes_info.at(node->plane_index).normal.z());
+    Eigen::Vector3d center(planes_info.at(node->plane_index).center.x(), planes_info.at(node->plane_index).center.y(), planes_info.at(node->plane_index).center.z());
+    for (grid_map::CircleIterator iterator(label_localmap, position, knee_radius); !iterator.isPastEnd(); ++iterator)
+    {
+        grid_map::Position3 p3;
+        if (label_localmap.getPosition3("elevation",*iterator, p3))
+        {
+            double dis = (p3 - center).dot(normal);
+            if (dis > 0.3)
+            {
+                return false;
+            }
+        }
+    }
+    for (grid_map::CircleIterator iterator(label_localmap, position, upperbody_radius); !iterator.isPastEnd(); ++iterator)
+    {
+        grid_map::Position3 p3;
+        if (label_localmap.getPosition3("elevation",*iterator, p3))
+        {
+            double dis = (p3 - center).dot(normal);
+            if (dis > 0.6)
+            {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 bool AstarHierarchicalFootstepPlanner::nodeExtension(FootstepNodePtr current_node, FootstepNodePtr pre_node, vector<FootstepNodePtr> & child_nodes)
 {
     // 基础节点，在地图坐标系下的节点
@@ -667,15 +806,27 @@ bool AstarHierarchicalFootstepPlanner::nodeExtension(FootstepNodePtr current_nod
     cv::waitKey(0);
 #endif
 
+    // traverserbility check，使用两个圆柱体进行检查，上半身圆柱体和膝盖圆柱体
+    std::priority_queue<ScoreMarkerNodePtr, std::vector<ScoreMarkerNodePtr>, ScoreMarkerNodeCompare> passableNodes;
     while (!basicScoreNodes.empty())
     {
         auto node = basicScoreNodes.top();
-        // 由基础偏移量转到实际位置
         basicScoreNodes.pop();
+        if (traversibilityCheck(node))
+        {
+            passableNodes.push(node);
+        }
+    }
+    
+    while (!passableNodes.empty())
+    {
+        auto node = passableNodes.top();
+        // 由基础偏移量转到实际位置
+        passableNodes.pop();
         FootstepNodePtr stepnode = std::make_shared<FootstepNode>(node->point, node->height, node->roll, node->pitch, current_node->footstep.getInverseRobotSide());
         stepnode->plane_index = node->plane_index;
         stepnode->PreFootstepNode = current_node;
-        // 跨平面运动时对规划的落脚点限制
+        // 跨平面运动时对规划的落脚点限制，如果不在一个平面上，就保证两不的距离不超过0.35
         if (stepnode->plane_index != stepnode->PreFootstepNode->plane_index)
         {
             Eigen::Vector2d dis_v1(stepnode->footstep.x, stepnode->footstep.y);
@@ -694,6 +845,7 @@ bool AstarHierarchicalFootstepPlanner::nodeExtension(FootstepNodePtr current_nod
 
 
         // 如果两脚pitch较大，那就不要迈大步长，5关节可能会达到62度
+        // 如果此时机器人行走在斜面上，那就不要迈大步长，因为5关节可能会超限
         if (stepnode->footstep.pitch <= - 5/57.3 && stepnode->PreFootstepNode->footstep.pitch <= - 5/57.3)
         {
             Eigen::Vector2d dis_v1(stepnode->footstep.x, stepnode->footstep.y);
@@ -1451,10 +1603,10 @@ bool AstarHierarchicalFootstepPlanner::getPointsInFootArea(Eigen::Vector3d ankle
 bool AstarHierarchicalFootstepPlanner::computeLandInfo(Eigen::Vector3d ankle, int & max_size, int & above_points, Eigen::Vector3d & plane_normal, double & step_height, int & plane_index, double & pitch, double & roll)
 {
     // 能否找到支撑平面
-        // 前脚直方图
-        // 后脚直方图
-        // 匹配对
-        // 支撑平面
+    // 前脚直方图
+    // 后脚直方图
+    // 匹配对
+    // 支撑平面
 
     // 论文中这个函数对应的可通行性检测，要记录这个函数被调用的次数及总时间消耗
     checktime++;
@@ -1663,6 +1815,7 @@ vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> AstarHierarchicalFootstepPla
         }
         else
         {
+            // 当前步和当前步的前一步不在同一平面，就执行并步
             // cout<<"using combine_transitions"<<endl;
             for (auto & transition : combine_transitions)
             {
@@ -2014,6 +2167,100 @@ bool AstarHierarchicalFootstepPlanner::computerLeftRightGoal(Eigen::Vector3d goa
         LOG(INFO)<<"left foot or right foot not in map";
         end_left_p = nullptr;
         end_right_p = nullptr;
+        return false;
+    }
+}
+
+bool AstarHierarchicalFootstepPlanner::checkFeasibleGoal(Eigen::Vector3d goal)
+{
+    Eigen::Vector3d left_offset(0, hip_width/2.0, 0);
+    Eigen::Vector3d right_offset(0, -hip_width/2.0, 0);
+    Eigen::AngleAxisd ad(goal.z(), Eigen::Vector3d::UnitZ());
+    Eigen::Vector3d left_goal, right_goal;
+    left_goal.head(2) = (ad.toRotationMatrix() * left_offset + Eigen::Vector3d(goal.x(), goal.y(), 0)).head(2);
+    left_goal.z() = goal.z();
+    right_goal.head(2) = (ad.toRotationMatrix() * right_offset + Eigen::Vector3d(goal.x(), goal.y(), 0)).head(2);
+    right_goal.z() = goal.z();
+    LOG(INFO)<<"left_goal: "<<left_goal.transpose();
+    LOG(INFO)<<"right_goal: "<<right_goal.transpose();
+#ifdef DEBUG
+    LOG(INFO)<<"left_goal: "<<left_goal.transpose();
+    LOG(INFO)<<"right_goal: "<<right_goal.transpose();
+#endif
+    if (localmap.isInside(left_goal.head(2)) && localmap.isInside(right_goal.head(2)))
+    {
+        // 还需要判断此状态下机器人能不能落脚
+        vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> left_cands = fineLandPoint(left_goal);
+        vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> right_cands = fineLandPoint(right_goal);
+        double score = - std::numeric_limits<double>::infinity();
+        double opt_height, opt_pitch, opt_roll;
+        int opt_plane_index = -1;
+        Eigen::Vector3d left_opt;
+        for (auto & cand : left_cands)
+        {
+            double tmpscore;
+            int plane_index = -1;
+            double height = -std::numeric_limits<double>::infinity();
+            double pitch = std::numeric_limits<double>::infinity();
+            double roll = std::numeric_limits<double>::infinity();
+            if (computeLandPointScore(cand, tmpscore, height, plane_index, pitch, roll))
+            {
+                // LOG(INFO)<<"tmpscore: "<<tmpscore;
+                if (tmpscore > score)
+                {
+                    left_opt = cand.second;
+                    // LOG(INFO)<<left_opt.transpose();
+                    score = tmpscore;
+                    opt_height = height;
+                    opt_pitch = pitch;
+                    opt_roll = roll; 
+                    opt_plane_index = plane_index;
+                }
+            }
+        }
+        if (opt_plane_index == -1)
+        {
+            return false;
+        }
+        
+        opt_plane_index = -1;
+        score = - std::numeric_limits<double>::infinity();
+        Eigen::Vector3d right_opt;
+        for (auto & cand : right_cands)
+        {
+            double tmpscore;
+            int plane_index = -1;
+            double height = -std::numeric_limits<double>::infinity();
+            double pitch = std::numeric_limits<double>::infinity();
+            double roll = std::numeric_limits<double>::infinity();
+            if (computeLandPointScore(cand, tmpscore, height, plane_index, pitch, roll))
+            {
+                // LOG(INFO)<<"tmpscore: "<<tmpscore;
+                if (tmpscore > score)
+                {
+                    right_opt = cand.second;
+                    // LOG(INFO)<<left_opt.transpose();
+                    score = tmpscore;
+                    opt_height = height;
+                    opt_pitch = pitch;
+                    opt_roll = roll; 
+                    opt_plane_index = plane_index;
+                }
+            }
+        }
+        if (opt_plane_index == -1)
+        {
+            return false;
+        }
+#ifdef DEBUG
+        LOG(INFO)<<"left_opt: "<<left_opt.transpose();
+        LOG(INFO)<<"right_opt: "<<right_opt.transpose();
+#endif
+        return true;
+    }
+    else
+    {
+        LOG(INFO)<<"left foot or right foot not in map";
         return false;
     }
 }
