@@ -2,19 +2,21 @@
 #include <grid_map_core/GridMap.hpp>
 #include <peac/PEAC_plane_detection.hpp>
 #include <Eigen/Core>
-#include <AstarHierarchicalFootstepPlanner/AstarHierarchicalFootstepPlanner.h>
+#include <AstarHierarchicalFootstepPlanner/AstarHierarchicalFootstepPlannerBase.h>
 #include <diy_msgs/footSteps.h>
-class localPlannerPropose
+class localPlannerBase
 {
 private:
     grid_map::GridMap map;
     plane_detection pd;
-    Eigen::Vector3d start_left, start_right, goal;
+    Eigen::Vector3d start, pre_start, goal;
     int support_flag; // 0 initial, 1, left foot, 2, right foot
     FootParam foot_param;
     double hip_width;
     diy_msgs::footSteps footstep_msg;
-    AstarHierarchicalFootstepPlanner astar_planner;
+    // 这个要根据你想要选择的算法来决定选择哪种规划方式
+    std::shared_ptr<AstarHierarchicalFootstepPlannerBase> planner_P;
+    // AstarHierarchicalFootstepPlanner astar_planner;
     vector<Footstep> steps;
     string package_path;
     cv::Mat seg_image;
@@ -23,10 +25,11 @@ private:
     vector<planeInfo>  merge_planes;
     vector<cv::Mat> merge_results;
 public:
-    localPlannerPropose();
+    localPlannerBase(std::shared_ptr<AstarHierarchicalFootstepPlannerBase> a);
     void setFootParam(FootParam & foot_param_);
     void setHipWidth(double hip_width_);
-    void initial(Eigen::Vector3d start_left_, Eigen::Vector3d start_right_, int support_flag_, Eigen::Vector3d goal_);
+    void initial(Eigen::Vector3d start_, Eigen::Vector3d pre_start_, int support_flag_, Eigen::Vector3d goal_);
+    bool isStartFeasible(Eigen::Vector3d start, Eigen::Vector3d & left_foot, Eigen::Vector3d & right_foot);
     void mapPrepare(grid_map::GridMap & map_);
     pcl::PointCloud<pcl::PointXYZ> gridMap2PointcloudOrganized(grid_map::GridMap & map);
     void Inpaint(int radius);
@@ -51,7 +54,7 @@ public:
         }
         return footstep_msg;
     }
-    ~localPlannerPropose();
+    ~localPlannerBase();
 };
 
 

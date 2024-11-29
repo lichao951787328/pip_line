@@ -254,7 +254,7 @@ int main(int argc, char** argv)
 
                     for (auto & tmp_start_point : start_points)
                     {
-
+                        // 两种情况均成立，才以此点为终点
                         if (/* condition */)
                         {
                             start_point = tmp_start_point;

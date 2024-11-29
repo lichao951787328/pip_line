@@ -1,9 +1,10 @@
-#include <local_planner.h>
+#include <local_plannerBase.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <grid_map_cv/InpaintFilter.hpp>
 #include <ros/package.h>
 #include <diy_msgs/footSteps.h>
+
 void initial_package_path(string package_name, string & package_path)
 {
   package_path = ros::package::getPath(package_name);
@@ -14,19 +15,19 @@ void initial_package_path(string package_name, string & package_path)
   cout<<"package path: "<<package_path<<endl;
 }
 
-localPlannerPropose::localPlannerPropose()
+localPlannerBase::localPlannerBase(std::shared_ptr<AstarHierarchicalFootstepPlannerBase> a):planner_P(std::move(a))
 {
     initial_package_path("pip_line", package_path);
     LOG(INFO)<<"package path is: "<<package_path;
     pd.initial(package_path + "/config/plane_fitter_pcd.ini");
 }
 
-void localPlannerPropose::setFootParam(FootParam & foot_param_)
+void localPlannerBase::setFootParam(FootParam & foot_param_)
 {
     foot_param = foot_param_;
 }
 
-void localPlannerPropose::setHipWidth(double hip_width_)
+void localPlannerBase::setHipWidth(double hip_width_)
 {
     hip_width = hip_width_;
 }
@@ -36,15 +37,15 @@ void localPlannerPropose::setHipWidth(double hip_width_)
     
 // }
 
-void localPlannerPropose::initial(Eigen::Vector3d start_left_, Eigen::Vector3d start_right_, int support_flag_,Eigen::Vector3d goal_)
+void localPlannerBase::initial(Eigen::Vector3d start_, Eigen::Vector3d pre_start_, int support_flag_,Eigen::Vector3d goal_)
 {
-    start_left = start_left_;
-    start_right = start_right_;
+    start = start_;
+    pre_start = pre_start_;
     support_flag = support_flag_;
     goal = goal_;
 }
 
-void localPlannerPropose::Inpaint(int radius)
+void localPlannerBase::Inpaint(int radius)
 {
     const float minValue = map.get("elevation").minCoeffOfFinites();
     const float maxValue = map.get("elevation").maxCoeffOfFinites();
@@ -61,14 +62,16 @@ void localPlannerPropose::Inpaint(int radius)
     // cv::imshow("inpainted", inpainted);
     // cv::waitKey(0);
 
-    map.erase("elevation");
+    // map.erase("elevation");
+    map.clear("elevation");
     grid_map::GridMapCvConverter::addLayerFromImage<unsigned char, 1>(inpainted, "elevation", map, minValue, maxValue);
 }
 
-void localPlannerPropose::detectionPlane()
+void localPlannerBase::detectionPlane()
 {
     pcl::PointCloud<pcl::PointXYZ> org_pc = gridMap2PointcloudOrganized(map);
     pd.detect(org_pc);
+    LOG(INFO)<<"PLANE SIZE: "<< pd.planes.size();
     vector<ahc::PlaneSeg::Stats> statses(pd.planes.size());
     for (int i = 0; i < map.getSize().x(); i++)
     {
@@ -114,7 +117,7 @@ void localPlannerPropose::detectionPlane()
     single_results = pd.planes;
 }
 
-void localPlannerPropose::mergePlanes()
+void localPlannerBase::mergePlanes()
 {
     class Graph 
     {
@@ -206,6 +209,7 @@ void localPlannerPropose::mergePlanes()
         cv::Vec3b(255, 0, 255), // Magenta
         cv::Vec3b(255, 255, 0), // Cyan
     };
+    seg_image = cv::Mat::zeros(map.getSize().x(), map.getSize().y(), CV_8UC3);
     // seg_image for debug in planner
     for (int i = 0; i < merge_results.size(); i++)
     {
@@ -354,22 +358,31 @@ void localPlannerPropose::mergePlanes()
 //     }
 // }
 
-void localPlannerPropose::mapPrepare(grid_map::GridMap & map_)
+void localPlannerBase::mapPrepare(grid_map::GridMap & map_)
 {
     map = map_;
     Inpaint(5);
     detectionPlane();
     mergePlanes();
-    astar_planner.setBasicInfor(map, seg_image, merge_results, merge_planes, foot_param, hip_width);
+#ifdef DEBUG
+    cv::imshow("seg_image", seg_image);
+    cv::waitKey(0);
+    for (auto & single_image : merge_results)
+    {
+        cv::imshow("merge_image", single_image);
+        cv::waitKey(0);
+    }
+#endif
+    planner_P->setBasicInfor(map, seg_image, merge_results, merge_planes, foot_param, hip_width);
     // constructFeasibleMap();
 }
 
 // 必须在mapPrepare 之后。
-bool localPlannerPropose::isGoalFeasible(Eigen::Vector3d goal)
+bool localPlannerBase::isGoalFeasible(Eigen::Vector3d goal)
 {
     if (!merge_results.empty() && !merge_planes.empty())
     {
-        return astar_planner.checkFeasibleGoal(goal);
+        return planner_P->checkFeasibleGoal(goal);
     }
     else
     {
@@ -377,12 +390,31 @@ bool localPlannerPropose::isGoalFeasible(Eigen::Vector3d goal)
     }
 }
 
-void localPlannerPropose::plan()
+bool localPlannerBase::isStartFeasible(Eigen::Vector3d start, Eigen::Vector3d & left_foot, Eigen::Vector3d & right_foot)
 {
-    if (astar_planner.initial(start_right, start_left, (support_flag + 1)%2, goal))
+    if (!merge_results.empty() && !merge_planes.empty())
+    {
+        if (planner_P->isStartFeasible(start, left_foot, right_foot))
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+    else
+    {
+        return false;
+    }
+}
+
+void localPlannerBase::plan()
+{
+    if (planner_P->initial(start, pre_start, support_flag, goal))
     {
         LOG(INFO)<<"set start and goal";
-        if (astar_planner.plan())
+        if (planner_P->plan())
         {
             // 记录结束时间
             // clock_t end_plan = clock();
@@ -391,7 +423,7 @@ void localPlannerPropose::plan()
             // double duration_plan = double(end_plan - start_plane) / CLOCKS_PER_SEC * 1000;
 
             // LOG(INFO)<<"TOTAL TIME: "<<duration_plan;
-            steps = astar_planner.getResultSteps();
+            steps = planner_P->getResultSteps();
             // LOG(INFO)<<"ERROR";
             // avoid_points = planner.computeAvoidPoints();
             // LOG(INFO)<<"ERROR";
@@ -415,7 +447,7 @@ void localPlannerPropose::plan()
     }
 
 }
-pcl::PointCloud<pcl::PointXYZ> localPlannerPropose::gridMap2PointcloudOrganized(grid_map::GridMap & map)
+pcl::PointCloud<pcl::PointXYZ> localPlannerBase::gridMap2PointcloudOrganized(grid_map::GridMap & map)
 {
     pcl::PointCloud<pcl::PointXYZ> pc;
     for (int i = 0; i < map.getSize().x(); i++)
@@ -446,7 +478,7 @@ pcl::PointCloud<pcl::PointXYZ> localPlannerPropose::gridMap2PointcloudOrganized(
     return pc;
 }
 
-localPlannerPropose::~localPlannerPropose()
+localPlannerBase::~localPlannerBase()
 {
 
 }

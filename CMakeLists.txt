@@ -96,30 +96,38 @@ include
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 
-if(USING_OURMETHOD)
-  add_executable(${PROJECT_NAME}_node 
-  src/main.cpp 
-  src/pip_line.cpp
-  src/AstarHierarchicalFootstepPlanner.cpp
-  )
-  target_compile_definitions(${PROJECT_NAME}_node  PRIVATE OURMETHOD)
-else()
-  add_executable(${PROJECT_NAME}_node 
-  src/main.cpp 
-  src/pip_line.cpp
-  src/AstarHierarchicalFootstepPlannerTra.cpp
-  )
-endif()
+# if(USING_OURMETHOD)
+#   add_executable(${PROJECT_NAME}_node 
+#   src/main.cpp 
+#   src/pip_line.cpp
+#   src/AstarHierarchicalFootstepPlanner.cpp
+#   )
+#   target_compile_definitions(${PROJECT_NAME}_node  PRIVATE OURMETHOD)
+# else()
+#   add_executable(${PROJECT_NAME}_node 
+#   src/main.cpp 
+#   src/pip_line.cpp
+#   src/AstarHierarchicalFootstepPlannerTra.cpp
+#   )
+# endif()
 
-add_executable(local_planner_nav
-src/AstarHierarchicalFootstepPlanner.cpp
-src/local_plan_node.cpp
-src/local_planner.cpp
-)
+# add_executable(local_planner_nav
+# src/AstarHierarchicalFootstepPlanner.cpp
+# src/local_plan_node.cpp
+# src/local_planner.cpp
+# )
 
 
-add_executable(various_terrain
-  src/various_terrain.cpp
+# add_executable(various_terrain
+#   src/various_terrain.cpp
+# )
+
+add_executable(base_class 
+src/AstarHierarchicalFootstepPlannerBase.cpp
+src/AstarHierarchicalFootstepPlannerPropose.cpp
+src/AstarHierarchicalFootstepPlannerTraditional.cpp
+src/test_planer.cpp
+src/local_plannerBase.cpp
 )
 # add_executable(test_planner 
 # test/test_footstep_planner/test.cpp
@@ -152,34 +160,39 @@ add_executable(various_terrain
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(${PROJECT_NAME}_node
+# target_link_libraries(${PROJECT_NAME}_node
+#   ${catkin_LIBRARIES}
+#   ${PCL_LIBRARIES}
+#   ${OpenCV_LIBRARIES} 
+#   ${grid_map_core_LIBRARIES}
+#   ${OpenCV_LIBRARIES}
+#   # ${grid_map_msgs_LIBRARIES}
+#   # ${grid_map_ros_LIBRARIES}
+#   # ${grid_map_filters_LIBRARIES}
+#   glog::glog
+#   tinyxml2::tinyxml2
+# )
+
+# target_link_libraries(local_planner_nav
+#   ${catkin_LIBRARIES}
+#   ${PCL_LIBRARIES}
+#   ${OpenCV_LIBRARIES} 
+#   ${grid_map_core_LIBRARIES}
+#   ${OpenCV_LIBRARIES}
+#   glog::glog
+#   tinyxml2::tinyxml2
+# )
+
+# target_link_libraries(various_terrain
+#   ${catkin_LIBRARIES}
+#   ${OpenCV_LIBRARIES} 
+# )
+
+target_link_libraries(base_class
   ${catkin_LIBRARIES}
   ${PCL_LIBRARIES}
-  ${OpenCV_LIBRARIES} 
-  ${grid_map_core_LIBRARIES}
-  ${OpenCV_LIBRARIES}
-  # ${grid_map_msgs_LIBRARIES}
-  # ${grid_map_ros_LIBRARIES}
-  # ${grid_map_filters_LIBRARIES}
   glog::glog
-  tinyxml2::tinyxml2
 )
-
-target_link_libraries(local_planner_nav
-  ${catkin_LIBRARIES}
-  ${PCL_LIBRARIES}
-  ${OpenCV_LIBRARIES} 
-  ${grid_map_core_LIBRARIES}
-  ${OpenCV_LIBRARIES}
-  glog::glog
-  tinyxml2::tinyxml2
-)
-
-target_link_libraries(various_terrain
-  ${catkin_LIBRARIES}
-  ${OpenCV_LIBRARIES} 
-)
-
 
 # target_link_libraries(test_planner
 #   ${catkin_LIBRARIES}
