@@ -8,6 +8,7 @@
 #include <mutex>
 #include <tf2/utils.h>
 #include <AstarHierarchicalFootstepPlanner/AstarHierarchicalFootstepPlannerPropose.h>
+#include <AstarHierarchicalFootstepPlanner/AstarHierarchicalFootstepPlannerTraditional.h>
 #include <local_plannerBase.h>
 #include <glog/logging.h>
 // 自己生成地图，选择起点终点来测试算法，不是局部规划
@@ -28,6 +29,9 @@ private:
 
     FootParam foot_param;
     double hip_width;
+    // 这是使用传统方法时，需要确定脚附近区域的共面性
+    double checkXupper;
+    double checkXButton;
 public:
     testPlaner(ros::NodeHandle & nh_);
     void goalCallback(const geometry_msgs::PoseStamped::ConstPtr & msg);
@@ -50,7 +54,10 @@ testPlaner::testPlaner(ros::NodeHandle & nh_):nh(nh_)
     
 
     nh.param("hip_width", hip_width, 0.2);
-    
+
+
+    nh.param("checkXupper", checkXupper, 0.13);
+    nh.param("checkXButton", checkXButton, 0.04);
 
     map_pub = nh.advertise<grid_map_msgs::GridMap>("/test_map", 1);
     goal_sub = nh.subscribe("/move_base_simple/goal", 1, &testPlaner::goalCallback, this);
@@ -118,7 +125,9 @@ void testPlaner::timerCallback(const ros::TimerEvent & event)
         // 执行规划代码
         ROS_INFO("plan goal: %f, %f, %f", goal_map(0), goal_map(1), goal_map(2));
         ROS_INFO("plan start: %f, %f, %f", start_map(0), start_map(1), start_map(2));
-        std::shared_ptr<AstarHierarchicalFootstepPlannerBase> planner_ptr = std::make_shared<AstarHierarchicalFootstepPlannerPropose>();
+        // std::shared_ptr<AstarHierarchicalFootstepPlannerBase> planner_ptr = std::make_shared<AstarHierarchicalFootstepPlannerPropose>();
+        std::shared_ptr<AstarHierarchicalFootstepPlannerTraditional> planner_ptr = std::make_shared<AstarHierarchicalFootstepPlannerTraditional>();
+        planner_ptr->setCheckParam(checkXupper, checkXButton);
         // planner_ptr 使用move转移所有权，避免拷贝后，planner_ptr为空
         localPlannerBase localplaner(planner_ptr);
         localplaner.setFootParam(foot_param);
@@ -136,7 +145,6 @@ void testPlaner::timerCallback(const ros::TimerEvent & event)
         {
             LOG(INFO)<<"error goal or start"<<endl;
         }
-         
     }
 }
 

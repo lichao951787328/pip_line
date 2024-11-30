@@ -41,12 +41,19 @@ bool AstarHierarchicalFootstepPlannerTraditional::isStartFeasible(Eigen::Vector3
             double left_roll, right_roll, left_pitch, right_pitch;
             if (computeLandInfo(left_foot_tmp, max_size_left, above_points_left, left_plane_normal, left_step_height, left_plane_index, left_pitch, left_roll) && computeLandInfo(right_foot_tmp, max_size_right, above_points_right, right_plane_normal, right_step_height, right_plane_index, right_pitch, right_roll))
             {
-                if (max_size_left < footsize_inmap || max_size_right < footsize_inmap)
+                if (max_size_left < 0.65 * footsize_inmap || max_size_right < 0.65 * footsize_inmap)
                 {
+#ifdef DEBUG
+                    LOG(INFO)<<" is too small";
+                    LOG(INFO)<<"left size: "<<max_size_left<<" right size: "<<max_size_right<<" footsize_inmap: "<<footsize_inmap;
+#endif
                     return false;
                 }
                 if (above_points_left > 0 || above_points_right > 0)
                 {
+#ifdef DEBUG
+                    LOG(INFO)<<"above points is not zero";
+#endif
                     return false;
                 }
                 left_foot = left_foot_tmp;
@@ -55,16 +62,25 @@ bool AstarHierarchicalFootstepPlannerTraditional::isStartFeasible(Eigen::Vector3
             }
             else
             {
+#ifdef DEBUG
+                LOG(INFO)<<"compute land info failed";
+#endif
                 return false;
             }
         }
         else
         {
+#ifdef DEBUG
+            LOG(INFO)<<"FOOT is not in localmap";
+#endif
             return false;
         }
     }
     else
     {
+#ifdef DEBUG
+        LOG(INFO)<<"start point is not in localmap";
+#endif
         return false;
     }
 }
@@ -269,7 +285,7 @@ bool AstarHierarchicalFootstepPlannerTraditional::computeLandInfo(Eigen::Vector3
     step_height = -std::numeric_limits<double>::infinity();
     pitch = std::numeric_limits<double>::infinity();
     roll = std::numeric_limits<double>::infinity();
-
+    // LOG(INFO)<<checkXupper<<" "<<checkXButton<<" "<<footparam.y_left<<" "<<footparam.y_right<<" "<<footparam.x_upper<<" "<<footparam.x_button;
     Eigen::AngleAxisd ax(ankle.z(), Eigen::Vector3d::UnitZ());
     Eigen::Vector3d mid(ankle.x(), ankle.y(), 0);
     // 初次只用前后8cm的作为支撑平面的判断
@@ -337,12 +353,16 @@ bool AstarHierarchicalFootstepPlannerTraditional::computeLandInfo(Eigen::Vector3
                     // 结束计时
                     auto end = std::chrono::high_resolution_clock::now();
                     total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
+#ifdef DEBUG
+                    LOG(INFO)<<"too much above points";
+#endif
                     return false;
                 }
                 if (max_size < (0.16/(0.11+0.15))* footsize_inmap)
                 {
                     auto end = std::chrono::high_resolution_clock::now();
                     total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
+                    LOG(INFO)<<"too small size";
                     return false;
                 }
                 
@@ -409,6 +429,9 @@ bool AstarHierarchicalFootstepPlannerTraditional::computeLandInfo(Eigen::Vector3
         {
             auto end = std::chrono::high_resolution_clock::now();
             total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
+#ifdef DEBUG
+            LOG(INFO)<<"can not get normal";
+#endif
             return false;
         }
     }
@@ -416,6 +439,9 @@ bool AstarHierarchicalFootstepPlannerTraditional::computeLandInfo(Eigen::Vector3
     {
         auto end = std::chrono::high_resolution_clock::now();
         total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
+#ifdef DEBUG
+        LOG(INFO)<<"can not get support area points";
+#endif
         return false;
     }
 }
