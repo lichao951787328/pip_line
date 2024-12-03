@@ -15,7 +15,7 @@ private:
     double hip_width;
     diy_msgs::footSteps footstep_msg;
     // 这个要根据你想要选择的算法来决定选择哪种规划方式
-    std::shared_ptr<AstarHierarchicalFootstepPlannerBase> planner_P;
+    std::shared_ptr<AstarHierarchicalFootstepPlannerBase> planner_P = nullptr;
     // AstarHierarchicalFootstepPlanner astar_planner;
     vector<Footstep> steps;
     string package_path;
@@ -25,13 +25,15 @@ private:
     vector<planeInfo>  merge_planes;
     vector<cv::Mat> merge_results;
 public:
+    localPlannerBase();
     localPlannerBase(std::shared_ptr<AstarHierarchicalFootstepPlannerBase> a);
+    void setPlanner(std::shared_ptr<AstarHierarchicalFootstepPlannerBase> a);
     void setFootParam(FootParam & foot_param_);
     void setHipWidth(double hip_width_);
     void initial(Eigen::Vector3d start_, Eigen::Vector3d pre_start_, int support_flag_, Eigen::Vector3d goal_);
     bool isStartFeasible(Eigen::Vector3d start, Eigen::Vector3d & left_foot, Eigen::Vector3d & right_foot);
     void mapPrepare(grid_map::GridMap & map_);
-    pcl::PointCloud<pcl::PointXYZ> gridMap2PointcloudOrganized(grid_map::GridMap & map);
+    pcl::PointCloud<pcl::PointXYZ> gridMap2PointcloudOrganized();
     void Inpaint(int radius);
     bool isGoalFeasible(Eigen::Vector3d goal);
     void detectionPlane();
@@ -53,6 +55,11 @@ public:
             footstep_msg.footsteps.emplace_back(step);
         }
         return footstep_msg;
+    }
+    
+    inline std::shared_ptr<AstarHierarchicalFootstepPlannerBase> getPlannerPtr()
+    {
+        return planner_P;
     }
     ~localPlannerBase();
 };

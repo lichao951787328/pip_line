@@ -10,7 +10,7 @@ set(PYTHON_EXECUTABLE /usr/bin/python3.8)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-add_definitions(-DOURMETHOD)
+# add_definitions(-DOURMETHOD)
 find_package(catkin REQUIRED COMPONENTS
   grid_map_core
   grid_map_msgs
@@ -43,7 +43,19 @@ set(USING_OURMETHOD OFF)
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 # set(PCL_DIR /usr/lib/x86_64-linux-gnu/cmake/pcl)
-find_package(PCL REQUIRED)
+# find_package(PCL REQUIRED)
+set(PCL_DIR "/usr/lib/x86_64-linux-gnu/cmake/pcl/")
+find_package(PCL 1.10 REQUIRED
+  COMPONENTS
+    common
+    # features
+    # filters
+    io
+    # kdtree
+    # segmentation
+    # surface
+)
+find_package(OpenNI REQUIRED)
 find_package(glog REQUIRED)
 find_package(OpenCV REQUIRED)
 set(tinyxml2_DIR /usr/local/lib/cmake/tinyxml2)
@@ -51,6 +63,8 @@ find_package(tinyxml2 REQUIRED)
 find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
 find_package(Python3 COMPONENTS NumPy)
 find_package(PythonLibs REQUIRED)
+
+find_package(Boost REQUIRED COMPONENTS thread system)
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
 ## See http://ros.org/doc/api/catkin/html/user_guide/setup_dot_py.html
@@ -72,8 +86,11 @@ include_directories(
 include
   ${catkin_INCLUDE_DIRS}
   ${PYTHON_INCLUDE_DIRS}
-  ${PCL_INCLUDE_DIRS}
+  # ${PCL_INCLUDE_DIRS}
+  ${PCL_COMMON_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
+  ${Boost_INCLUDE_DIRS}
+  ${OPENNI_INCLUDE_DIRS}
   # ${grid_map_core_INCLUDE_DIRS}
   # ${grid_map_msgs_INCLUDE_DIRS}
   # ${grid_map_ros_INCLUDE_DIRS}
@@ -122,12 +139,33 @@ include
 #   src/various_terrain.cpp
 # )
 
-add_executable(base_class 
+# add_executable(base_class 
+# src/AstarHierarchicalFootstepPlannerBase.cpp
+# src/AstarHierarchicalFootstepPlannerPropose.cpp
+# src/AstarHierarchicalFootstepPlannerTraditional.cpp
+# src/test_planer.cpp
+# src/local_plannerBase.cpp
+# )
+
+# add_executable(various_terrain_planner
+# src/AstarHierarchicalFootstepPlannerBase.cpp
+# src/AstarHierarchicalFootstepPlannerPropose.cpp
+# src/AstarHierarchicalFootstepPlannerTraditional.cpp
+# src/various_terrain_planner.cpp
+# src/local_plannerBase.cpp
+# src/various_terrain_planner_node.cpp
+# )
+add_executable(various_terrain_planner
 src/AstarHierarchicalFootstepPlannerBase.cpp
 src/AstarHierarchicalFootstepPlannerPropose.cpp
 src/AstarHierarchicalFootstepPlannerTraditional.cpp
-src/test_planer.cpp
+src/various_terrain_planner.cpp
 src/local_plannerBase.cpp
+src/various_terrain_planner_node.cpp
+)
+
+add_executable(test_gridmap
+src/test_gridmap.cpp
 )
 # add_executable(test_planner 
 # test/test_footstep_planner/test.cpp
@@ -188,10 +226,26 @@ src/local_plannerBase.cpp
 #   ${OpenCV_LIBRARIES} 
 # )
 
-target_link_libraries(base_class
+# target_link_libraries(base_class
+#   ${catkin_LIBRARIES}
+#   ${PCL_COMMON_LIBRARIES}
+#   ${PCL_IO_LIBRARIES}
+#   glog::glog
+# )
+
+target_link_libraries(various_terrain_planner
   ${catkin_LIBRARIES}
-  ${PCL_LIBRARIES}
+  ${PCL_COMMON_LIBRARIES}
+  ${PCL_IO_LIBRARIES}
+  ${Boost_LIBRARIES}
   glog::glog
+  ${OPENNI_LIBRARIES}
+)
+
+target_link_libraries(test_gridmap
+${PCL_COMMON_LIBRARIES}
+${PCL_IO_LIBRARIES}
+  ${catkin_LIBRARIES}
 )
 
 # target_link_libraries(test_planner

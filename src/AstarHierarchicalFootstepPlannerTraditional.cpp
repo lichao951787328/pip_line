@@ -302,6 +302,9 @@ bool AstarHierarchicalFootstepPlannerTraditional::computeLandInfo(Eigen::Vector3
     vector<Eigen::Vector3d> points;
     if (SqurePoints(top_left.head(2), top_right.head(2), down_left.head(2), down_right.head(2), points))
     {
+#ifdef DEBUG
+        LOG(INFO)<<"points size "<<points.size();
+#endif
         Eigen::Vector3d sum = Eigen::Vector3d::Zero();
         for (auto & point : points)
         {
@@ -335,6 +338,9 @@ bool AstarHierarchicalFootstepPlannerTraditional::computeLandInfo(Eigen::Vector3
             Eigen::Vector3d all_down_right = ax.toRotationMatrix() * Eigen::Vector3d(0, - footparam.y_right, 0) + mid_down;
             if (SqurePoints(all_top_left.head(2), all_top_right.head(2), all_down_left.head(2), all_down_right.head(2), all_points))
             {
+#ifdef DEBUG
+                LOG(INFO)<<"all points size "<<all_points.size();
+#endif
                 for (auto & point : all_points)
                 {
                     double dis = (point - center).dot(plane_normal);
@@ -347,7 +353,9 @@ bool AstarHierarchicalFootstepPlannerTraditional::computeLandInfo(Eigen::Vector3
                         above_points++;
                     }
                 }
-
+#ifdef DEBUG
+                LOG(INFO)<<"max_size: "<<max_size<<" above_points: "<<above_points;
+#endif
                 if (above_points > 8)
                 {
                     // 结束计时
@@ -358,7 +366,7 @@ bool AstarHierarchicalFootstepPlannerTraditional::computeLandInfo(Eigen::Vector3
 #endif
                     return false;
                 }
-                if (max_size < (0.16/(0.11+0.15))* footsize_inmap)
+                if (max_size < 0.5* footsize_inmap)
                 {
                     auto end = std::chrono::high_resolution_clock::now();
                     total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
@@ -373,7 +381,9 @@ bool AstarHierarchicalFootstepPlannerTraditional::computeLandInfo(Eigen::Vector3
                 roll = eular(2);
                 double d = -center.dot(plane_normal);
                 step_height = (-d - ankle.head(2).dot(plane_normal.head(2)))/plane_normal(2);
-
+#ifdef DEBUG
+                LOG(INFO)<<"checkXupper: "<<checkXupper<<" checkXButton: "<<checkXButton;
+#endif
                 // 考虑到实际平面的边角可能存在平面检测与判断是否位于同一平面的差异，所以确定平面编号的矩形比判断共面的矩形区域要小一些
                 Eigen::Vector3d mid_top_image = ax.toRotationMatrix() * Eigen::Vector3d(checkXupper - 0.05, 0, 0) + mid;
                 Eigen::Vector3d mid_down_image = ax.toRotationMatrix() * Eigen::Vector3d(- (checkXButton - 0.05), 0, 0) + mid;
@@ -381,12 +391,26 @@ bool AstarHierarchicalFootstepPlannerTraditional::computeLandInfo(Eigen::Vector3
                 Eigen::Vector3d top_right_image = ax.toRotationMatrix() * Eigen::Vector3d(0, - (footparam.y_right - 0.05), 0) + mid_top_image;
                 Eigen::Vector3d down_left_image = ax.toRotationMatrix() * Eigen::Vector3d(0, footparam.y_left - 0.05, 0) + mid_down_image;
                 Eigen::Vector3d down_right_image = ax.toRotationMatrix() * Eigen::Vector3d(0, - (footparam.y_right - 0.05), 0) + mid_down_image;
+#ifdef DEBUG
+                LOG(INFO)<<"mid_top_image: "<<mid_top_image.transpose();
+                LOG(INFO)<<"mid_down_image: "<<mid_top_image.transpose();
+                LOG(INFO)<<"top_left_image: "<<top_left_image.transpose();
+                LOG(INFO)<<"top_right_image: "<<top_right_image.transpose();
+                LOG(INFO)<<"down_left_image: "<<down_left_image.transpose();
+                LOG(INFO)<<"down_right_image: "<<down_right_image.transpose();
+#endif
                 vector<cv::Point> rectPoints;
                 grid_map::Index top_left_index, top_right_index, down_left_index, down_right_index;
                 label_localmap.getIndex(top_left_image.head(2), top_left_index);
                 label_localmap.getIndex(top_right_image.head(2), top_right_index);
                 label_localmap.getIndex(down_right_image.head(2), down_right_index);
                 label_localmap.getIndex(down_left_image.head(2), down_left_index);
+#ifdef DEBUG
+                LOG(INFO)<<"top_left_index: "<<top_left_index.transpose();
+                LOG(INFO)<<"top_right_index: "<<top_right_index.transpose();
+                LOG(INFO)<<"down_left_index: "<<down_left_index.transpose();
+                LOG(INFO)<<"down_right_index: "<<down_right_index.transpose();
+#endif
                 rectPoints.emplace_back(cv::Point(top_left_index.y(), top_left_index.x()));
                 rectPoints.emplace_back(cv::Point(top_right_index.y(), top_right_index.x()));
                 rectPoints.emplace_back(cv::Point(down_right_index.y(), down_right_index.x()));
@@ -397,17 +421,30 @@ bool AstarHierarchicalFootstepPlannerTraditional::computeLandInfo(Eigen::Vector3
                 int numPoints = rectPoints.size();
                 cv::polylines(simage, &pts, &numPoints, 1, true, 255, 2);
                 cv::fillPoly(simage, std::vector<std::vector<cv::Point>>{rectPoints}, 255);
+#ifdef DEBUG
+                cv::imshow("simage", simage);
+                cv::waitKey(0);
+                LOG(INFO) << "show image: ";
+#endif
                 plane_index = -1;
                 for (int i = 0; i < plane_images.size(); i++)
                 {
                     cv::Mat intersection;
                     cv::bitwise_and(plane_images.at(i), simage, intersection);
+#ifdef DEBUG
+                    cv::imshow("intersection", intersection);
+                    cv::waitKey(0);
+                    LOG(INFO) << "show image: ";
+#endif
                     if (cv::countNonZero(simage & (~intersection)) == 0)
                     {
                         plane_index = i;
                         break;
                     }
                 }
+#ifdef DEBUG
+                LOG(INFO)<<"plane index: "<<plane_index;
+#endif
                 if (plane_index == -1)
                 {
                     return false;
@@ -415,6 +452,9 @@ bool AstarHierarchicalFootstepPlannerTraditional::computeLandInfo(Eigen::Vector3
                 // 结束计时
                 auto end = std::chrono::high_resolution_clock::now();
                 total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
+#ifdef DEBUG
+                LOG(INFO)<<"return ";
+#endif
                 return true;
             }
             else
@@ -632,6 +672,7 @@ bool AstarHierarchicalFootstepPlannerTraditional::checkFeasibleGoal(Eigen::Vecto
         }
         if (opt_plane_index == -1)
         {
+            LOG(INFO)<<"No Feasible Left Foot";
             return false;
         }
         
@@ -662,6 +703,7 @@ bool AstarHierarchicalFootstepPlannerTraditional::checkFeasibleGoal(Eigen::Vecto
         }
         if (opt_plane_index == -1)
         {
+            LOG(INFO)<<"No Feasible Transition";
             return false;
         }
 #ifdef DEBUG
@@ -679,6 +721,10 @@ bool AstarHierarchicalFootstepPlannerTraditional::checkFeasibleGoal(Eigen::Vecto
 
 bool AstarHierarchicalFootstepPlannerTraditional::SqurePoints(Eigen::Vector2d TL, Eigen::Vector2d TR, Eigen::Vector2d BL, Eigen::Vector2d BR, vector<Eigen::Vector3d> & points)
 {
+#ifdef DEBUG
+    LOG(INFO)<<"SqurePoints: "<<TL.transpose()<<" "<<TR.transpose()<<" "<<BL.transpose()<<" "<<BR.transpose();
+    LOG(INFO)<<label_localmap.getLength().transpose()<<" "<<label_localmap.getSize().transpose();
+#endif
     if (label_localmap.isInside(TL) && label_localmap.isInside(TR) && label_localmap.isInside(BL) && label_localmap.isInside(BR))
     {
         grid_map::LineIterator iterator_start(label_localmap, BR, BL);
@@ -704,10 +750,16 @@ bool AstarHierarchicalFootstepPlannerTraditional::SqurePoints(Eigen::Vector2d TL
                 }
             }
         }
+#ifdef DEBUG
+        LOG(INFO)<<"SqurePoints: "<<points.size();
+#endif
         return true;
     }
     else
     {
+#ifdef DEBUG
+        LOG(INFO)<<"SqurePoints: one or more points not in map";
+#endif
         return false;
     }
 }

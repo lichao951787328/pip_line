@@ -21,7 +21,17 @@ localPlannerBase::localPlannerBase(std::shared_ptr<AstarHierarchicalFootstepPlan
     LOG(INFO)<<"package path is: "<<package_path;
     pd.initial(package_path + "/config/plane_fitter_pcd.ini");
 }
+localPlannerBase::localPlannerBase()
+{
+    initial_package_path("pip_line", package_path);
+    LOG(INFO)<<"package path is: "<<package_path;
+    pd.initial(package_path + "/config/plane_fitter_pcd.ini");
+}
 
+void localPlannerBase::setPlanner(std::shared_ptr<AstarHierarchicalFootstepPlannerBase> a)
+{
+    planner_P = std::move(a);
+}
 void localPlannerBase::setFootParam(FootParam & foot_param_)
 {
     foot_param = foot_param_;
@@ -69,7 +79,7 @@ void localPlannerBase::Inpaint(int radius)
 
 void localPlannerBase::detectionPlane()
 {
-    pcl::PointCloud<pcl::PointXYZ> org_pc = gridMap2PointcloudOrganized(map);
+    pcl::PointCloud<pcl::PointXYZ> org_pc = gridMap2PointcloudOrganized();
     pd.detect(org_pc);
     LOG(INFO)<<"PLANE SIZE: "<< pd.planes.size();
     vector<ahc::PlaneSeg::Stats> statses(pd.planes.size());
@@ -158,7 +168,9 @@ void localPlannerBase::mergePlanes()
     };
 
     Graph g;
+#ifdef DEBUG
     LOG(INFO)<<planes_info.size();
+#endif
     for (int i = 0; i < planes_info.size(); i++)
     {
         for (int j = 0; j < planes_info.size(); j++)
@@ -218,7 +230,13 @@ void localPlannerBase::mergePlanes()
         cv::inRange(image, cv::Scalar(255, 255, 255), cv::Scalar(255, 255, 255), mask);
         seg_image.setTo(colors[i % colors.size()], mask);
     }
-
+    LOG(INFO)<<"merge planes: "<<merge_results.size();
+    for (auto & merge_image : merge_results)
+    {
+        cv::imshow("merge_image", merge_image);
+        cv::waitKey(0);
+    }
+    
     map.add("label");
     cv::Mat plane_image = cv::Mat::zeros(map.getSize().x(), map.getSize().y(), CV_8UC3);
     for (int i = 0; i < map.getSize().x(); i++)
@@ -365,14 +383,20 @@ void localPlannerBase::mapPrepare(grid_map::GridMap & map_)
     detectionPlane();
     mergePlanes();
 #ifdef DEBUG
-    cv::imshow("seg_image", seg_image);
-    cv::waitKey(0);
-    for (auto & single_image : merge_results)
+    for (auto & l : map.getLayers())
     {
-        cv::imshow("merge_image", single_image);
-        cv::waitKey(0);
+        LOG(INFO)<<l;
     }
 #endif
+// #ifdef DEBUG
+//     cv::imshow("seg_image", seg_image);
+//     cv::waitKey(0);
+//     for (auto & single_image : merge_results)
+//     {
+//         cv::imshow("merge_image", single_image);
+//         cv::waitKey(0);
+//     }
+// #endif
     planner_P->setBasicInfor(map, seg_image, merge_results, merge_planes, foot_param, hip_width);
     // constructFeasibleMap();
 }
@@ -413,7 +437,9 @@ void localPlannerBase::plan()
 {
     if (planner_P->initial(start, pre_start, support_flag, goal))
     {
+#ifdef DEBUG
         LOG(INFO)<<"set start and goal";
+#endif
         if (planner_P->plan())
         {
             // 记录结束时间
@@ -447,7 +473,8 @@ void localPlannerBase::plan()
     }
 
 }
-pcl::PointCloud<pcl::PointXYZ> localPlannerBase::gridMap2PointcloudOrganized(grid_map::GridMap & map)
+
+pcl::PointCloud<pcl::PointXYZ> localPlannerBase::gridMap2PointcloudOrganized()
 {
     pcl::PointCloud<pcl::PointXYZ> pc;
     for (int i = 0; i < map.getSize().x(); i++)

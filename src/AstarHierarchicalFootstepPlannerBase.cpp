@@ -8,6 +8,7 @@
 // #include <grid_map_core/iterators/LineIterator.hpp>
 #include <grid_map_core/iterators/CircleIterator.hpp>
 #include <chrono>
+#include <boost/thread.hpp>
 // 这个构造函数，有问题，暂时不要使用
 // AstarHierarchicalFootstepPlannerBase::AstarHierarchicalFootstepPlannerBase(grid_map::GridMap & lm, FootParam footparam_, double hip_width_)
 // {
@@ -209,7 +210,10 @@ bool AstarHierarchicalFootstepPlannerBase::initial(Eigen::Vector3d start, Eigen:
         LOG(ERROR)<<"EEROR GOAL";
         return false;
     }
+#ifdef DEBUG
     LOG(INFO)<<"GOAL FINISH";
+#endif
+    
 #ifdef DEBUG
     // if (!outfile.is_open()) 
     // {
@@ -323,6 +327,9 @@ bool AstarHierarchicalFootstepPlannerBase::computeTransitionScore(std::pair<Eige
 #endif
         return false;
     }
+#ifdef DEBUG
+    LOG(INFO)<<"XXXX";
+#endif
     // int judge_num = max(area_num, footsize_inmap);
     // 判断是否是危险的
     // 超出点为15-30， 支撑小于。 则认为是危险的，需要微调，这样才能满足落脚需求
@@ -416,6 +423,9 @@ bool AstarHierarchicalFootstepPlannerBase::computeLandPointScore(std::pair<Eigen
 #endif
         return false;
     }
+#ifdef DEBUG
+    LOG(INFO)<<"...";
+#endif
     if (above_points > 0)
     {
         return false;
@@ -435,7 +445,7 @@ bool AstarHierarchicalFootstepPlannerBase::computeLandPointScore(std::pair<Eigen
     return true;
 }
 
-
+// 注意这个的原理，图像中的已有数据的点不能与机器人躯干发生碰撞，至于投影地图外的暂不考虑，因为很难把这种情况考虑进去
 bool AstarHierarchicalFootstepPlannerBase::traversibilityCheck(ScoreMarkerNodePtr node)
 {
     
@@ -445,20 +455,19 @@ bool AstarHierarchicalFootstepPlannerBase::traversibilityCheck(ScoreMarkerNodePt
         return false;
     }
 
-    grid_map::Position start_position, end_position;
-    label_localmap.getPosition(grid_map::Index(0, 0), start_position);
-    label_localmap.getPosition(grid_map::Index(label_localmap.getSize().x() - 1, label_localmap.getSize().y() - 1), end_position);
-
+    // grid_map::Position start_position, end_position;
+    // label_localmap.getPosition(grid_map::Index(0, 0), start_position);
+    // label_localmap.getPosition(grid_map::Index(label_localmap.getSize().x() - 1, label_localmap.getSize().y() - 1), end_position);
     double knee_radius = 0.2;
     double upperbody_radius = 0.5;
-    if (position.x() - upperbody_radius < end_position.x() || position.x() + upperbody_radius > start_position.x())
-    {
-        return false;
-    }
-    if (position.y() - upperbody_radius < end_position.y() || position.y() - upperbody_radius > start_position.y())
-    {
-        return false;
-    }
+    // if (position.x() - upperbody_radius < end_position.x() || position.x() + upperbody_radius > start_position.x())
+    // {
+    //     return false;
+    // }
+    // if (position.y() - upperbody_radius < end_position.y() || position.y() - upperbody_radius > start_position.y())
+    // {
+    //     return false;
+    // }
     Eigen::Vector3d normal(planes_info.at(node->plane_index).normal.x(), planes_info.at(node->plane_index).normal.y(), planes_info.at(node->plane_index).normal.z());
     Eigen::Vector3d center(planes_info.at(node->plane_index).center.x(), planes_info.at(node->plane_index).center.y(), planes_info.at(node->plane_index).center.z());
     for (grid_map::CircleIterator iterator(label_localmap, position, knee_radius); !iterator.isPastEnd(); ++iterator)
@@ -1127,7 +1136,13 @@ cv::Point AstarHierarchicalFootstepPlannerBase::calculateEndPoint(cv::Point star
 
 bool AstarHierarchicalFootstepPlannerBase::plan()
 {
-    // LOG(INFO)<<"ENTER PLAN";
+    LOG(INFO)<<"ENTER PLAN";
+#ifdef DEBUG
+    LOG(INFO)<<start_p->footstep.x<<" "<<start_p->footstep.y<<" "<<start_p->footstep.z<<" "<<start_p->footstep.roll<<" "<<start_p->footstep.pitch<<" "<<start_p->footstep.yaw;
+    LOG(INFO)<<prestart_p->footstep.x<<" "<<prestart_p->footstep.y<<" "<<prestart_p->footstep.z<<" "<<prestart_p->footstep.roll<<" "<<prestart_p->footstep.pitch<<" "<<prestart_p->footstep.yaw;
+    LOG(INFO)<<end_left_p->footstep.x<<" "<<end_left_p->footstep.y<<" "<<end_left_p->footstep.z<<" "<<end_left_p->footstep.roll<<" "<<end_left_p->footstep.pitch<<" "<<end_left_p->footstep.yaw;
+    LOG(INFO)<<end_right_p->footstep.x<<" "<<end_right_p->footstep.y<<" "<<end_right_p->footstep.z<<" "<<end_right_p->footstep.roll<<" "<<end_right_p->footstep.pitch<<" "<<end_right_p->footstep.yaw;
+#endif
     p_queue.push(start_p);
     while (!p_queue.empty())
     {
@@ -1240,6 +1255,9 @@ bool AstarHierarchicalFootstepPlannerBase::plan()
                 // cout<<"..."<<endl;
                 cv::waitKey(0);
 #endif
+#ifdef DEBUG
+                LOG(INFO) << "child_nodes.size() = " << child_nodes.size() << endl;
+#endif
                 for (auto & p_node : child_nodes)
                 {
                     string s_tmp;
@@ -1253,8 +1271,17 @@ bool AstarHierarchicalFootstepPlannerBase::plan()
                     }
                 }
             }
+            else
+            {
+                LOG(INFO) << "No node to expand";
+            }
         }
+    
+        // 插入中断点，用于检查程序是否超时
+        boost::this_thread::interruption_point();
     }
+    LOG(INFO) << "planning error";
+    return false;
 }
 
 // 检查文件是否存在
@@ -1294,7 +1321,9 @@ bool AstarHierarchicalFootstepPlannerBase::getFootsteps(FootstepNodePtr node)
     auto iter_P = node;
     while (iter_P)
     {
+#ifdef DEBUG
         LOG(INFO)<<iter_P->footstep.x<<" "<<iter_P->footstep.y<<" "<<iter_P->footstep.z<<" "<<iter_P->footstep.roll<<" "<<iter_P->footstep.pitch<<" "<<iter_P->footstep.yaw<<" "<<iter_P->footstep.robot_side;
+#endif
         Footstep foot_step = iter_P->footstep;
         steps.emplace_back(foot_step);
         if (iter_P == start_p)
@@ -1318,7 +1347,9 @@ bool AstarHierarchicalFootstepPlannerBase::getFootsteps(FootstepNodePtr node)
             Footstep step;
             if (repairStanceStep(steps.back(), step))
             {
+#ifdef DEBUG
                 LOG(INFO)<<step.x<<" "<<step.y<<" "<<step.z<<" "<<step.roll<<" "<<step.pitch<<" "<<step.yaw<<" "<<step.robot_side;
+#endif
                 steps.emplace_back(step);
                 // 这是修正的量，需要删除
                 // steps.at(steps.size() - 2).z += 0.01;
@@ -1385,6 +1416,9 @@ bool AstarHierarchicalFootstepPlannerBase::repairStanceStep(Footstep current_ste
     {
         return false;
     }
+#ifdef DEBUG
+    LOG(INFO)<<".....";
+#endif
     if (above_points == 0)
     {
         footstep = Footstep(repair, height, roll, pitch, current_step.getInverseRobotSide());

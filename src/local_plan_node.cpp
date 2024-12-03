@@ -82,6 +82,7 @@ void localPlanNode::mapCallback(const grid_map_msgs::GridMap::ConstPtr& msg)
     std::reverse(path_localmap.begin(), path_localmap.end());
     for (auto & point : path_localmap)
     {
+        // 必须满足在其0.5半径内的圆内，
         if (map.isInside(grid_map::Position(point.getOrigin().x(), point.getOrigin().y())))
         {
             // 考虑到高程图总是在x-y平面上的，所以将终点的方向定义为3d方向在x-y投影的yaw角
