@@ -64,7 +64,7 @@ bool AstarHierarchicalFootstepPlannerPropose::getPointsInFootArea(Eigen::Vector3
     Eigen::Vector3d mid(ankle.x(), ankle.y(), 0);
 
     Eigen::Vector3d fore_top = ax.toRotationMatrix() * Eigen::Vector3d(footparam.x_upper, 0, 0) + mid;
-    Eigen::Vector3d fore_button = ax.toRotationMatrix() * Eigen::Vector3d(- footparam.x_fore_button, 0, 0) + mid;
+    Eigen::Vector3d fore_button = ax.toRotationMatrix() * Eigen::Vector3d(footparam.x_fore_button, 0, 0) + mid;
 
     Eigen::Vector3d hind_top = ax.toRotationMatrix() * Eigen::Vector3d(- footparam.x_hind_top, 0, 0) + mid;
     Eigen::Vector3d hind_button = ax.toRotationMatrix() * Eigen::Vector3d(- footparam.x_button, 0, 0) + mid;
@@ -129,55 +129,50 @@ bool AstarHierarchicalFootstepPlannerPropose::getPointsInFootArea(Eigen::Vector3
     }
 }
 
-void AstarHierarchicalFootstepPlannerPropose::getSquareHistogramVoting(Eigen::Vector2d TL, Eigen::Vector2d TR, Eigen::Vector2d BL, Eigen::Vector2d BR, HistogramVoting & HV)
+bool AstarHierarchicalFootstepPlannerPropose::getSquareHistogramVoting(Eigen::Vector2d TL, Eigen::Vector2d TR, Eigen::Vector2d BL, Eigen::Vector2d BR, HistogramVoting & HV)
 {
-    grid_map::LineIterator iterator_start(label_localmap, BR, BL);
-    grid_map::LineIterator iterator_end(label_localmap, TR, TL);
-    for (; !iterator_start.isPastEnd()&&!iterator_end.isPastEnd(); ++iterator_start, ++iterator_end)
+    // 换成使用图像来确定区域
+    if(label_localmap.isInside(TL) && label_localmap.isInside(TR) && label_localmap.isInside(BL) && label_localmap.isInside(BR))
     {
-        grid_map::Index start_index(*iterator_start);
-        grid_map::Index end_index(*iterator_end);
-        for (grid_map::LineIterator iterator_l(label_localmap, start_index, end_index); !iterator_l.isPastEnd(); ++iterator_l)
+        grid_map::Index top_left_index, top_right_index, down_right_index, down_left_index;
+        label_localmap.getIndex(TL, top_left_index);
+        label_localmap.getIndex(TR, top_right_index);
+        label_localmap.getIndex(BL, down_left_index);
+        label_localmap.getIndex(BR, down_right_index);
+        vector<cv::Point> rectPoints;
+        rectPoints.emplace_back(cv::Point(top_left_index.y(), top_left_index.x()));
+        rectPoints.emplace_back(cv::Point(top_right_index.y(), top_right_index.x()));
+        rectPoints.emplace_back(cv::Point(down_right_index.y(), down_right_index.x()));
+        rectPoints.emplace_back(cv::Point(down_left_index.y(), down_left_index.x()));
+        cv::Mat simage = cv::Mat::zeros(label_localmap.getSize().x(), label_localmap.getSize().y(), CV_8UC1);
+        const cv::Point* pts = rectPoints.data(); // 获取顶点数组指针
+        int numPoints = rectPoints.size();
+        cv::polylines(simage, &pts, &numPoints, 1, true, 255, 2);
+        cv::fillPoly(simage, std::vector<std::vector<cv::Point>>{rectPoints}, 255);
+        std::vector<cv::Point> whitePixels;
+        cv::findNonZero(simage, whitePixels);
+        for (auto & p : whitePixels)
         {
-            const grid_map::Index index_l(*iterator_l);
-            grid_map::Position3 cor_position;
-            if (label_localmap.getPosition3("elevation", index_l, cor_position))
+            grid_map::Index index(p.y, p.x);
+            grid_map::Position3 position;
+            if (label_localmap.getPosition3("label", index, position))
             {
-                if (!std::isnan(cor_position.z()))
-                {
-#ifdef DEBUG
-                    // LOG(INFO)<<label_localmap["label"](index_l.x(), index_l.y());
-#endif
-                    if (!std::isnan(label_localmap["label"](index_l.x(), index_l.y())))
-                    {
-                        int label_index = static_cast<int>(label_localmap["label"](index_l.x(), index_l.y()));
-                        HV.add(label_index, cor_position);
-                    }
-                    else
-                    {
-                        HV.addNANPoints();// 编号是nan
-#ifdef DEBUG
-                        LOG(INFO)<<"nan";
-#endif
-                    }
-                }
-                else
-                {
-                    HV.addNANPoints(); // 点是nan
-#ifdef DEBUG
-                    LOG(INFO)<<"cor nan";
-#endif
-                }
+                int label_index = static_cast<int>(label_localmap["label"](index.x(), index.y()));
+                HV.add(label_index, position);
             }
             else
             {
-                HV.addNANPoints(); // 不能得到此栅格处的点
+                HV.addNANPoints();// 编号是nan
 #ifdef DEBUG
-                LOG(INFO)<<"can not get cor";
+                LOG(INFO)<<"nan";
 #endif
             }
-
         }
+        return true;
+    }
+    else
+    {
+        return false;
     }
 }
 
@@ -416,14 +411,14 @@ bool AstarHierarchicalFootstepPlannerPropose::computeLandInfo(Eigen::Vector3d an
     }
     
 #endif
-
         vector<std::pair<int, int>> candidate_support_planes;
-        int thred = 0.25 * footsize_inmap;
+        int thred = (std::floor((footparam.y_left + footparam.y_right)/resolution)) * (std::ceil(0.02/resolution));
         double max_height = -std::numeric_limits<double>::infinity();
         int fore_support_plane = -1;
         int fore_max_size = 0;
         for (auto & bin1 : fore_foot_HV.counter)
         {
+            // LOG(INFO)<<bin1.second<<" "<<thred;
             if (bin1.second > thred)
             {
                 double temp_height = planes_info.at(bin1.first).getZ(fore_mid.head(2));
@@ -441,6 +436,7 @@ bool AstarHierarchicalFootstepPlannerPropose::computeLandInfo(Eigen::Vector3d an
 #ifdef  DEBUG
             LOG(INFO)<<"can not get fore support plane";
 #endif
+// LOG(INFO)<<"can not get fore support plane";
             // clock_t end = clock();
             // total_time += double(end - start) / CLOCKS_PER_SEC * 1000;
             auto end = std::chrono::high_resolution_clock::now();
@@ -478,6 +474,7 @@ bool AstarHierarchicalFootstepPlannerPropose::computeLandInfo(Eigen::Vector3d an
 #ifdef  DEBUG
             LOG(INFO)<<"can not get hind support plane";
 #endif
+// LOG(INFO)<<"can not get hind support plane";
             auto end = std::chrono::high_resolution_clock::now();
             total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
             return false;
@@ -514,11 +511,12 @@ bool AstarHierarchicalFootstepPlannerPropose::computeLandInfo(Eigen::Vector3d an
                         above_points ++;
                     }
                 }
-                if (above_points > 8)
+                if (above_points > 0)
                 {
 #ifdef DEBUG
                     LOG(INFO)<<"too much above points"<<above_points;
 #endif
+// LOG(INFO)<<"too much above points"<<above_points;
                     auto end = std::chrono::high_resolution_clock::now();
                     total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
                     return false;
@@ -535,6 +533,7 @@ bool AstarHierarchicalFootstepPlannerPropose::computeLandInfo(Eigen::Vector3d an
 #ifdef DEBUG
                 LOG(INFO)<<"can not get all points";
 #endif
+// LOG(INFO)<<"can not get all points";
                 auto end = std::chrono::high_resolution_clock::now();
                 total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
                 return false;
@@ -546,6 +545,7 @@ bool AstarHierarchicalFootstepPlannerPropose::computeLandInfo(Eigen::Vector3d an
 #ifdef DEBUG
             LOG(INFO)<<"can not get support plane";
 #endif
+// LOG(INFO)<<"can not get support plane";
             auto end = std::chrono::high_resolution_clock::now();
             total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
             return false;
@@ -556,6 +556,7 @@ bool AstarHierarchicalFootstepPlannerPropose::computeLandInfo(Eigen::Vector3d an
 #ifdef DEBUG
         LOG(ERROR)<<"can not get area";
 #endif
+// LOG(ERROR)<<"can not get area";
         auto end = std::chrono::high_resolution_clock::now();
         total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
         return false;
@@ -710,8 +711,8 @@ bool AstarHierarchicalFootstepPlannerPropose::checkFeasibleGoal(Eigen::Vector3d 
     left_goal.z() = goal.z();
     right_goal.head(2) = (ad.toRotationMatrix() * right_offset + Eigen::Vector3d(goal.x(), goal.y(), 0)).head(2);
     right_goal.z() = goal.z();
-    LOG(INFO)<<"left_goal: "<<left_goal.transpose();
-    LOG(INFO)<<"right_goal: "<<right_goal.transpose();
+    // LOG(INFO)<<"left_goal: "<<left_goal.transpose();
+    // LOG(INFO)<<"right_goal: "<<right_goal.transpose();
 #ifdef DEBUG
     LOG(INFO)<<"left_goal: "<<left_goal.transpose();
     LOG(INFO)<<"right_goal: "<<right_goal.transpose();

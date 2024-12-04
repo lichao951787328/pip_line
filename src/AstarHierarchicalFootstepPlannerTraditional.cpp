@@ -41,7 +41,7 @@ bool AstarHierarchicalFootstepPlannerTraditional::isStartFeasible(Eigen::Vector3
             double left_roll, right_roll, left_pitch, right_pitch;
             if (computeLandInfo(left_foot_tmp, max_size_left, above_points_left, left_plane_normal, left_step_height, left_plane_index, left_pitch, left_roll) && computeLandInfo(right_foot_tmp, max_size_right, above_points_right, right_plane_normal, right_step_height, right_plane_index, right_pitch, right_roll))
             {
-                if (max_size_left < 0.65 * footsize_inmap || max_size_right < 0.65 * footsize_inmap)
+                if (max_size_left < 0.5 * footsize_inmap || max_size_right < 0.5 * footsize_inmap)
                 {
 #ifdef DEBUG
                     LOG(INFO)<<" is too small";
@@ -421,21 +421,21 @@ bool AstarHierarchicalFootstepPlannerTraditional::computeLandInfo(Eigen::Vector3
                 int numPoints = rectPoints.size();
                 cv::polylines(simage, &pts, &numPoints, 1, true, 255, 2);
                 cv::fillPoly(simage, std::vector<std::vector<cv::Point>>{rectPoints}, 255);
-#ifdef DEBUG
-                cv::imshow("simage", simage);
-                cv::waitKey(0);
-                LOG(INFO) << "show image: ";
-#endif
+// #ifdef DEBUG
+//                 cv::imshow("simage", simage);
+//                 cv::waitKey(0);
+//                 LOG(INFO) << "show image: ";
+// #endif
                 plane_index = -1;
                 for (int i = 0; i < plane_images.size(); i++)
                 {
                     cv::Mat intersection;
                     cv::bitwise_and(plane_images.at(i), simage, intersection);
-#ifdef DEBUG
-                    cv::imshow("intersection", intersection);
-                    cv::waitKey(0);
-                    LOG(INFO) << "show image: ";
-#endif
+// #ifdef DEBUG
+//                     cv::imshow("intersection", intersection);
+//                     cv::waitKey(0);
+//                     LOG(INFO) << "show image: ";
+// #endif
                     if (cv::countNonZero(simage & (~intersection)) == 0)
                     {
                         plane_index = i;
@@ -512,6 +512,7 @@ bool AstarHierarchicalFootstepPlannerTraditional::computerLeftRightGoal(Eigen::V
         double opt_height = -std::numeric_limits<double>::infinity();
         double opt_pitch = -std::numeric_limits<double>::infinity();
         double opt_roll = -std::numeric_limits<double>::infinity();
+        int opt_plane_index = -1;
         Eigen::Vector3d left_opt;
         for (auto & cand : left_cands)
         {
@@ -531,10 +532,11 @@ bool AstarHierarchicalFootstepPlannerTraditional::computerLeftRightGoal(Eigen::V
                     opt_height = height;
                     opt_pitch = pitch;
                     opt_roll = roll; 
+                    opt_plane_index = plane_index;
                 }
             }
         }
-        if (opt_height != -std::numeric_limits<double>::infinity())
+        if (opt_plane_index != -1)
         {
             end_left_p = std::make_shared<FootstepNode>(left_opt, opt_height, opt_roll, opt_pitch, 0);
         }
@@ -542,7 +544,7 @@ bool AstarHierarchicalFootstepPlannerTraditional::computerLeftRightGoal(Eigen::V
         {
             return false;
         }
-        
+        opt_plane_index = -1;
         score = - std::numeric_limits<double>::infinity();
         opt_height = -std::numeric_limits<double>::infinity();
         opt_pitch = -std::numeric_limits<double>::infinity();
@@ -566,10 +568,11 @@ bool AstarHierarchicalFootstepPlannerTraditional::computerLeftRightGoal(Eigen::V
                     opt_height = height;
                     opt_pitch = pitch;
                     opt_roll = roll; 
+                    opt_plane_index = plane_index;
                 }
             }
         }
-        if (opt_height != -std::numeric_limits<double>::infinity())
+        if (opt_plane_index != -1)
         {
             end_right_p = std::make_shared<FootstepNode>(right_opt, opt_height, opt_roll, opt_pitch, 1);
         }
@@ -633,8 +636,8 @@ bool AstarHierarchicalFootstepPlannerTraditional::checkFeasibleGoal(Eigen::Vecto
     left_goal.z() = goal.z();
     right_goal.head(2) = (ad.toRotationMatrix() * right_offset + Eigen::Vector3d(goal.x(), goal.y(), 0)).head(2);
     right_goal.z() = goal.z();
-    LOG(INFO)<<"left_goal: "<<left_goal.transpose();
-    LOG(INFO)<<"right_goal: "<<right_goal.transpose();
+    // LOG(INFO)<<"left_goal: "<<left_goal.transpose();
+    // LOG(INFO)<<"right_goal: "<<right_goal.transpose();
 #ifdef DEBUG
     LOG(INFO)<<"left_goal: "<<left_goal.transpose();
     LOG(INFO)<<"right_goal: "<<right_goal.transpose();
@@ -645,12 +648,14 @@ bool AstarHierarchicalFootstepPlannerTraditional::checkFeasibleGoal(Eigen::Vecto
         vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> left_cands = fineLandPoint(left_goal);
         vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> right_cands = fineLandPoint(right_goal);
         double score = - std::numeric_limits<double>::infinity();
-        double opt_height, opt_pitch, opt_roll;
+        double opt_height = -std::numeric_limits<double>::infinity();
+        double opt_pitch = -std::numeric_limits<double>::infinity();
+        double opt_roll = -std::numeric_limits<double>::infinity();
         int opt_plane_index = -1;
         Eigen::Vector3d left_opt;
         for (auto & cand : left_cands)
         {
-            double tmpscore;
+            double tmpscore  = -std::numeric_limits<double>::infinity();
             int plane_index = -1;
             double height = -std::numeric_limits<double>::infinity();
             double pitch = std::numeric_limits<double>::infinity();
@@ -672,12 +677,17 @@ bool AstarHierarchicalFootstepPlannerTraditional::checkFeasibleGoal(Eigen::Vecto
         }
         if (opt_plane_index == -1)
         {
+#ifdef DEBUG
             LOG(INFO)<<"No Feasible Left Foot";
+#endif
             return false;
         }
         
         opt_plane_index = -1;
         score = - std::numeric_limits<double>::infinity();
+        opt_height = -std::numeric_limits<double>::infinity();
+        opt_pitch = -std::numeric_limits<double>::infinity();
+        opt_roll = -std::numeric_limits<double>::infinity();
         Eigen::Vector3d right_opt;
         for (auto & cand : right_cands)
         {
@@ -703,7 +713,9 @@ bool AstarHierarchicalFootstepPlannerTraditional::checkFeasibleGoal(Eigen::Vecto
         }
         if (opt_plane_index == -1)
         {
+#ifdef DEBUG
             LOG(INFO)<<"No Feasible Transition";
+#endif
             return false;
         }
 #ifdef DEBUG
@@ -719,50 +731,50 @@ bool AstarHierarchicalFootstepPlannerTraditional::checkFeasibleGoal(Eigen::Vecto
     }
 }
 
-bool AstarHierarchicalFootstepPlannerTraditional::SqurePoints(Eigen::Vector2d TL, Eigen::Vector2d TR, Eigen::Vector2d BL, Eigen::Vector2d BR, vector<Eigen::Vector3d> & points)
-{
-#ifdef DEBUG
-    LOG(INFO)<<"SqurePoints: "<<TL.transpose()<<" "<<TR.transpose()<<" "<<BL.transpose()<<" "<<BR.transpose();
-    LOG(INFO)<<label_localmap.getLength().transpose()<<" "<<label_localmap.getSize().transpose();
-#endif
-    if (label_localmap.isInside(TL) && label_localmap.isInside(TR) && label_localmap.isInside(BL) && label_localmap.isInside(BR))
-    {
-        grid_map::LineIterator iterator_start(label_localmap, BR, BL);
-        grid_map::LineIterator iterator_end(label_localmap, TR, TL);
-        for (; !iterator_start.isPastEnd()&&!iterator_end.isPastEnd(); ++iterator_start, ++iterator_end)
-        {
-            grid_map::Index start_index(*iterator_start);
-            grid_map::Index end_index(*iterator_end);
-            for (grid_map::LineIterator iterator_l(label_localmap, start_index, end_index); !iterator_l.isPastEnd(); ++iterator_l)
-            {
-                const grid_map::Index index_l(*iterator_l);
-                grid_map::Position position_l;
-                if (label_localmap.getPosition(index_l, position_l))
-                {
-                    grid_map::Position3 cor_position;
-                    if (label_localmap.getPosition3("elevation", index_l, cor_position))
-                    {
-                        if (!std::isnan(cor_position.z()))
-                        {
-                            points.emplace_back(cor_position);
-                        }
-                    }
-                }
-            }
-        }
-#ifdef DEBUG
-        LOG(INFO)<<"SqurePoints: "<<points.size();
-#endif
-        return true;
-    }
-    else
-    {
-#ifdef DEBUG
-        LOG(INFO)<<"SqurePoints: one or more points not in map";
-#endif
-        return false;
-    }
-}
+// bool AstarHierarchicalFootstepPlannerTraditional::SqurePoints(Eigen::Vector2d TL, Eigen::Vector2d TR, Eigen::Vector2d BL, Eigen::Vector2d BR, vector<Eigen::Vector3d> & points)
+// {
+// #ifdef DEBUG
+//     LOG(INFO)<<"SqurePoints: "<<TL.transpose()<<" "<<TR.transpose()<<" "<<BL.transpose()<<" "<<BR.transpose();
+//     LOG(INFO)<<label_localmap.getLength().transpose()<<" "<<label_localmap.getSize().transpose();
+// #endif
+//     if (label_localmap.isInside(TL) && label_localmap.isInside(TR) && label_localmap.isInside(BL) && label_localmap.isInside(BR))
+//     {
+//         grid_map::LineIterator iterator_start(label_localmap, BR, BL);
+//         grid_map::LineIterator iterator_end(label_localmap, TR, TL);
+//         for (; !iterator_start.isPastEnd()&&!iterator_end.isPastEnd(); ++iterator_start, ++iterator_end)
+//         {
+//             grid_map::Index start_index(*iterator_start);
+//             grid_map::Index end_index(*iterator_end);
+//             for (grid_map::LineIterator iterator_l(label_localmap, start_index, end_index); !iterator_l.isPastEnd(); ++iterator_l)
+//             {
+//                 const grid_map::Index index_l(*iterator_l);
+//                 grid_map::Position position_l;
+//                 if (label_localmap.getPosition(index_l, position_l))
+//                 {
+//                     grid_map::Position3 cor_position;
+//                     if (label_localmap.getPosition3("elevation", index_l, cor_position))
+//                     {
+//                         if (!std::isnan(cor_position.z()))
+//                         {
+//                             points.emplace_back(cor_position);
+//                         }
+//                     }
+//                 }
+//             }
+//         }
+// #ifdef DEBUG
+//         LOG(INFO)<<"SqurePoints: "<<points.size();
+// #endif
+//         return true;
+//     }
+//     else
+//     {
+// #ifdef DEBUG
+//         LOG(INFO)<<"SqurePoints: one or more points not in map";
+// #endif
+//         return false;
+//     }
+// }
 
 
 AstarHierarchicalFootstepPlannerTraditional::~AstarHierarchicalFootstepPlannerTraditional()

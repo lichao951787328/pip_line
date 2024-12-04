@@ -350,6 +350,7 @@ protected:
     std::priority_queue<FootstepNodePtr, std::vector<FootstepNodePtr>, FootstepNodeCompare> p_queue;
     std::unordered_set<std::string> close_set;
     vector<Footstep> steps;
+    
     // 初始化参数 支撑脚为右脚，扩展参数为左脚
     vector<Eigen::Vector3d> transitions;
     vector<Eigen::Vector3d> combine_transitions;
@@ -404,6 +405,8 @@ public:
     AstarHierarchicalFootstepPlannerBase(grid_map::GridMap & label_map, cv::Mat & plane_iamage_, vector<cv::Mat> & planes_image_, vector<planeInfo> & planes_info_, FootParam footparam_, double hip_width_);
 
     void setBasicInfor(grid_map::GridMap & label_map, cv::Mat & plane_iamage_, vector<cv::Mat> & planes_image_, vector<planeInfo> & planes_info_, FootParam footparam_, double hip_width_);
+
+    string time_consume;
 
     void initial_transitions();
 
@@ -597,7 +600,7 @@ public:
     bool getLandAreaPoints(Eigen::Vector3d ankle, vector<Eigen::Vector3d> & points);
 
 
-
+    bool SqurePoints(Eigen::Vector2d TL, Eigen::Vector2d TR, Eigen::Vector2d BL, Eigen::Vector2d BR, vector<Eigen::Vector3d> & points);
 
     /**
      * @brief 获取在ankle处落脚时，机器人包含几个平面点，及位于此区域所有的点集

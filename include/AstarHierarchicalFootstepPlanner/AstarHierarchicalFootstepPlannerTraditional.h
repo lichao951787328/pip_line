@@ -58,7 +58,7 @@ public:
 
     bool checkFeasibleGoal(Eigen::Vector3d goal) override;
 
-    bool SqurePoints(Eigen::Vector2d TL, Eigen::Vector2d TR, Eigen::Vector2d BL, Eigen::Vector2d BR, vector<Eigen::Vector3d> & points);
+    // bool SqurePoints(Eigen::Vector2d TL, Eigen::Vector2d TR, Eigen::Vector2d BL, Eigen::Vector2d BR, vector<Eigen::Vector3d> & points);
 
     void setCheckParam(double checkXupper_, double checkXButton_);
 

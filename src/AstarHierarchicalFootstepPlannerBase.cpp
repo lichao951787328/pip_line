@@ -120,7 +120,13 @@ void AstarHierarchicalFootstepPlannerBase::initial_transitions()
             }
         }
     } 
+    transitions.emplace_back(Eigen::Vector3d(0.05, 0.22, 0));
+    transitions.emplace_back(Eigen::Vector3d(0.05, 0.25, 0));
+    transitions.emplace_back(Eigen::Vector3d(0.05, 0.28, 0));
 
+    transitions.emplace_back(Eigen::Vector3d(0.0, 0.25, 0));
+    transitions.emplace_back(Eigen::Vector3d(0.0, 0.3, 0));
+    transitions.emplace_back(Eigen::Vector3d(0.0, 0.35, 0));
     for (int i = -1; i < 2; i++)
     {
         for (int j = -2; j < 3; j++)
@@ -241,13 +247,14 @@ bool AstarHierarchicalFootstepPlannerBase::getPointInfoInPlane(Eigen::Vector3d p
         {
             if (above_points == 0)
             {
-                if (max_size > 0.7 * footsize_inmap)
+                if (max_size > 0.35 * footsize_inmap)
                 {
                     return true;
                 }
                 else
                 {
 #ifdef DEBUG
+                    LOG(INFO)<<"max size : "<<max_size<<", 0.5 * footsize_inmap : "<<0.5 * footsize_inmap;
                     LOG(INFO)<<"support error";
 #endif
                     return false;
@@ -588,6 +595,44 @@ Eigen::Vector3d AstarHierarchicalFootstepPlannerBase::Matrix3d2EulerAngles(Eigen
     return Quaterniond2EulerAngles(qd);
 }
 
+bool AstarHierarchicalFootstepPlannerBase::SqurePoints(Eigen::Vector2d TL, Eigen::Vector2d TR, Eigen::Vector2d BL, Eigen::Vector2d BR, vector<Eigen::Vector3d> & points)
+{
+    if(label_localmap.isInside(TL) && label_localmap.isInside(TR) && label_localmap.isInside(BL) && label_localmap.isInside(BR))
+    {
+        grid_map::Index top_left_index, top_right_index, down_right_index, down_left_index;
+        label_localmap.getIndex(TL, top_left_index);
+        label_localmap.getIndex(TR, top_right_index);
+        label_localmap.getIndex(BL, down_left_index);
+        label_localmap.getIndex(BR, down_right_index);
+        vector<cv::Point> rectPoints;
+        rectPoints.emplace_back(cv::Point(top_left_index.y(), top_left_index.x()));
+        rectPoints.emplace_back(cv::Point(top_right_index.y(), top_right_index.x()));
+        rectPoints.emplace_back(cv::Point(down_right_index.y(), down_right_index.x()));
+        rectPoints.emplace_back(cv::Point(down_left_index.y(), down_left_index.x()));
+        cv::Mat simage = cv::Mat::zeros(label_localmap.getSize().x(), label_localmap.getSize().y(), CV_8UC1);
+        const cv::Point* pts = rectPoints.data(); // 获取顶点数组指针
+        int numPoints = rectPoints.size();
+        cv::polylines(simage, &pts, &numPoints, 1, true, 255, 2);
+        cv::fillPoly(simage, std::vector<std::vector<cv::Point>>{rectPoints}, 255);
+        std::vector<cv::Point> whitePixels;
+        cv::findNonZero(simage, whitePixels);
+        for (auto & p : whitePixels)
+        {
+            grid_map::Index index(p.y, p.x);
+            grid_map::Position3 position;
+            if (label_localmap.getPosition3("elevation", index, position))
+            {
+                points.emplace_back(position);
+            }
+        }
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
 
 // 已确定
 // tested
@@ -746,63 +791,8 @@ bool AstarHierarchicalFootstepPlannerBase::getLandAreaPoints(Eigen::Vector3d ank
     grid_map::Position top_right_l(top_right.x(), top_right.y());
     grid_map::Position down_left_l(down_left.x(), down_left.y());
     grid_map::Position down_right_l(down_right.x(), down_right.y());
-    // points_planes.clear();
-    // points_planes.resize(planes);
-    if (label_localmap.isInside(top_left_l) && label_localmap.isInside(top_right_l) && label_localmap.isInside(down_left_l) && label_localmap.isInside(down_right_l))
-    {
-        grid_map::LineIterator iterator_start(label_localmap, down_right_l, down_left_l);
-        grid_map::LineIterator iterator_end(label_localmap, top_right_l, top_left_l);
-        for (; !iterator_start.isPastEnd()&&!iterator_end.isPastEnd(); ++iterator_start, ++iterator_end)
-        {
-            grid_map::Index start_index(*iterator_start);
-            grid_map::Index end_index(*iterator_end);
-            for (grid_map::LineIterator iterator_l(label_localmap, start_index, end_index); !iterator_l.isPastEnd(); ++iterator_l)
-            {
-                const grid_map::Index index_l(*iterator_l);
-                grid_map::Position position_l;
-                if (label_localmap.getPosition(index_l, position_l))
-                {
-                    grid_map::Position3 cor_position;
-                    if (label_localmap.getPosition3("elevation", index_l, cor_position))
-                    {
-                        if (!std::isnan(cor_position.z()))
-                        {
-                            points.emplace_back(cor_position);
-                        }
-                        else
-                        {
-#ifdef DEBUG
-                            LOG(INFO)<<"cor nan";
-#endif
-                        }
-                    }
 
-                    else
-                    {
-#ifdef DEBUG
-                        LOG(INFO)<<"can not get cor";
-#endif
-                    }
-
-                }
-                else
-                {
-#ifdef DEBUG
-                    LOG(INFO)<<"can not get cor2";
-#endif
-                }
-            }
-        }
-        return true;
-    }
-    else
-    {
-#ifdef DEBUG
-        LOG(INFO)<<"out of map";
-#endif
-        return false;
-    }
-    
+    return SqurePoints(top_left_l, top_right_l, down_left_l, down_right_l, points);
 }
 
 vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> AstarHierarchicalFootstepPlannerBase::fineTransitions(Eigen::Vector3d point, FootstepNodePtr current_node)
@@ -1052,7 +1042,7 @@ bool AstarHierarchicalFootstepPlannerBase::computeHcost(FootstepNodePtr node, do
             angle_diff = abs(node->footstep.yaw - end_right_p->footstep.yaw);
         }
         // LOG(INFO)<<dis1<<" "<<dis2<<" "<<angle_diff;
-        hcost = ((dis)*4 + dis_z * 2 + angle_diff * 0.3);
+        hcost = ((dis)*6 + dis_z * 2 + angle_diff * 0.2);
         return true;
     }
     else
@@ -1185,6 +1175,8 @@ bool AstarHierarchicalFootstepPlannerBase::plan()
             if (getFootsteps(current_node))
             {
                 LOG(INFO)<<"times: "<<checktime<<" "<<total_time<<" "<<steps.size();
+                time_consume.clear();   
+                time_consume += "times: " + std::to_string(checktime) + " " + std::to_string(total_time) + " " + std::to_string(steps.size()) + "\n";
                 return true;
             }
             else
@@ -1273,7 +1265,9 @@ bool AstarHierarchicalFootstepPlannerBase::plan()
             }
             else
             {
+#ifdef DEBUG
                 LOG(INFO) << "No node to expand";
+#endif
             }
         }
     
@@ -1368,21 +1362,21 @@ bool AstarHierarchicalFootstepPlannerBase::getFootsteps(FootstepNodePtr node)
                 // }
                 
                 
-                // 保存规划的落脚点，并查看
-                grid_map::Index start_index, pre_start_index;
-                if (localmap.getIndex(Eigen::Vector2d(start_p->footstep.x, start_p->footstep.y), start_index) && localmap.getIndex(Eigen::Vector2d(prestart_p->footstep.x, prestart_p->footstep.y), pre_start_index))
-                {
-                    plane_image.at<cv::Vec3b>(start_index.x(), start_index.y()) = cv::Vec3b(0, 255, 0);
-                    plane_image.at<cv::Vec3b>(pre_start_index.x(), pre_start_index.y()) = cv::Vec3b(0, 255, 0);
-                }
-                for (auto & s : steps)
-                {
-                    grid_map::Index s_index;
-                    if (localmap.getIndex(grid_map::Position(s.x, s.y), s_index))
-                    {
-                        plane_image.at<cv::Vec3b>(s_index.x(), s_index.y()) = cv::Vec3b(0, 0, 255);
-                    }
-                }
+                // 保存规划的落脚点，并查看。
+                // grid_map::Index start_index, pre_start_index;
+                // if (localmap.getIndex(Eigen::Vector2d(start_p->footstep.x, start_p->footstep.y), start_index) && localmap.getIndex(Eigen::Vector2d(prestart_p->footstep.x, prestart_p->footstep.y), pre_start_index))
+                // {
+                //     plane_image.at<cv::Vec3b>(start_index.x(), start_index.y()) = cv::Vec3b(0, 255, 0);
+                //     plane_image.at<cv::Vec3b>(pre_start_index.x(), pre_start_index.y()) = cv::Vec3b(0, 255, 0);
+                // }
+                // for (auto & s : steps)
+                // {
+                //     grid_map::Index s_index;
+                //     if (localmap.getIndex(grid_map::Position(s.x, s.y), s_index))
+                //     {
+                //         plane_image.at<cv::Vec3b>(s_index.x(), s_index.y()) = cv::Vec3b(0, 0, 255);
+                //     }
+                // }
                 // cv::imwrite("/home/lichao/Darwin-op/src/elevation_map_ours/elevation_mapping/AstarHierarchicalFootstepPlanner/data/plan_result/reslut.jpg", plane_image);
                 
                 // saveImageWithAutoIncrement(plane_image, "/home/lichao/Darwin-op/src/elevation_map_ours/elevation_mapping/AstarHierarchicalFootstepPlanner/data/plan_result/");
@@ -1390,11 +1384,22 @@ bool AstarHierarchicalFootstepPlannerBase::getFootsteps(FootstepNodePtr node)
             }
             else
             {
+                LOG(INFO)<<"can not repair step";
                 return false;
             }
         }
-        iter_P = iter_P->PreFootstepNode;
+        else
+        {
+            
+            iter_P = iter_P->PreFootstepNode;
+            LOG(INFO)<<"iter_P: "<<iter_P;
+            LOG(INFO)<<"start_p: "<<start_p;
+#ifdef DEBUG
+            LOG(INFO)<<"iter_P: "<<iter_P;
+#endif
+        }
     }
+    LOG(INFO)<<"can not get steps";
     return false;
 }
 
@@ -1414,6 +1419,7 @@ bool AstarHierarchicalFootstepPlannerBase::repairStanceStep(Footstep current_ste
     double pitch = std::numeric_limits<double>::infinity();
     if (!computeLandInfo(repair, max_size, above_points, plane_normal, height, plane_index, pitch, roll))
     {
+        LOG(INFO)<<"can not find land";
         return false;
     }
 #ifdef DEBUG
@@ -1426,6 +1432,7 @@ bool AstarHierarchicalFootstepPlannerBase::repairStanceStep(Footstep current_ste
     }
     else
     {
+        LOG(INFO)<<"can not find land";
         return false;
     }
 }

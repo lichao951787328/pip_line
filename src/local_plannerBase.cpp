@@ -230,12 +230,12 @@ void localPlannerBase::mergePlanes()
         cv::inRange(image, cv::Scalar(255, 255, 255), cv::Scalar(255, 255, 255), mask);
         seg_image.setTo(colors[i % colors.size()], mask);
     }
-    LOG(INFO)<<"merge planes: "<<merge_results.size();
-    for (auto & merge_image : merge_results)
-    {
-        cv::imshow("merge_image", merge_image);
-        cv::waitKey(0);
-    }
+    // LOG(INFO)<<"merge planes: "<<merge_results.size();
+    // for (auto & merge_image : merge_results)
+    // {
+    //     cv::imshow("merge_image", merge_image);
+    //     cv::waitKey(0);
+    // }
     
     map.add("label");
     cv::Mat plane_image = cv::Mat::zeros(map.getSize().x(), map.getSize().y(), CV_8UC3);
@@ -462,8 +462,8 @@ void localPlannerBase::plan()
             LOG(INFO)<<steps.size();
             for (int i = 0; i < steps.size(); i++)
             {
-                cout<<setw(8)<<"step "<<i<<": "<<steps.at(i).x<<" "<<steps.at(i).y<<" "<<steps.at(i).z<<" "<<steps.at(i).roll*57.3<<" "<<steps.at(i).pitch*57.3<<" "<<steps.at(i).yaw*57.3<<" "<<steps.at(i).robot_side<<endl;
-                cout<<"points: "<<endl;
+                cout<<setw(8)<<"result step "<<i<<": "<<steps.at(i).x<<" "<<steps.at(i).y<<" "<<steps.at(i).z<<" "<<steps.at(i).roll*57.3<<" "<<steps.at(i).pitch*57.3<<" "<<steps.at(i).yaw*57.3<<" "<<steps.at(i).robot_side<<endl;
+                // cout<<"points: "<<endl;
             }
         }
         else

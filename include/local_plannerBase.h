@@ -40,6 +40,11 @@ public:
     void mergePlanes();
     // void constructFeasibleMap();
     void plan();
+
+    inline string timeConsumption()
+    {
+        return planner_P->time_consume;
+    }
     inline diy_msgs::footSteps getResultSteps()
     {
         for (auto & footstep : steps)
@@ -56,7 +61,10 @@ public:
         }
         return footstep_msg;
     }
-    
+    inline vector<Footstep> getFootsteps()
+    {
+        return steps;
+    }
     inline std::shared_ptr<AstarHierarchicalFootstepPlannerBase> getPlannerPtr()
     {
         return planner_P;
