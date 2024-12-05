@@ -120,9 +120,48 @@ void AstarHierarchicalFootstepPlannerBase::initial_transitions()
             }
         }
     } 
+
+    transitions.emplace_back(Eigen::Vector3d(0.09, 0.22, 0));
+    transitions.emplace_back(Eigen::Vector3d(0.09, 0.25, 0));
+    transitions.emplace_back(Eigen::Vector3d(0.09, 0.28, 0));
+    transitions.emplace_back(Eigen::Vector3d(0.08, 0.22, 0));
+    transitions.emplace_back(Eigen::Vector3d(0.08, 0.25, 0));
+    transitions.emplace_back(Eigen::Vector3d(0.08, 0.28, 0));
+
+    transitions.emplace_back(Eigen::Vector3d(0.07, 0.22, 0));
+    transitions.emplace_back(Eigen::Vector3d(0.07, 0.25, 0));
+    transitions.emplace_back(Eigen::Vector3d(0.07, 0.28, 0));
+    transitions.emplace_back(Eigen::Vector3d(0.06, 0.22, 0));
+    transitions.emplace_back(Eigen::Vector3d(0.06, 0.25, 0));
+    transitions.emplace_back(Eigen::Vector3d(0.06, 0.28, 0));
+
     transitions.emplace_back(Eigen::Vector3d(0.05, 0.22, 0));
     transitions.emplace_back(Eigen::Vector3d(0.05, 0.25, 0));
     transitions.emplace_back(Eigen::Vector3d(0.05, 0.28, 0));
+    transitions.emplace_back(Eigen::Vector3d(0.04, 0.22, 0));
+    transitions.emplace_back(Eigen::Vector3d(0.04, 0.25, 0));
+    transitions.emplace_back(Eigen::Vector3d(0.04, 0.28, 0));
+
+    transitions.emplace_back(Eigen::Vector3d(0.03, 0.22, 0));
+    transitions.emplace_back(Eigen::Vector3d(0.03, 0.25, 0));
+    transitions.emplace_back(Eigen::Vector3d(0.03, 0.28, 0));
+    transitions.emplace_back(Eigen::Vector3d(0.02, 0.22, 0));
+    transitions.emplace_back(Eigen::Vector3d(0.02, 0.25, 0));
+    transitions.emplace_back(Eigen::Vector3d(0.02, 0.28, 0));
+
+    transitions.emplace_back(Eigen::Vector3d(0.01, 0.22, 0));
+    transitions.emplace_back(Eigen::Vector3d(0.01, 0.25, 0));
+    transitions.emplace_back(Eigen::Vector3d(0.01, 0.28, 0));
+
+    transitions.emplace_back(Eigen::Vector3d(-0.01, 0.22, 0));
+    transitions.emplace_back(Eigen::Vector3d(-0.01, 0.25, 0));
+    transitions.emplace_back(Eigen::Vector3d(-0.01, 0.28, 0));
+    transitions.emplace_back(Eigen::Vector3d(-0.02, 0.22, 0));
+    transitions.emplace_back(Eigen::Vector3d(-0.02, 0.25, 0));
+    transitions.emplace_back(Eigen::Vector3d(-0.02, 0.28, 0));
+    transitions.emplace_back(Eigen::Vector3d(-0.03, 0.22, 0));
+    transitions.emplace_back(Eigen::Vector3d(-0.03, 0.25, 0));
+    transitions.emplace_back(Eigen::Vector3d(-0.03, 0.28, 0));
 
     transitions.emplace_back(Eigen::Vector3d(0.0, 0.25, 0));
     transitions.emplace_back(Eigen::Vector3d(0.0, 0.3, 0));
@@ -201,7 +240,7 @@ bool AstarHierarchicalFootstepPlannerBase::initial(Eigen::Vector3d start, Eigen:
 #ifdef DEBUG
     LOG(INFO)<<start_p->footstep.x<<" "<<start_p->footstep.y<<" "<<start_p->footstep.z<<" "<<start_p->footstep.roll<<" "<<start_p->footstep.pitch<<" "<<start_p->footstep.yaw<<" "<<start_p->footstep.robot_side<<" "<<start_p->Hcost<<" "<<start_p->Gcost<<" "<<start_p->cost;
     LOG(INFO)<<prestart_p->footstep.x<<" "<<prestart_p->footstep.y<<" "<<prestart_p->footstep.z<<" "<<prestart_p->footstep.roll<<" "<<prestart_p->footstep.pitch<<" "<<prestart_p->footstep.yaw<<" "<<prestart_p->footstep.robot_side<<" "<<start_p->Hcost<<" "<<start_p->Gcost<<" "<<start_p->cost;
-    grid_map::Index start_index, pre_start_index;
+    // grid_map::Index start_index, pre_start_index;
     // if (localmap.getIndex(grid_map::Position(start_p->footstep.x, start_p->footstep.y), start_index) && localmap.getIndex(grid_map::Position(prestart_p->footstep.x, prestart_p->footstep.y), pre_start_index))
     // {
     //     cv::circle(plane_image, cv::Point(start_index.y(), start_index.x()), 3, cv::Scalar(0, 0, 255), 2);
@@ -1042,7 +1081,7 @@ bool AstarHierarchicalFootstepPlannerBase::computeHcost(FootstepNodePtr node, do
             angle_diff = abs(node->footstep.yaw - end_right_p->footstep.yaw);
         }
         // LOG(INFO)<<dis1<<" "<<dis2<<" "<<angle_diff;
-        hcost = ((dis)*6 + dis_z * 2 + angle_diff * 0.2);
+        hcost = ((dis)*6 + dis_z * 2 + angle_diff * 0.2) * 2;
         return true;
     }
     else
@@ -1104,7 +1143,7 @@ bool AstarHierarchicalFootstepPlannerBase::arriveGoal(FootstepNodePtr node)
         angle_diff = abs(end_right_p->footstep.yaw - node->footstep.yaw);
     }
     // LOG(INFO)<<dis<<" "<<angle_diff;
-    if (dis < 0.1 && angle_diff <= 5/57.3)
+    if (dis < 0.05 && angle_diff <= 5/57.3)
     {
         return true;
     }
@@ -1392,8 +1431,8 @@ bool AstarHierarchicalFootstepPlannerBase::getFootsteps(FootstepNodePtr node)
         {
             
             iter_P = iter_P->PreFootstepNode;
-            LOG(INFO)<<"iter_P: "<<iter_P;
-            LOG(INFO)<<"start_p: "<<start_p;
+            // LOG(INFO)<<"iter_P: "<<iter_P;
+            // LOG(INFO)<<"start_p: "<<start_p;
 #ifdef DEBUG
             LOG(INFO)<<"iter_P: "<<iter_P;
 #endif

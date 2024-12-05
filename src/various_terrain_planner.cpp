@@ -489,8 +489,8 @@ void variousTerrainPlanner::execute()
 	grid_map::GridMap map({"elevation"});
     map.setFrameId("map");
     map.setGeometry(grid_map::Length(map_length, map_width), resolution, grid_map::Position(map_length/2.0, 0));
-
-	while (ros::ok())
+    int test_index_num = 0;
+	while (ros::ok() && test_index_num < 50)
 	{
         vector<Eigen::Vector2d> goal_points;
         goal_points.emplace_back(Eigen::Vector2d(4.5, 0));
@@ -516,12 +516,12 @@ void variousTerrainPlanner::execute()
             // 输入多变的地形,台阶宽度0.06-0.27，间隙0.02-0.17
             std::random_device rd_step; // 随机数种子
             std::mt19937 gen_step(rd_step()); // 随机数生成器
-            std::uniform_int_distribution<> dist_int_step(6, 27);
+            std::uniform_int_distribution<> dist_int_step(19, 27);
             // int step_width = dist_int_step(gen_step);
 
             std::random_device rd_gap; // 随机数种子
             std::mt19937 gen_gap(rd_gap()); // 随机数生成器
-            std::uniform_int_distribution<> dist_int_gap(2, 17);
+            std::uniform_int_distribution<> dist_int_gap(2, 14);
             // int gap_width = dist_int_gap(gen_gap);
 
             double step_elevation = 0.1;
@@ -589,7 +589,7 @@ void variousTerrainPlanner::execute()
                     
                     file<<"tra stat and goal: "<<left_foot_tra.transpose()<<", "<<right_foot_tra.transpose()<<", "<<goal_point_tra.transpose()<<endl;
                     local_planner_traditional.initial(left_foot_tra, right_foot_tra, 0, goal_point_tra);
-                    const int TIME_LIMIT = 60;
+                    const int TIME_LIMIT = 300;
                     executeTaskWithTimeout([this]() { traditionalPlanner(); }, TIME_LIMIT);
                     
                 }
@@ -614,7 +614,7 @@ void variousTerrainPlanner::execute()
                     LOG(INFO)<<"Propose: goal is feasible";
                     file<<"pro stat and goal: "<<propose_left_foot.transpose()<<", "<<propose_right_foot.transpose()<<", "<<goal_point_propose.transpose()<<endl;
                     local_planner_propose.initial(propose_left_foot, propose_right_foot, 0, goal_point_propose);
-                    const int TIME_LIMIT = 60;
+                    const int TIME_LIMIT = 300;
                     executeTaskWithTimeout([this]() { proposePlanner(); }, TIME_LIMIT);
                 }
                 else
@@ -627,7 +627,7 @@ void variousTerrainPlanner::execute()
                 LOG(ERROR)<<"Propose: start is not feasible";
             }
         }
-
+        test_index_num++;
 		// if (checkFeasibleStart(map, left_foot_tra, left_right_tra, propose_left_foot, propose_right_foot))
 		// {
 		// 	if (CheckFeasibleGoal(map, goal_points))
@@ -655,7 +655,63 @@ void variousTerrainPlanner::execute()
 		// break;
 	}
 #endif
+
+#ifdef single_terrain_for_test
+// single terrain for test
+// terrain: 19 11 20 2 22 8 26 7 23 5 23 10 25 6 27 13 24 4 26 4 25 3 23 12 20 9 21 5 22 13 27 6 25
+// start left: 0.275 0.105     0,  0.275 -0.095      0, 3.455 0.005     0
+    double step_elevation = 0.1;
+    double gap_elevation = 0.0;
+    double map_length = 5.0;
+    double map_width = 5.0;
+	double resolution = 0.01;
+	grid_map::GridMap map({"elevation"});
+    map.setFrameId("map");
+    map.setGeometry(grid_map::Length(map_length, map_width), resolution, grid_map::Position(map_length/2.0, 0));
+    vector<int> map_design = {19, 11, 20, 2, 22, 8, 26, 7, 23, 5, 23, 10, 25, 6, 27, 13, 24, 4, 26, 4, 25, 3, 23, 12, 20, 9, 21, 5, 22, 13, 27, 6, 25};
+    int sum = std::accumulate(map_design.begin(), map_design.end(), 0);
+    map_design.back() = (map_design.back() -(sum - map.getSize().x()));
+    int insert_index = 0;
+    for (int i = 0; i < map_design.size(); i++)
+    {
+        if (i%2 == 0)
+        {
+            for (int i_x = 0; i_x < map_design.at(i); i_x++)
+            {
+                for(int j_y = 0; j_y < map.getSize().y(); j_y++)
+                {
+                    map["elevation"](i_x + insert_index, j_y) = step_elevation;
+                }
+            }
+        }
+        else
+        {
+            for (int i_x = 0; i_x < map_design.at(i); i_x++)
+            {
+                for(int j_y = 0; j_y < map.getSize().y(); j_y++)
+                {
+                    map["elevation"](i_x + insert_index, j_y) = gap_elevation;
+                }
+            }
+        }
+        insert_index = insert_index + map_design.at(i);
+    }
+    std::shared_ptr<AstarHierarchicalFootstepPlannerTraditional> traditional_planner_ptr = std::make_shared<AstarHierarchicalFootstepPlannerTraditional>();
+    traditional_planner_ptr->setCheckParam(checkXupper, checkXButton);
+    local_planner_traditional.setPlanner(traditional_planner_ptr);
+    local_planner_traditional.setFootParam(foot_param);
+    local_planner_traditional.setHipWidth(hip_width);
+
+    local_planner_traditional.mapPrepare(map);
+    Eigen::Vector3d left_foot_tra(0.275, 0.105, 0);
+    Eigen::Vector3d right_foot_tra(0.275, -0.095, 0);
+    Eigen::Vector3d goal_point_tra(3.455, 0.005, 0);
+    local_planner_traditional.initial(left_foot_tra, right_foot_tra, 0, goal_point_tra); 
+    local_planner_traditional.plan();
+#endif
 }
+
+
 
 variousTerrainPlanner::~variousTerrainPlanner()
 {
