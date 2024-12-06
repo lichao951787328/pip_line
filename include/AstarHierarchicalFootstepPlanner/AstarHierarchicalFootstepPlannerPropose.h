@@ -56,9 +56,11 @@ public:
 
     bool checkFeasibleGoal(Eigen::Vector3d goal) override;
 
-    bool getPointsInFootArea(Eigen::Vector3d ankle, HistogramVoting & fore_foot_HV, HistogramVoting & hind_foot_HV);
+    bool getPointsInFootArea(Eigen::Vector3d ankle, std::unordered_map<int, int> & fore_left_foot_counter, std::unordered_map<int, int> & fore_right_foot_counter, std::unordered_map<int, int> & hind_left_foot_counter, std::unordered_map<int, int> & hind_right_foot_counter);
 
-    bool getSquareHistogramVoting(Eigen::Vector2d TL, Eigen::Vector2d TR, Eigen::Vector2d BL, Eigen::Vector2d BR, HistogramVoting & HV);
+    bool getSupportPlaneIndex(std::unordered_map<int, int> & counter, Eigen::Vector3d & mid, int thred, int & plane_index, int & support_size);
+
+    bool getSquareCounter(Eigen::Vector2d TL, Eigen::Vector2d TR, Eigen::Vector2d BL, Eigen::Vector2d BR, std::unordered_map<int, int> & counter);
 
     ~AstarHierarchicalFootstepPlannerPropose();
 };

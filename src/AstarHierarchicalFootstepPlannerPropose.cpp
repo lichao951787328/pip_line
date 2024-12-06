@@ -54,7 +54,8 @@ bool AstarHierarchicalFootstepPlannerPropose::isStartFeasible(Eigen::Vector3d st
     }
 }
 
-bool AstarHierarchicalFootstepPlannerPropose::getPointsInFootArea(Eigen::Vector3d ankle, HistogramVoting & fore_foot_HV, HistogramVoting & hind_foot_HV)
+// 将脚面的支撑分为4个部分，保证对落脚点支撑的完全覆盖
+bool AstarHierarchicalFootstepPlannerPropose::getPointsInFootArea(Eigen::Vector3d ankle, std::unordered_map<int, int> & fore_left_foot_counter, std::unordered_map<int, int> & fore_right_foot_counter, std::unordered_map<int, int> & hind_left_foot_counter, std::unordered_map<int, int> & hind_right_foot_counter)
 {
 #ifdef DEBUG
     clock_t start = clock();
@@ -101,13 +102,17 @@ bool AstarHierarchicalFootstepPlannerPropose::getPointsInFootArea(Eigen::Vector3
 #ifdef DEBUG
         clock_t start1 = clock();
 #endif
-        getSquareHistogramVoting(fore_top_left.head(2), fore_top_right.head(2), fore_button_left.head(2), fore_button_right.head(2), fore_foot_HV);
+        // getSquareHistogramVoting(fore_top_left.head(2), fore_top_right.head(2), fore_button_left.head(2), fore_button_right.head(2), fore_foot_HV);
+        getSquareCounter(fore_top_left.head(2), fore_top.head(2), fore_button_left.head(2), fore_button.head(2), fore_left_foot_counter);
+        getSquareCounter(fore_top.head(2), fore_top_right.head(2), fore_button.head(2), fore_button_right.head(2), fore_right_foot_counter);
 #ifdef DEBUG
         clock_t end1 = clock();
         LOG(INFO)<<"get point cost time 1: "<<double(end1 - start1) / CLOCKS_PER_SEC * 1000;
         clock_t start2 = clock();
 #endif
-        getSquareHistogramVoting(hind_top_left.head(2), hind_top_right.head(2), hind_button_left.head(2), hind_button_right.head(2), hind_foot_HV);
+        // getSquareHistogramVoting(hind_top_left.head(2), hind_top_right.head(2), hind_button_left.head(2), hind_button_right.head(2), hind_foot_HV);
+        getSquareCounter(hind_top_left.head(2), hind_top.head(2), hind_button_left.head(2), hind_button.head(2), hind_left_foot_counter);
+        getSquareCounter(hind_top.head(2), hind_top_right.head(2), hind_button.head(2), hind_button_right.head(2), hind_right_foot_counter);
 #ifdef DEBUG
         clock_t end2 = clock();
         LOG(INFO)<<"get point cost time 2: "<<double(end2 - start2) / CLOCKS_PER_SEC * 1000;
@@ -129,7 +134,7 @@ bool AstarHierarchicalFootstepPlannerPropose::getPointsInFootArea(Eigen::Vector3
     }
 }
 
-bool AstarHierarchicalFootstepPlannerPropose::getSquareHistogramVoting(Eigen::Vector2d TL, Eigen::Vector2d TR, Eigen::Vector2d BL, Eigen::Vector2d BR, HistogramVoting & HV)
+bool AstarHierarchicalFootstepPlannerPropose::getSquareCounter(Eigen::Vector2d TL, Eigen::Vector2d TR, Eigen::Vector2d BL, Eigen::Vector2d BR, std::unordered_map<int, int> & counter)
 {
     // 换成使用图像来确定区域
     if(label_localmap.isInside(TL) && label_localmap.isInside(TR) && label_localmap.isInside(BL) && label_localmap.isInside(BR))
@@ -158,15 +163,16 @@ bool AstarHierarchicalFootstepPlannerPropose::getSquareHistogramVoting(Eigen::Ve
             if (label_localmap.getPosition3("label", index, position))
             {
                 int label_index = static_cast<int>(label_localmap["label"](index.x(), index.y()));
-                HV.add(label_index, position);
+                // HV.add(label_index, position);
+                counter[label_index]++;
             }
-            else
-            {
-                HV.addNANPoints();// 编号是nan
-#ifdef DEBUG
-                LOG(INFO)<<"nan";
-#endif
-            }
+//             else
+//             {
+//                 HV.addNANPoints();// 编号是nan
+// #ifdef DEBUG
+//                 LOG(INFO)<<"nan";
+// #endif
+//             }
         }
         return true;
     }
@@ -373,6 +379,37 @@ bool AstarHierarchicalFootstepPlannerPropose::nodeExtension(FootstepNodePtr curr
     }
 }
 
+
+bool AstarHierarchicalFootstepPlannerPropose::getSupportPlaneIndex(std::unordered_map<int, int> & counter, Eigen::Vector3d & mid, int thred, int & plane_index, int & support_size)
+{
+    double max_height = -std::numeric_limits<double>::infinity();
+    int support_plane = -1;
+    int max_size = 0;
+    for (auto & bin : counter)
+    {
+        if (bin.second > thred)
+        {
+            double temp_height = planes_info.at(bin.first).getZ(mid.head(2));
+            if (max_height < temp_height)
+            {
+                max_height = temp_height;
+                support_plane = bin.first;
+                max_size = bin.second;
+            }
+        }
+    }
+    if (support_plane == -1)
+    {
+        return false;
+    }
+    else
+    {
+        plane_index = support_plane;
+        support_size = max_size;
+        return true;
+    }
+}
+
 // tested 粗略检查
 bool AstarHierarchicalFootstepPlannerPropose::computeLandInfo(Eigen::Vector3d ankle, int & max_size, int & above_points, Eigen::Vector3d & plane_normal, double & step_height, int & plane_index, double & pitch, double & roll) 
 {
@@ -392,101 +429,94 @@ bool AstarHierarchicalFootstepPlannerPropose::computeLandInfo(Eigen::Vector3d an
     plane_index = -1;
     pitch = std::numeric_limits<double>::infinity();
     roll = std::numeric_limits<double>::infinity();
-    HistogramVoting fore_foot_HV, hind_foot_HV;
+    // HistogramVoting fore_foot_HV, hind_foot_HV;
+    std::unordered_map<int, int> fore_left_foot_counter, fore_right_foot_counter, hind_left_foot_counter, hind_right_foot_counter;
     Eigen::Vector3d mid(ankle.x(), ankle.y(), 0);
     Eigen::AngleAxisd ad(ankle.z(), Eigen::Vector3d::UnitZ());
     Eigen::Vector3d fore_mid = mid + ad.toRotationMatrix() * Eigen::Vector3d((footparam.x_upper + footparam.x_fore_button)/2.0, 0, 0);
+    Eigen::Vector3d fore_left_mid = fore_mid + ad.toRotationMatrix() * Eigen::Vector3d(0, footparam.y_left/2, 0);
+    Eigen::Vector3d fore_right_mid = fore_mid + ad.toRotationMatrix() * Eigen::Vector3d(0, -footparam.y_right/2, 0);
     Eigen::Vector3d hind_mid = mid + ad.toRotationMatrix() * Eigen::Vector3d(-(footparam.x_button + footparam.x_hind_top)/2.0, 0, 0);
-    if (getPointsInFootArea(ankle, fore_foot_HV, hind_foot_HV))
+    Eigen::Vector3d hind_left_mid = hind_mid + ad.toRotationMatrix() * Eigen::Vector3d(0, footparam.y_left/2, 0);
+    Eigen::Vector3d hind_right_mid = hind_mid + ad.toRotationMatrix() * Eigen::Vector3d(0, -footparam.y_right/2, 0);
+    if (getPointsInFootArea(ankle, fore_left_foot_counter, fore_right_foot_counter, hind_left_foot_counter, hind_right_foot_counter))
     {
 #ifdef DEBUG
-    LOG(INFO)<<ankle.transpose();
-    for (auto & bin1 : fore_foot_HV.counter)
-    {
-        LOG(INFO)<<bin1.first<<" "<<bin1.second;
-    }
-    for (auto & bin2 : hind_foot_HV.counter)
-    {
-        LOG(INFO)<<bin2.first<<" "<<bin2.second;
-    }
-    
-#endif
-        vector<std::pair<int, int>> candidate_support_planes;
-        int thred = (std::floor((footparam.y_left + footparam.y_right)/resolution)) * (std::ceil(0.02/resolution));
-        double max_height = -std::numeric_limits<double>::infinity();
-        int fore_support_plane = -1;
-        int fore_max_size = 0;
-        for (auto & bin1 : fore_foot_HV.counter)
+        LOG(INFO)<<ankle.transpose();
+        for (auto & bin1 : fore_left_foot_counter)
         {
-            // LOG(INFO)<<bin1.second<<" "<<thred;
-            if (bin1.second > thred)
-            {
-                double temp_height = planes_info.at(bin1.first).getZ(fore_mid.head(2));
-                if (max_height < temp_height)
-                {
-                    max_height = temp_height;
-                    fore_support_plane = bin1.first;
-                    fore_max_size = bin1.second;
-                }
-            }
+            LOG(INFO)<<bin1.first<<" "<<bin1.second;
         }
-        // LOG(INFO)<<fore_support_plane<<" "<<fore_max_size;
-        if (fore_support_plane == -1)
+        for (auto & bin2 : fore_right_foot_counter)
+        {
+            LOG(INFO)<<bin2.first<<" "<<bin2.second;
+        }
+        for (auto & bin3 : hind_left_foot_counter)
+        {
+            LOG(INFO)<<bin3.first<<" "<<bin3.second;
+        }
+        for (auto & bin4 : hind_right_foot_counter)
+        {
+            LOG(INFO)<<bin4.first<<" "<<bin4.second;
+        }
+#endif
+        int fore_left_support_plane = -1;
+        int fore_right_support_plane = -1;
+        int hind_left_support_plane = -1;
+        int hind_right_support_plane = -1;
+        int fore_left_support_size = 0;
+        int fore_right_support_size = 0;
+        int hind_left_support_size = 0;
+        int hind_right_support_size = 0;
+        int thred = (std::floor((min(footparam.y_left, footparam.y_right))/resolution)) * (std::ceil(0.02/resolution));
+
+        if (!getSupportPlaneIndex(fore_left_foot_counter, fore_left_mid, thred, fore_left_support_plane, fore_left_support_size))
         {
 #ifdef  DEBUG
             LOG(INFO)<<"can not get fore support plane";
 #endif
-// LOG(INFO)<<"can not get fore support plane";
-            // clock_t end = clock();
-            // total_time += double(end - start) / CLOCKS_PER_SEC * 1000;
             auto end = std::chrono::high_resolution_clock::now();
             total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
             return false;
         }
-        
 
-        max_height = -std::numeric_limits<double>::infinity();
-        int hind_support_plane = -1;
-        int hind_max_size = 0;
-#ifdef DEBUG
-        LOG(INFO)<<"thred: "<<thred;
-#endif
-        for (auto & bin1 : hind_foot_HV.counter)
-        {
-#ifdef DEBUG
-            LOG(INFO)<<bin1.first<<" "<<bin1.second;
-#endif
-            if (bin1.second > thred)
-            {
-                double temp_height = planes_info.at(bin1.first).getZ(hind_mid.head(2));
-                if (max_height < temp_height)
-                {
-                    max_height = temp_height;
-                    hind_support_plane = bin1.first;
-                    hind_max_size = bin1.second;
-                }
-            }
-        }
-        // LOG(INFO)<<hind_support_plane<<" "<<hind_max_size;
-
-        if (hind_support_plane == -1)
+        if (!getSupportPlaneIndex(fore_right_foot_counter, fore_right_mid, thred, fore_right_support_plane, fore_right_support_size))
         {
 #ifdef  DEBUG
-            LOG(INFO)<<"can not get hind support plane";
+            LOG(INFO)<<"can not get fore support plane";
 #endif
-// LOG(INFO)<<"can not get hind support plane";
             auto end = std::chrono::high_resolution_clock::now();
             total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
             return false;
         }
 
-        if (hind_support_plane == fore_support_plane)
+        if (!getSupportPlaneIndex(hind_left_foot_counter, hind_left_mid, thred, hind_left_support_plane, hind_left_support_size))
         {
-            plane_index = hind_support_plane;
-            max_size = hind_max_size + fore_max_size;
+#ifdef  DEBUG
+            LOG(INFO)<<"can not get fore support plane";
+#endif
+            auto end = std::chrono::high_resolution_clock::now();
+            total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
+            return false;
+        }
+
+        if (!getSupportPlaneIndex(hind_right_foot_counter, hind_right_mid, thred, hind_right_support_plane, hind_right_support_size))
+        {
+#ifdef  DEBUG
+            LOG(INFO)<<"can not get fore support plane";
+#endif
+            auto end = std::chrono::high_resolution_clock::now();
+            total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
+            return false;
+        }
+
+        if (fore_left_support_plane == fore_right_support_plane && hind_left_support_plane == hind_right_support_plane  && fore_right_support_plane == hind_left_support_plane)
+        {
+            plane_index = fore_left_support_plane;
+            max_size = fore_left_support_size + fore_right_support_size + hind_left_support_size + hind_right_support_size;
             plane_normal = Eigen::Vector3d(planes_info.at(plane_index).normal.x(), planes_info.at(plane_index).normal.y(), planes_info.at(plane_index).normal.z());
             Eigen::Vector3d center = Eigen::Vector3d(planes_info.at(plane_index).center.x(), planes_info.at(plane_index).center.y(), planes_info.at(plane_index).center.z());
-            max_height = planes_info.at(plane_index).getZ(ankle.head(2));
+            double max_height = planes_info.at(plane_index).getZ(ankle.head(2));
 #ifdef DEBUG
             LOG(INFO)<<"plane_normal: "<<plane_normal.transpose();
             LOG(INFO)<<"center: "<<center.transpose();
@@ -496,8 +526,6 @@ bool AstarHierarchicalFootstepPlannerPropose::computeLandInfo(Eigen::Vector3d an
             computeRollPitch(plane_normal, ankle.z(), eular);
             pitch = eular(1);
             roll = eular(2);
-            // LOG(INFO)<<"GET ROLL PITCH";
-            // 获取所有点的
             vector<Eigen::Vector3d> allpoints;
             if (getLandAreaPoints(ankle, allpoints))
             {
@@ -516,7 +544,7 @@ bool AstarHierarchicalFootstepPlannerPropose::computeLandInfo(Eigen::Vector3d an
 #ifdef DEBUG
                     LOG(INFO)<<"too much above points"<<above_points;
 #endif
-// LOG(INFO)<<"too much above points"<<above_points;
+    // LOG(INFO)<<"too much above points"<<above_points;
                     auto end = std::chrono::high_resolution_clock::now();
                     total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
                     return false;
@@ -530,22 +558,22 @@ bool AstarHierarchicalFootstepPlannerPropose::computeLandInfo(Eigen::Vector3d an
             }
             else
             {
-#ifdef DEBUG
+    #ifdef DEBUG
                 LOG(INFO)<<"can not get all points";
-#endif
-// LOG(INFO)<<"can not get all points";
+    #endif
+    // LOG(INFO)<<"can not get all points";
                 auto end = std::chrono::high_resolution_clock::now();
                 total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
                 return false;
             }
-            
-            
+
         }
+        else
         {
-#ifdef DEBUG
-            LOG(INFO)<<"can not get support plane";
-#endif
-// LOG(INFO)<<"can not get support plane";
+    #ifdef DEBUG
+            LOG(ERROR)<<"can not get area";
+    #endif
+    // LOG(ERROR)<<"can not get area";
             auto end = std::chrono::high_resolution_clock::now();
             total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
             return false;
@@ -553,14 +581,9 @@ bool AstarHierarchicalFootstepPlannerPropose::computeLandInfo(Eigen::Vector3d an
     }
     else
     {
-#ifdef DEBUG
-        LOG(ERROR)<<"can not get area";
-#endif
-// LOG(ERROR)<<"can not get area";
-        auto end = std::chrono::high_resolution_clock::now();
-        total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
         return false;
     }
+    
 }
 
 bool AstarHierarchicalFootstepPlannerPropose::computerLeftRightGoal(Eigen::Vector3d goal) 

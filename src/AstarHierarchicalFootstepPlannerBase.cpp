@@ -114,58 +114,71 @@ void AstarHierarchicalFootstepPlannerBase::initial_transitions()
                     continue;
                 }
                 
-                Eigen::Vector3d transition = Eigen::Vector3d(i * 0.11,   0.015 * j + 0.23,  k*3/57.3);
+                Eigen::Vector3d transition = Eigen::Vector3d(i * 0.11,   0.02 * j + 0.23,  k*5/57.3);
                 // LOG(INFO)<<transition.transpose();
                 transitions.emplace_back(transition);
             }
         }
     } 
 
-    transitions.emplace_back(Eigen::Vector3d(0.09, 0.22, 0));
-    transitions.emplace_back(Eigen::Vector3d(0.09, 0.25, 0));
-    transitions.emplace_back(Eigen::Vector3d(0.09, 0.28, 0));
-    transitions.emplace_back(Eigen::Vector3d(0.08, 0.22, 0));
-    transitions.emplace_back(Eigen::Vector3d(0.08, 0.25, 0));
-    transitions.emplace_back(Eigen::Vector3d(0.08, 0.28, 0));
+    for (int i = -2; i < 2; i+=2)
+    {
+        for (int j = 0; j < 4; j++)
+        {
+            for (int k = -1; k < 1; k++)
+            {
+                Eigen::Vector3d transition = Eigen::Vector3d(i * 0.02,  0.02 * j + 0.23,  k*5/57.3);
+                transitions.emplace_back(transition);
+            }
+        }
+    }
+    
 
-    transitions.emplace_back(Eigen::Vector3d(0.07, 0.22, 0));
-    transitions.emplace_back(Eigen::Vector3d(0.07, 0.25, 0));
-    transitions.emplace_back(Eigen::Vector3d(0.07, 0.28, 0));
-    transitions.emplace_back(Eigen::Vector3d(0.06, 0.22, 0));
-    transitions.emplace_back(Eigen::Vector3d(0.06, 0.25, 0));
-    transitions.emplace_back(Eigen::Vector3d(0.06, 0.28, 0));
+    // transitions.emplace_back(Eigen::Vector3d(0.09, 0.22, 0));
+    // transitions.emplace_back(Eigen::Vector3d(0.09, 0.25, 0));
+    // transitions.emplace_back(Eigen::Vector3d(0.09, 0.28, 0));
+    // transitions.emplace_back(Eigen::Vector3d(0.08, 0.22, 0));
+    // transitions.emplace_back(Eigen::Vector3d(0.08, 0.25, 0));
+    // transitions.emplace_back(Eigen::Vector3d(0.08, 0.28, 0));
 
-    transitions.emplace_back(Eigen::Vector3d(0.05, 0.22, 0));
-    transitions.emplace_back(Eigen::Vector3d(0.05, 0.25, 0));
-    transitions.emplace_back(Eigen::Vector3d(0.05, 0.28, 0));
-    transitions.emplace_back(Eigen::Vector3d(0.04, 0.22, 0));
-    transitions.emplace_back(Eigen::Vector3d(0.04, 0.25, 0));
-    transitions.emplace_back(Eigen::Vector3d(0.04, 0.28, 0));
+    // transitions.emplace_back(Eigen::Vector3d(0.07, 0.22, 0));
+    // transitions.emplace_back(Eigen::Vector3d(0.07, 0.25, 0));
+    // transitions.emplace_back(Eigen::Vector3d(0.07, 0.28, 0));
+    // transitions.emplace_back(Eigen::Vector3d(0.06, 0.22, 0));
+    // transitions.emplace_back(Eigen::Vector3d(0.06, 0.25, 0));
+    // transitions.emplace_back(Eigen::Vector3d(0.06, 0.28, 0));
 
-    transitions.emplace_back(Eigen::Vector3d(0.03, 0.22, 0));
-    transitions.emplace_back(Eigen::Vector3d(0.03, 0.25, 0));
-    transitions.emplace_back(Eigen::Vector3d(0.03, 0.28, 0));
-    transitions.emplace_back(Eigen::Vector3d(0.02, 0.22, 0));
-    transitions.emplace_back(Eigen::Vector3d(0.02, 0.25, 0));
-    transitions.emplace_back(Eigen::Vector3d(0.02, 0.28, 0));
+    // transitions.emplace_back(Eigen::Vector3d(0.05, 0.22, 0));
+    // transitions.emplace_back(Eigen::Vector3d(0.05, 0.25, 0));
+    // transitions.emplace_back(Eigen::Vector3d(0.05, 0.28, 0));
+    // transitions.emplace_back(Eigen::Vector3d(0.04, 0.22, 0));
+    // transitions.emplace_back(Eigen::Vector3d(0.04, 0.25, 0));
+    // transitions.emplace_back(Eigen::Vector3d(0.04, 0.28, 0));
 
-    transitions.emplace_back(Eigen::Vector3d(0.01, 0.22, 0));
-    transitions.emplace_back(Eigen::Vector3d(0.01, 0.25, 0));
-    transitions.emplace_back(Eigen::Vector3d(0.01, 0.28, 0));
+    // transitions.emplace_back(Eigen::Vector3d(0.03, 0.22, 0));
+    // transitions.emplace_back(Eigen::Vector3d(0.03, 0.25, 0));
+    // transitions.emplace_back(Eigen::Vector3d(0.03, 0.28, 0));
+    // transitions.emplace_back(Eigen::Vector3d(0.02, 0.22, 0));
+    // transitions.emplace_back(Eigen::Vector3d(0.02, 0.25, 0));
+    // transitions.emplace_back(Eigen::Vector3d(0.02, 0.28, 0));
 
-    transitions.emplace_back(Eigen::Vector3d(-0.01, 0.22, 0));
-    transitions.emplace_back(Eigen::Vector3d(-0.01, 0.25, 0));
-    transitions.emplace_back(Eigen::Vector3d(-0.01, 0.28, 0));
-    transitions.emplace_back(Eigen::Vector3d(-0.02, 0.22, 0));
-    transitions.emplace_back(Eigen::Vector3d(-0.02, 0.25, 0));
-    transitions.emplace_back(Eigen::Vector3d(-0.02, 0.28, 0));
-    transitions.emplace_back(Eigen::Vector3d(-0.03, 0.22, 0));
-    transitions.emplace_back(Eigen::Vector3d(-0.03, 0.25, 0));
-    transitions.emplace_back(Eigen::Vector3d(-0.03, 0.28, 0));
+    // transitions.emplace_back(Eigen::Vector3d(0.01, 0.22, 0));
+    // transitions.emplace_back(Eigen::Vector3d(0.01, 0.25, 0));
+    // transitions.emplace_back(Eigen::Vector3d(0.01, 0.28, 0));
 
-    transitions.emplace_back(Eigen::Vector3d(0.0, 0.25, 0));
-    transitions.emplace_back(Eigen::Vector3d(0.0, 0.3, 0));
-    transitions.emplace_back(Eigen::Vector3d(0.0, 0.35, 0));
+    // transitions.emplace_back(Eigen::Vector3d(-0.01, 0.22, 0));
+    // transitions.emplace_back(Eigen::Vector3d(-0.01, 0.25, 0));
+    // transitions.emplace_back(Eigen::Vector3d(-0.01, 0.28, 0));
+    // transitions.emplace_back(Eigen::Vector3d(-0.02, 0.22, 0));
+    // transitions.emplace_back(Eigen::Vector3d(-0.02, 0.25, 0));
+    // transitions.emplace_back(Eigen::Vector3d(-0.02, 0.28, 0));
+    // transitions.emplace_back(Eigen::Vector3d(-0.03, 0.22, 0));
+    // transitions.emplace_back(Eigen::Vector3d(-0.03, 0.25, 0));
+    // transitions.emplace_back(Eigen::Vector3d(-0.03, 0.28, 0));
+
+    // transitions.emplace_back(Eigen::Vector3d(0.0, 0.25, 0));
+    // transitions.emplace_back(Eigen::Vector3d(0.0, 0.3, 0));
+    // transitions.emplace_back(Eigen::Vector3d(0.0, 0.35, 0));
     for (int i = -1; i < 2; i++)
     {
         for (int j = -2; j < 3; j++)
