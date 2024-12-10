@@ -21,26 +21,105 @@ bool AstarHierarchicalFootstepPlannerPropose::isStartFeasible(Eigen::Vector3d st
         Eigen::Vector3d button_offset(-footparam.x_button, 0, 0);
         Eigen::Vector3d button_left = ad.toRotationMatrix() * button_offset + left_mid;
         Eigen::Vector3d button_right = ad.toRotationMatrix() * button_offset + right_mid;
-        if (label_localmap.isInside(left_mid.head(2)) && label_localmap.isInside(right_mid.head(2)) && label_localmap.isInside(up_left.head(2)) && label_localmap.isInside(up_right.head(2)))
+        if (label_localmap.isInside(button_left.head(2)) && label_localmap.isInside(button_right.head(2)) && label_localmap.isInside(up_left.head(2)) && label_localmap.isInside(up_right.head(2)))
         {
             // 计算左右脚的位置，并返回合适的左右落脚点
             Eigen::Vector3d half_hip_width = Eigen::Vector3d(0, hip_width/2, 0);
             Eigen::Vector3d left_foot_tmp = ad.toRotationMatrix() * half_hip_width + mid;
+            left_foot_tmp.z() = start.z();
             Eigen::Vector3d right_foot_tmp = ad.toRotationMatrix() * -half_hip_width + mid;
-            double height_left,  height_right;
-            int left_support_index = -1;
-            int right_support_index = -1;
-            double left_roll, right_roll, left_pitch, right_pitch;
-            if (getPointInfoInPlane(left_foot_tmp, height_left, left_support_index, left_pitch, left_roll) && getPointInfoInPlane(right_foot_tmp, height_right, right_support_index, right_pitch, right_roll))
+            right_foot_tmp.z() = start.z();
+
+            vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> left_cands = fineLandPoint(left_foot_tmp);
+            vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> right_cands = fineLandPoint(right_foot_tmp);
+
+            double score = - std::numeric_limits<double>::infinity();
+            double opt_height, opt_pitch, opt_roll;
+            int opt_plane_index = -1;
+            Eigen::Vector3d left_opt;
+            for (auto & cand : left_cands)
             {
-                left_foot = left_foot_tmp;
-                right_foot = right_foot_tmp;
-                return true;
+                double tmpscore;
+                int plane_index = -1;
+                double height = -std::numeric_limits<double>::infinity();
+                double pitch = std::numeric_limits<double>::infinity();
+                double roll = std::numeric_limits<double>::infinity();
+                if (computeLandPointScore(cand, tmpscore, height, plane_index, pitch, roll))
+                {
+                    // LOG(INFO)<<"tmpscore: "<<tmpscore;
+                    if (tmpscore > score)
+                    {
+                        left_opt = cand.second;
+                        // LOG(INFO)<<left_opt.transpose();
+                        score = tmpscore;
+                        opt_height = height;
+                        opt_pitch = pitch;
+                        opt_roll = roll; 
+                        opt_plane_index = plane_index;
+                    }
+                }
+            }
+            if (opt_plane_index != -1)
+            {
+                // end_left_p = std::make_shared<FootstepNode>(left_opt, opt_height, opt_roll, opt_pitch, 0);
+                // end_left_p->plane_index = opt_plane_index;
+                left_foot = left_opt;
             }
             else
             {
                 return false;
             }
+        
+            opt_plane_index = -1;
+            score = - std::numeric_limits<double>::infinity();
+            Eigen::Vector3d right_opt;
+            for (auto & cand : right_cands)
+            {
+                double tmpscore;
+                int plane_index = -1;
+                double height = -std::numeric_limits<double>::infinity();
+                double pitch = std::numeric_limits<double>::infinity();
+                double roll = std::numeric_limits<double>::infinity();
+                if (computeLandPointScore(cand, tmpscore, height, plane_index, pitch, roll))
+                {
+                    // LOG(INFO)<<"tmpscore: "<<tmpscore;
+                    if (tmpscore > score)
+                    {
+                        right_opt = cand.second;
+                        // LOG(INFO)<<left_opt.transpose();
+                        score = tmpscore;
+                        opt_height = height;
+                        opt_pitch = pitch;
+                        opt_roll = roll; 
+                        opt_plane_index = plane_index;
+                    }
+                }
+            }
+            if (opt_plane_index != -1)
+            {
+                // end_right_p = std::make_shared<FootstepNode>(right_opt, opt_height, opt_roll, opt_pitch, 1);
+                // end_right_p->plane_index = opt_plane_index;
+                right_foot = right_opt;
+            }
+            else
+            {
+                return false;
+            }
+            return true;
+            // double height_left,  height_right;
+            // int left_support_index = -1;
+            // int right_support_index = -1;
+            // double left_roll, right_roll, left_pitch, right_pitch;
+            // if (getPointInfoInPlane(left_foot_tmp, height_left, left_support_index, left_pitch, left_roll) && getPointInfoInPlane(right_foot_tmp, height_right, right_support_index, right_pitch, right_roll))
+            // {
+            //     left_foot = left_foot_tmp;
+            //     right_foot = right_foot_tmp;
+            //     return true;
+            // }
+            // else
+            // {
+            //     return false;
+            // }
         }
         else
         {
@@ -512,6 +591,8 @@ bool AstarHierarchicalFootstepPlannerPropose::computeLandInfo(Eigen::Vector3d an
 
         if (fore_left_support_plane == fore_right_support_plane && hind_left_support_plane == hind_right_support_plane  && fore_right_support_plane == hind_left_support_plane)
         {
+            auto end = std::chrono::high_resolution_clock::now();
+            total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
             plane_index = fore_left_support_plane;
             max_size = fore_left_support_size + fore_right_support_size + hind_left_support_size + hind_right_support_size;
             plane_normal = Eigen::Vector3d(planes_info.at(plane_index).normal.x(), planes_info.at(plane_index).normal.y(), planes_info.at(plane_index).normal.z());
@@ -545,14 +626,14 @@ bool AstarHierarchicalFootstepPlannerPropose::computeLandInfo(Eigen::Vector3d an
                     LOG(INFO)<<"too much above points"<<above_points;
 #endif
     // LOG(INFO)<<"too much above points"<<above_points;
-                    auto end = std::chrono::high_resolution_clock::now();
-                    total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
+                    // auto end = std::chrono::high_resolution_clock::now();
+                    // total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
                     return false;
                 }   
                 else
                 {
-                    auto end = std::chrono::high_resolution_clock::now();
-                    total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
+                    // auto end = std::chrono::high_resolution_clock::now();
+                    // total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
                     return true;
                 }
             }
@@ -562,8 +643,8 @@ bool AstarHierarchicalFootstepPlannerPropose::computeLandInfo(Eigen::Vector3d an
                 LOG(INFO)<<"can not get all points";
     #endif
     // LOG(INFO)<<"can not get all points";
-                auto end = std::chrono::high_resolution_clock::now();
-                total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
+                // auto end = std::chrono::high_resolution_clock::now();
+                // total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
                 return false;
             }
 

@@ -433,7 +433,7 @@ bool localPlannerBase::isStartFeasible(Eigen::Vector3d start, Eigen::Vector3d & 
     }
 }
 
-void localPlannerBase::plan()
+bool localPlannerBase::plan()
 {
     if (planner_P->initial(start, pre_start, support_flag, goal))
     {
@@ -465,13 +465,18 @@ void localPlannerBase::plan()
                 cout<<setw(8)<<"result step "<<i<<": "<<steps.at(i).x<<" "<<steps.at(i).y<<" "<<steps.at(i).z<<" "<<steps.at(i).roll*57.3<<" "<<steps.at(i).pitch*57.3<<" "<<steps.at(i).yaw*57.3<<" "<<steps.at(i).robot_side<<endl;
                 // cout<<"points: "<<endl;
             }
+            return true;
         }
         else
         {
             LOG(INFO)<<"planning error";
+            return false;
         }
     }
-
+    else
+    {
+        return false;
+    }
 }
 
 pcl::PointCloud<pcl::PointXYZ> localPlannerBase::gridMap2PointcloudOrganized()

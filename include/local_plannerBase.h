@@ -24,6 +24,7 @@ private:
     vector<cv::Mat> single_results;
     vector<planeInfo>  merge_planes;
     vector<cv::Mat> merge_results;
+    string time_consume;
 public:
     localPlannerBase();
     localPlannerBase(std::shared_ptr<AstarHierarchicalFootstepPlannerBase> a);
@@ -39,10 +40,15 @@ public:
     void detectionPlane();
     void mergePlanes();
     // void constructFeasibleMap();
-    void plan();
+    bool plan();
 
+    inline void setTimeConsumption(string s)
+    {
+        time_consume = s;
+    }
     inline string timeConsumption()
     {
+        LOG(INFO)<<planner_P->time_consume;
         return planner_P->time_consume;
     }
     inline diy_msgs::footSteps getResultSteps()

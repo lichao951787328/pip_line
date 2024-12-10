@@ -32,41 +32,120 @@ bool AstarHierarchicalFootstepPlannerTraditional::isStartFeasible(Eigen::Vector3
             // 计算左右脚的位置，并返回合适的左右落脚点
             Eigen::Vector3d half_hip_width = Eigen::Vector3d(0, hip_width/2, 0);
             Eigen::Vector3d left_foot_tmp = ad.toRotationMatrix() * half_hip_width + mid;
+            left_foot_tmp.z() = start.z();
             Eigen::Vector3d right_foot_tmp = ad.toRotationMatrix() * -half_hip_width + mid;
-            int max_size_left, max_size_right;
-            int above_points_left, above_points_right;
-            Eigen::Vector3d left_plane_normal, right_plane_normal;
-            int left_plane_index, right_plane_index;
-            double left_step_height, right_step_height;
-            double left_roll, right_roll, left_pitch, right_pitch;
-            if (computeLandInfo(left_foot_tmp, max_size_left, above_points_left, left_plane_normal, left_step_height, left_plane_index, left_pitch, left_roll) && computeLandInfo(right_foot_tmp, max_size_right, above_points_right, right_plane_normal, right_step_height, right_plane_index, right_pitch, right_roll))
+            right_foot_tmp.z() = start.z();
+
+            vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> left_cands = fineLandPoint(left_foot_tmp);
+            vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> right_cands = fineLandPoint(right_foot_tmp);
+            double score = - std::numeric_limits<double>::infinity();
+            double opt_height = -std::numeric_limits<double>::infinity();
+            double opt_pitch = -std::numeric_limits<double>::infinity();
+            double opt_roll = -std::numeric_limits<double>::infinity();
+            int opt_plane_index = -1;
+            Eigen::Vector3d left_opt;
+            for (auto & cand : left_cands)
             {
-                if (max_size_left < 0.5 * footsize_inmap || max_size_right < 0.5 * footsize_inmap)
+                double tmpscore  = -std::numeric_limits<double>::infinity();
+                int plane_index = -1;
+                double height = -std::numeric_limits<double>::infinity();
+                double pitch = std::numeric_limits<double>::infinity();
+                double roll = std::numeric_limits<double>::infinity();
+                if (computeLandPointScore(cand, tmpscore, height, plane_index, pitch, roll))
                 {
-#ifdef DEBUG
-                    LOG(INFO)<<" is too small";
-                    LOG(INFO)<<"left size: "<<max_size_left<<" right size: "<<max_size_right<<" footsize_inmap: "<<footsize_inmap;
-#endif
-                    return false;
+                    // LOG(INFO)<<"tmpscore: "<<tmpscore;
+                    if (tmpscore > score)
+                    {
+                        left_opt = cand.second;
+                        // LOG(INFO)<<left_opt.transpose();
+                        score = tmpscore;
+                        opt_height = height;
+                        opt_pitch = pitch;
+                        opt_roll = roll; 
+                        opt_plane_index = plane_index;
+                    }
                 }
-                if (above_points_left > 0 || above_points_right > 0)
-                {
-#ifdef DEBUG
-                    LOG(INFO)<<"above points is not zero";
-#endif
-                    return false;
-                }
-                left_foot = left_foot_tmp;
-                right_foot = right_foot_tmp;
-                return true;
             }
-            else
+            if (opt_plane_index == -1)
             {
-#ifdef DEBUG
-                LOG(INFO)<<"compute land info failed";
-#endif
+    #ifdef DEBUG
+                LOG(INFO)<<"No Feasible Left Foot";
+    #endif
                 return false;
             }
+        
+            opt_plane_index = -1;
+            score = - std::numeric_limits<double>::infinity();
+            opt_height = -std::numeric_limits<double>::infinity();
+            opt_pitch = -std::numeric_limits<double>::infinity();
+            opt_roll = -std::numeric_limits<double>::infinity();
+            Eigen::Vector3d right_opt;
+            for (auto & cand : right_cands)
+            {
+                double tmpscore;
+                int plane_index = -1;
+                double height = -std::numeric_limits<double>::infinity();
+                double pitch = std::numeric_limits<double>::infinity();
+                double roll = std::numeric_limits<double>::infinity();
+                if (computeLandPointScore(cand, tmpscore, height, plane_index, pitch, roll))
+                {
+                    // LOG(INFO)<<"tmpscore: "<<tmpscore;
+                    if (tmpscore > score)
+                    {
+                        right_opt = cand.second;
+                        // LOG(INFO)<<left_opt.transpose();
+                        score = tmpscore;
+                        opt_height = height;
+                        opt_pitch = pitch;
+                        opt_roll = roll; 
+                        opt_plane_index = plane_index;
+                    }
+                }
+            }
+            if (opt_plane_index == -1)
+            {
+    #ifdef DEBUG
+                LOG(INFO)<<"No Feasible Transition";
+    #endif
+                return false;
+            }
+            left_foot = left_opt;
+            right_foot = right_opt;
+            return true;
+//             int max_size_left, max_size_right;
+//             int above_points_left, above_points_right;
+//             Eigen::Vector3d left_plane_normal, right_plane_normal;
+//             int left_plane_index, right_plane_index;
+//             double left_step_height, right_step_height;
+//             double left_roll, right_roll, left_pitch, right_pitch;
+//             if (computeLandInfo(left_foot_tmp, max_size_left, above_points_left, left_plane_normal, left_step_height, left_plane_index, left_pitch, left_roll) && computeLandInfo(right_foot_tmp, max_size_right, above_points_right, right_plane_normal, right_step_height, right_plane_index, right_pitch, right_roll))
+//             {
+//                 if (max_size_left < 0.5 * footsize_inmap || max_size_right < 0.5 * footsize_inmap)
+//                 {
+// #ifdef DEBUG
+//                     LOG(INFO)<<" is too small";
+//                     LOG(INFO)<<"left size: "<<max_size_left<<" right size: "<<max_size_right<<" footsize_inmap: "<<footsize_inmap;
+// #endif
+//                     return false;
+//                 }
+//                 if (above_points_left > 0 || above_points_right > 0)
+//                 {
+// #ifdef DEBUG
+//                     LOG(INFO)<<"above points is not zero";
+// #endif
+//                     return false;
+//                 }
+//                 left_foot = left_foot_tmp;
+//                 right_foot = right_foot_tmp;
+//                 return true;
+//             }
+//             else
+//             {
+// #ifdef DEBUG
+//                 LOG(INFO)<<"compute land info failed";
+// #endif
+//                 return false;
+//             }
         }
         else
         {
@@ -291,10 +370,10 @@ bool AstarHierarchicalFootstepPlannerTraditional::computeLandInfo(Eigen::Vector3
     // 初次只用前后8cm的作为支撑平面的判断
     Eigen::Vector3d mid_top = ax.toRotationMatrix() * Eigen::Vector3d(checkXupper, 0, 0) + mid;
     Eigen::Vector3d mid_down = ax.toRotationMatrix() * Eigen::Vector3d(- checkXButton, 0, 0) + mid;
-    Eigen::Vector3d top_left = ax.toRotationMatrix() * Eigen::Vector3d(0, footparam.y_left, 0) + mid_top;
-    Eigen::Vector3d top_right = ax.toRotationMatrix() * Eigen::Vector3d(0, - footparam.y_right, 0) + mid_top;
-    Eigen::Vector3d down_left = ax.toRotationMatrix() * Eigen::Vector3d(0, footparam.y_left, 0) + mid_down;
-    Eigen::Vector3d down_right = ax.toRotationMatrix() * Eigen::Vector3d(0, - footparam.y_right, 0) + mid_down;
+    Eigen::Vector3d top_left = ax.toRotationMatrix() * Eigen::Vector3d(0, footparam.y_left - 0.1, 0) + mid_top;
+    Eigen::Vector3d top_right = ax.toRotationMatrix() * Eigen::Vector3d(0, - (footparam.y_right - 0.1), 0) + mid_top;
+    Eigen::Vector3d down_left = ax.toRotationMatrix() * Eigen::Vector3d(0, footparam.y_left - 0.1, 0) + mid_down;
+    Eigen::Vector3d down_right = ax.toRotationMatrix() * Eigen::Vector3d(0, - (footparam.y_right - 0.1), 0) + mid_down;
     // grid_map::Position top_left_l(top_left.x(), top_left.y());
     // grid_map::Position top_right_l(top_right.x(), top_right.y());
     // grid_map::Position down_left_l(down_left.x(), down_left.y());
@@ -321,6 +400,8 @@ bool AstarHierarchicalFootstepPlannerTraditional::computeLandInfo(Eigen::Vector3
         Eigen::Matrix3d eigenvectors = es.eigenvectors(); 
         if (eigenvalues(0)/eigenvalues.sum() < 0.05)
         {
+            auto end = std::chrono::high_resolution_clock::now();
+            total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
             if (eigenvectors.col(0).z() < 0 )
             {
                 plane_normal = - eigenvectors.col(0);
@@ -359,8 +440,8 @@ bool AstarHierarchicalFootstepPlannerTraditional::computeLandInfo(Eigen::Vector3
                 if (above_points > 8)
                 {
                     // 结束计时
-                    auto end = std::chrono::high_resolution_clock::now();
-                    total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
+                    // auto end = std::chrono::high_resolution_clock::now();
+                    // total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
 #ifdef DEBUG
                     LOG(INFO)<<"too much above points";
 #endif
@@ -368,8 +449,8 @@ bool AstarHierarchicalFootstepPlannerTraditional::computeLandInfo(Eigen::Vector3
                 }
                 if (max_size < 0.5* footsize_inmap)
                 {
-                    auto end = std::chrono::high_resolution_clock::now();
-                    total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
+                    // auto end = std::chrono::high_resolution_clock::now();
+                    // total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
                     LOG(INFO)<<"too small size";
                     return false;
                 }
@@ -450,8 +531,8 @@ bool AstarHierarchicalFootstepPlannerTraditional::computeLandInfo(Eigen::Vector3
                     return false;
                 }
                 // 结束计时
-                auto end = std::chrono::high_resolution_clock::now();
-                total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
+                // auto end = std::chrono::high_resolution_clock::now();
+                // total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
 #ifdef DEBUG
                 LOG(INFO)<<"return ";
 #endif
@@ -459,8 +540,6 @@ bool AstarHierarchicalFootstepPlannerTraditional::computeLandInfo(Eigen::Vector3
             }
             else
             {
-                auto end = std::chrono::high_resolution_clock::now();
-                total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
                 return false;
             }
             
@@ -477,8 +556,9 @@ bool AstarHierarchicalFootstepPlannerTraditional::computeLandInfo(Eigen::Vector3
     }
     else
     {
-        auto end = std::chrono::high_resolution_clock::now();
-        total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
+        // 我们需要计算的是支撑平面的时间，这里只是判断了四个角点是否位于地图内，你计入
+        // auto end = std::chrono::high_resolution_clock::now();
+        // total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
 #ifdef DEBUG
         LOG(INFO)<<"can not get support area points";
 #endif

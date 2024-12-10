@@ -10,11 +10,16 @@ private:
     double hip_width, checkXupper, checkXButton;
     localPlannerBase local_planner_traditional;
     localPlannerBase local_planner_propose;
-    std::string filename = "output.txt";
+    std::string filename = "output.data";
     std::ofstream file;
 
-    vector<Eigen::Vector3d> goal_points;
-    vector<Eigen::Vector3d> start_points;
+    // std::string filetxt = "output.txt";
+    // std::ofstream filetxt_;
+    vector<string> result_once;
+    vector<Eigen::Vector3d> goal_points1;
+    vector<Eigen::Vector3d> start_points1;
+    vector<Eigen::Vector3d> goal_points2;
+    vector<Eigen::Vector3d> start_points2;
 public:
     variousTerrainPlanner(ros::NodeHandle nh_);
 
