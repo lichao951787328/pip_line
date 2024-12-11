@@ -17,15 +17,22 @@ void initial_package_path(string package_name, string & package_path)
 
 localPlannerBase::localPlannerBase(std::shared_ptr<AstarHierarchicalFootstepPlannerBase> a):planner_P(std::move(a))
 {
-    initial_package_path("pip_line", package_path);
-    LOG(INFO)<<"package path is: "<<package_path;
-    pd.initial(package_path + "/config/plane_fitter_pcd.ini");
+    
+    // initial_package_path("pip_line", package_path);
+    // LOG(INFO)<<"package path is: "<<package_path;
+    // pd.initial(package_path + "/config/plane_fitter_pcd.ini");
+
+    // for debug using vscode
+    pd.initial("/home/lichao/TCDS/src/pip_line/config/plane_fitter_pcd.ini");
+
 }
 localPlannerBase::localPlannerBase()
 {
-    initial_package_path("pip_line", package_path);
-    LOG(INFO)<<"package path is: "<<package_path;
-    pd.initial(package_path + "/config/plane_fitter_pcd.ini");
+    // initial_package_path("pip_line", package_path);
+    // LOG(INFO)<<"package path is: "<<package_path;
+    // pd.initial(package_path + "/config/plane_fitter_pcd.ini");
+    // for debug using vscode
+    pd.initial("/home/lichao/TCDS/src/pip_line/config/plane_fitter_pcd.ini");
 }
 
 void localPlannerBase::setPlanner(std::shared_ptr<AstarHierarchicalFootstepPlannerBase> a)
@@ -444,7 +451,8 @@ bool localPlannerBase::plan()
         {
             // 记录结束时间
             // clock_t end_plan = clock();
-    
+            cout<<planner_P->time_consume<<endl;
+            time_consume = planner_P->time_consume;
             // // 计算消耗的时间（毫秒）
             // double duration_plan = double(end_plan - start_plane) / CLOCKS_PER_SEC * 1000;
 
@@ -459,12 +467,12 @@ bool localPlannerBase::plan()
             //     cout<<setw(8)<<"step: "<<step.x<<" "<<step.y<<" "<<step.z<<" "<<step.roll<<" "<<step.pitch<<" "<<step.yaw*57.3<<" "<<step.robot_side<<endl;
             //     cout<<setw(8)<<"points: "<<
             // }
-            LOG(INFO)<<steps.size();
-            for (int i = 0; i < steps.size(); i++)
-            {
-                cout<<setw(8)<<"result step "<<i<<": "<<steps.at(i).x<<" "<<steps.at(i).y<<" "<<steps.at(i).z<<" "<<steps.at(i).roll*57.3<<" "<<steps.at(i).pitch*57.3<<" "<<steps.at(i).yaw*57.3<<" "<<steps.at(i).robot_side<<endl;
-                // cout<<"points: "<<endl;
-            }
+            // LOG(INFO)<<steps.size();
+            // for (int i = 0; i < steps.size(); i++)
+            // {
+            //     cout<<setw(8)<<"result step "<<i<<": "<<steps.at(i).x<<" "<<steps.at(i).y<<" "<<steps.at(i).z<<" "<<steps.at(i).roll*57.3<<" "<<steps.at(i).pitch*57.3<<" "<<steps.at(i).yaw*57.3<<" "<<steps.at(i).robot_side<<endl;
+            //     // cout<<"points: "<<endl;
+            // }
             return true;
         }
         else

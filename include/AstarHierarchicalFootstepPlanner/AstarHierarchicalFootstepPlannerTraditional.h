@@ -17,7 +17,7 @@ public:
      * @return true 
      * @return false 
      */
-    bool isStartFeasible(Eigen::Vector3d start, Eigen::Vector3d & left_foot, Eigen::Vector3d & right_foot) override;
+    // bool isStartFeasible(Eigen::Vector3d start, Eigen::Vector3d & left_foot, Eigen::Vector3d & right_foot) override;
 
     // 使用传统方法来确定初始左右脚
     // bool isStartFeasibleTradition(Eigen::Vector3d start, Eigen::Vector3d & left_foot, Eigen::Vector3d & right_foot);
@@ -31,7 +31,7 @@ public:
      * @return true 
      * @return false 
      */
-    bool nodeExtension(FootstepNodePtr current_node, FootstepNodePtr pre_node, vector<FootstepNodePtr> & child_nodes) override;
+    // bool nodeExtension(FootstepNodePtr current_node, FootstepNodePtr pre_node, vector<FootstepNodePtr> & child_nodes) override;
 
     /**
      * @brief 根据localmap计算在ankle处，支撑点数、超出点数、平面法向量，这是根据落脚点的支撑平方面计算方式来区别进行的，需要为纯虚函数
@@ -54,9 +54,9 @@ public:
      * @return true 
      * @return false 
      */
-    bool computerLeftRightGoal(Eigen::Vector3d goal) override;
+    // bool computerLeftRightGoal(Eigen::Vector3d goal) override;
 
-    bool checkFeasibleGoal(Eigen::Vector3d goal) override;
+    // bool checkFeasibleGoal(Eigen::Vector3d goal) override;
 
     // bool SqurePoints(Eigen::Vector2d TL, Eigen::Vector2d TR, Eigen::Vector2d BL, Eigen::Vector2d BR, vector<Eigen::Vector3d> & points);
 

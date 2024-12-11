@@ -419,7 +419,7 @@ public:
      * @return true 
      * @return false 
      */
-    virtual bool isStartFeasible(Eigen::Vector3d start, Eigen::Vector3d & left_foot, Eigen::Vector3d & right_foot) = 0;
+    bool isStartFeasible(Eigen::Vector3d start, Eigen::Vector3d & left_foot, Eigen::Vector3d & right_foot);
 
     // 使用传统方法来确定初始左右脚
     // bool isStartFeasibleTradition(Eigen::Vector3d start, Eigen::Vector3d & left_foot, Eigen::Vector3d & right_foot);
@@ -450,7 +450,7 @@ public:
      * @return true 
      * @return false 
      */
-    virtual bool nodeExtension(FootstepNodePtr current_node, FootstepNodePtr pre_node, vector<FootstepNodePtr> & child_nodes) = 0;
+    bool nodeExtension(FootstepNodePtr current_node, FootstepNodePtr pre_node, vector<FootstepNodePtr> & child_nodes);
 
     Eigen::Matrix3d computeRotationMatrix(const Eigen::Vector3d& u, const Eigen::Vector3d& v);
 
@@ -667,9 +667,11 @@ public:
      * @return true 
      * @return false 
      */
-    virtual bool computerLeftRightGoal(Eigen::Vector3d goal) = 0;
+    bool computerLeftRightGoal(Eigen::Vector3d goal);
 
-    virtual bool checkFeasibleGoal(Eigen::Vector3d goal) = 0;
+    // bool computerLeftRightGoal(Eigen::Vector3d goal);
+
+    bool checkFeasibleGoal(Eigen::Vector3d goal);
 
     cv::Point calculateEndPoint(cv::Point start, double length, double angle);
 

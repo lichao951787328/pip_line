@@ -10,8 +10,8 @@
 #include <boost/chrono.hpp>
 #include <random>
 #include <grid_map_ros/GridMapRosConverter.hpp>
-#define discontinuous_steps
-// #define WAVE
+// #define discontinuous_steps
+#define WAVE
 // #define flat_plane
 // #define single_terrain_for_test
 variousTerrainPlanner::variousTerrainPlanner(ros::NodeHandle nh_):nh(nh_)
@@ -40,7 +40,7 @@ variousTerrainPlanner::variousTerrainPlanner(ros::NodeHandle nh_):nh(nh_)
     // }
     
 
-	grid_map::Position start(0.3, 0);
+	grid_map::Position start(0.4, 0);
     start_points1.emplace_back(Eigen::Vector3d(start.x(), start.y(), 0));
     start_points1.emplace_back(Eigen::Vector3d(start.x(), start.y(), -45/57.3));
     start_points1.emplace_back(Eigen::Vector3d(start.x(), start.y(), 45/57.3));
@@ -218,9 +218,11 @@ void variousTerrainPlanner::traditionalPlanner()
             auto end = std::chrono::high_resolution_clock::now();
             string re = std::to_string((std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0);
             std::cout<<"planning: "<<re<<endl;
-            LOG(INFO)<<local_planner_traditional.timeConsumption();
-            re += (" " + local_planner_traditional.timeConsumption());
-            LOG(INFO)<<local_planner_traditional.timeConsumption();
+            // std::cout<<"planning: "<<re<<endl;
+            
+            // LOG(INFO)<<local_planner_traditional.timeConsumption();
+            re += (" " + local_planner_traditional.time_consume);
+            LOG(INFO)<<local_planner_traditional.time_consume;
             result_once.emplace_back(re);
             // filetxt_<<
         }
@@ -273,9 +275,9 @@ void variousTerrainPlanner::proposePlanner()
             auto end = std::chrono::high_resolution_clock::now();
             string re = std::to_string((std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0);
             std::cout<<"planning: "<<re<<endl;
-            LOG(INFO)<<local_planner_traditional.timeConsumption();
-            re += (" " + local_planner_traditional.timeConsumption());
-            LOG(INFO)<<local_planner_traditional.timeConsumption();
+            // LOG(INFO)<<local_planner_propose.timeConsumption();
+            re += (" " + local_planner_propose.time_consume);
+            LOG(INFO)<<local_planner_propose.time_consume;
             result_once.emplace_back(re);
         }
         else
@@ -324,9 +326,7 @@ void variousTerrainPlanner::executeTaskWithTimeout(std::function<void()> task, i
     }
 }
 void variousTerrainPlanner::execute()
-{
-
-	
+{	
 #ifdef flat_plane
     grid_map::GridMap map({"elevation"});
 	map.setFrameId("map");
@@ -341,11 +341,11 @@ void variousTerrainPlanner::execute()
     
 for (size_t i = 0; i < 2; i++)
 {
-    std::shared_ptr<AstarHierarchicalFootstepPlannerTraditional> traditional_planner_ptr = std::make_shared<AstarHierarchicalFootstepPlannerTraditional>();
-    traditional_planner_ptr->setCheckParam(checkXupper, checkXButton);
-    local_planner_traditional.setPlanner(traditional_planner_ptr);
-    local_planner_traditional.setFootParam(foot_param);
-    local_planner_traditional.setHipWidth(hip_width);
+    // std::shared_ptr<AstarHierarchicalFootstepPlannerTraditional> traditional_planner_ptr = std::make_shared<AstarHierarchicalFootstepPlannerTraditional>();
+    // traditional_planner_ptr->setCheckParam(checkXupper, checkXButton);
+    // local_planner_traditional.setPlanner(traditional_planner_ptr);
+    // local_planner_traditional.setFootParam(foot_param);
+    // local_planner_traditional.setHipWidth(hip_width);
 
     
 
@@ -356,11 +356,12 @@ for (size_t i = 0; i < 2; i++)
     local_planner_propose.setPlanner(propose_planner_ptr);
     local_planner_propose.setFootParam(foot_param);
     local_planner_propose.setHipWidth(hip_width);
-    local_planner_traditional.mapPrepare(map);
+
+    // local_planner_traditional.mapPrepare(map);
                 
-    local_planner_traditional.initial(Eigen::Vector3d(0.3, 0.1, 0), Eigen::Vector3d(0.3, -0.1, 0), 0, Eigen::Vector3d(4, 0, 0));
+    // local_planner_traditional.initial(Eigen::Vector3d(0.3, 0.1, 0), Eigen::Vector3d(0.3, -0.1, 0), 0, Eigen::Vector3d(4, 0, 0));
     const int TIME_LIMIT = 30;
-    executeTaskWithTimeout([this]() { traditionalPlanner(); }, TIME_LIMIT);
+    // executeTaskWithTimeout([this]() { traditionalPlanner(); }, TIME_LIMIT);
 
 
     local_planner_propose.mapPrepare(map);
@@ -413,12 +414,12 @@ for (size_t i = 0; i < 2; i++)
         std::random_device rd_step; // 随机数种子
         std::mt19937 gen_step(rd_step()); // 随机数生成器
         // std::uniform_int_distribution<> dist_int_step(19, 27);
-        std::uniform_int_distribution<> dist_int_step(5, 27);
+        std::uniform_int_distribution<> dist_int_step(20, 30);
         // int step_width = dist_int_step(gen_step);
 
         std::random_device rd_gap; // 随机数种子
         std::mt19937 gen_gap(rd_gap()); // 随机数生成器
-        std::uniform_int_distribution<> dist_int_gap(5, 14);
+        std::uniform_int_distribution<> dist_int_gap(5, 12);
         // std::uniform_int_distribution<> dist_int_gap(2, 14);
         // int gap_width = dist_int_gap(gen_gap);
 
@@ -488,7 +489,7 @@ for (size_t i = 0; i < 2; i++)
                 // string start_goal = "start point: " + std::to_string(start_point.x()) + " " + std::to_string(start_point.y()) + ", goal_point: " + std::to_string(goal_point.x()) + " " + std::to_string(goal_point.y());
                 std::ostringstream oss;
                 oss << std::fixed << std::setprecision(3); // 固定小数点，保留三位小数
-                oss << "start point: " << start_point.x() << " " << start_point.y()<< ", goal point: " << goal_point.x() << " " << goal_point.y();
+                oss << "start point: " << start_point.x() << " " << start_point.y()<<" "<<start_point.z() << ", goal point: " << goal_point.x() << " " << goal_point.y()<< " " << goal_point.z();
                 // std::string start_goal = oss.str();
                 // file<<oss.str()<<std::endl;
                 result_once.emplace_back(oss.str());
@@ -504,10 +505,8 @@ for (size_t i = 0; i < 2; i++)
                 local_planner_propose.setFootParam(foot_param);
                 local_planner_propose.setHipWidth(hip_width);
 
-                auto map_copy1 = map;
-                auto map_copy2 = map;
-                local_planner_traditional.mapPrepare(map_copy1);
-                local_planner_propose.mapPrepare(map_copy2);
+                local_planner_traditional.mapPrepare(map);
+                local_planner_propose.mapPrepare(map);
 
                 LOG(INFO)<<"mapPrepare finish";
 
@@ -583,7 +582,7 @@ for (size_t i = 0; i < 2; i++)
                 // file<<"start point: "<<start_point.transpose()<<", goal_point: "<<goal_point.transpose()<<endl;
                 std::ostringstream oss;
                 oss << std::fixed << std::setprecision(3); // 固定小数点，保留三位小数
-                oss << "start point: " << start_point.x() << " " << start_point.y()<< ", goal point: " << goal_point.x() << " " << goal_point.y();
+                oss << "start point: " << start_point.x() << " " << start_point.y() << " " << start_point.z() << ", goal point: " << goal_point.x() << " " << goal_point.y()<< " " << goal_point.z();
                 // std::string start_goal = oss.str();
                 // file<<oss.str()<<std::endl;
                 result_once.emplace_back(oss.str());
@@ -613,7 +612,7 @@ for (size_t i = 0; i < 2; i++)
                         LOG(INFO)<<"Traditional: goal is feasible";
                         // file<<"tra stat and goal: "<<left_foot_tra.transpose()<<", "<<right_foot_tra.transpose()<<", "<<goal_point_tra.transpose()<<endl;
                         local_planner_traditional.initial(left_foot_tra, right_foot_tra, 0, goal_point_tra);
-                        const int TIME_LIMIT = 300;
+                        const int TIME_LIMIT = 180;
                         executeTaskWithTimeout([this]() { traditionalPlanner(); }, TIME_LIMIT);
                     }
                     else
@@ -641,7 +640,7 @@ for (size_t i = 0; i < 2; i++)
                         LOG(INFO)<<"Propose: goal is feasible";
                         // file<<"pro stat and goal: "<<propose_left_foot.transpose()<<", "<<propose_right_foot.transpose()<<", "<<goal_point_propose.transpose()<<endl;
                         local_planner_propose.initial(propose_left_foot, propose_right_foot, 0, goal_point_propose);
-                        const int TIME_LIMIT = 300;
+                        const int TIME_LIMIT = 180;
                         executeTaskWithTimeout([this]() { proposePlanner(); }, TIME_LIMIT);
                     }
                     else
@@ -792,20 +791,121 @@ for (size_t i = 0; i < 2; i++)
 #endif
 
 #ifdef WAVE
-    double map_length = 5.0;
-    double map_width = 5.0;
-	double resolution = 0.01;
-	grid_map::GridMap map({"elevation"});
-    map.setFrameId("map");
-    map.setGeometry(grid_map::Length(map_length, map_width), resolution, grid_map::Position(map_length/2.0, 0));
     int test_index_num = 0;
+	while (ros::ok() && test_index_num < 10)
+	{
+        double map_length = 5.0;
+        double map_width = 5.0;
+        double resolution = 0.01;
+        grid_map::GridMap map({"elevation"});
+        map.setFrameId("map");
+        map.setGeometry(grid_map::Length(map_length, map_width), resolution, grid_map::Position(map_length/2.0, 0));
 
-    while (ros::ok() && test_index_num <10)
-    {
-        for (auto & start_point : start_points)
+        double step_elevation = 0.1;
+        double gap_elevation = 0.0;
+        cv::Mat image = cv::Mat::zeros(map.getSize().x(), map.getSize().y(), CV_8UC1);
+        int amplitude = 20;  // 振幅（波的高度）
+        int frequency = 100;  // 波浪的频率（每个周期内的点数）
+        image = cv::Mat::zeros(map.getSize().x(), map.getSize().y(), CV_8UC1);
+
+
+        vector<int> map_design;  
+        int offsetY = 0;
+        while (offsetY < map.getSize().x())
         {
-            for (auto & goal_point : goal_points)
+            std::random_device rd_step; // 随机数种子
+            std::mt19937 gen_step(rd_step()); // 随机数生成器
+            // std::uniform_int_distribution<> dist_int_step(19, 27);
+            std::uniform_int_distribution<> dist_int_step(5, 27);
+            // int step_width = dist_int_step(gen_step);
+
+            std::random_device rd_gap; // 随机数种子
+            std::mt19937 gen_gap(rd_gap()); // 随机数生成器
+            std::uniform_int_distribution<> dist_int_gap(5, 14);
+
+            int step_index_length = dist_int_step(gen_step);
+            int gap_index_length = dist_int_gap(gen_gap);
+
+            int lineGap = step_index_length + gap_index_length;      // 每条波浪线之间的垂直间隔
+            int thickness = step_index_length;  
+
+            std::random_device rd; // 随机数种子
+            std::mt19937 gen(rd()); // 随机数生成器
+
+            // 整数范围
+            std::uniform_int_distribution<> dist_int(0, frequency/2); // 1到10
+            int xOffset = dist_int(gen); 
+
+            for (int x = 0; x < map.getSize().y(); ++x)
             {
+                int y = static_cast<int>(offsetY + amplitude * std::sin(2 * CV_PI * (x + xOffset) / frequency));
+                if (x > 0) 
+                {
+                    // 连接相邻的点，生成连续的波浪线
+                    cv::line(image, 
+                            cv::Point(x - 1, static_cast<int>(offsetY + amplitude * std::sin(2 * CV_PI * ((x - 1) + xOffset) / frequency))),
+                            cv::Point(x, y), 
+                            cv::Scalar(255), // 白色波浪线
+                            thickness);               // 波浪线的厚度
+                }
+            }
+            offsetY += lineGap;
+
+            map_design.emplace_back(step_index_length);
+            map_design.emplace_back(gap_index_length);
+            map_design.emplace_back(xOffset);
+        }
+
+
+        for (int x_i = 0; x_i < image.rows; x_i++)
+        {
+            for (int y_j = 0; y_j < image.cols; y_j++)
+            {
+                if (image.at<uchar>(x_i, y_j) == 255)
+                {
+                    map["elevation"](x_i, y_j) = step_elevation;
+                }
+                else
+                {
+                    map["elevation"](x_i, y_j) = gap_elevation;
+                }
+            }
+        }
+
+        
+        grid_map_msgs::GridMap msg;
+        grid_map::GridMapRosConverter::toMessage(map, msg);
+        map_pub.publish(msg);
+
+        // file<<"map_design: ";
+        // for (auto i : map_design)
+        // {
+            // file<<i<<" ";
+        // }
+        // file<<endl;
+
+        string terrain_design = "map_design: ";
+        for (auto i : map_design)
+        {
+            terrain_design += (std::to_string(i) + " ");
+        }
+        file<<terrain_design<<std::endl;
+
+        vector<vector<string>> results;
+        for (auto & start_point : start_points1)
+        {
+            for (auto & goal_point : goal_points1)
+            {
+                result_once.clear();
+                // file<<"start point: "<<start_point.transpose()<<", goal_point: "<<goal_point.transpose()<<endl;
+                // string start_goal = "start point: " + std::to_string(start_point.x()) + " " + std::to_string(start_point.y()) + ", goal_point: " + std::to_string(goal_point.x()) + " " + std::to_string(goal_point.y());
+                std::ostringstream oss;
+                oss << std::fixed << std::setprecision(3); // 固定小数点，保留三位小数
+                oss << "start point: " << start_point.x() << " " << start_point.y()<<" "<<start_point.z() << ", goal point: " << goal_point.x() << " " << goal_point.y()<< " " << goal_point.z();
+                // std::string start_goal = oss.str();
+                // file<<oss.str()<<std::endl;
+                result_once.emplace_back(oss.str());
+                LOG(INFO)<<oss.str();
                 std::shared_ptr<AstarHierarchicalFootstepPlannerTraditional> traditional_planner_ptr = std::make_shared<AstarHierarchicalFootstepPlannerTraditional>();
                 traditional_planner_ptr->setCheckParam(checkXupper, checkXButton);
                 local_planner_traditional.setPlanner(traditional_planner_ptr);
@@ -817,89 +917,6 @@ for (size_t i = 0; i < 2; i++)
                 local_planner_propose.setFootParam(foot_param);
                 local_planner_propose.setHipWidth(hip_width);
 
-                double step_elevation = 0.1;
-                double gap_elevation = 0.0;
-                cv::Mat image = cv::Mat::zeros(map.getSize().x(), map.getSize().y(), CV_8UC1);
-                int amplitude = 20;  // 振幅（波的高度）
-                int frequency = 100;  // 波浪的频率（每个周期内的点数）
-                image = cv::Mat::zeros(map.getSize().x(), map.getSize().y(), CV_8UC1);
-                map.clearAll();
-            
-                vector<int> map_design;
-        
-                int offsetY = 0;
-                while (offsetY < map.getSize().x())
-                {
-                    std::random_device rd_step; // 随机数种子
-                    std::mt19937 gen_step(rd_step()); // 随机数生成器
-                    // std::uniform_int_distribution<> dist_int_step(19, 27);
-                    std::uniform_int_distribution<> dist_int_step(5, 27);
-                    // int step_width = dist_int_step(gen_step);
-
-                    std::random_device rd_gap; // 随机数种子
-                    std::mt19937 gen_gap(rd_gap()); // 随机数生成器
-                    std::uniform_int_distribution<> dist_int_gap(5, 14);
-
-                    int step_index_length = dist_int_step(gen_step);
-                    int gap_index_length = dist_int_gap(gen_gap);
-
-                    int lineGap = step_index_length + gap_index_length;      // 每条波浪线之间的垂直间隔
-                    int thickness = step_index_length;  
-
-                    std::random_device rd; // 随机数种子
-                    std::mt19937 gen(rd()); // 随机数生成器
-
-                    // 整数范围
-                    std::uniform_int_distribution<> dist_int(0, frequency/2); // 1到10
-                    int xOffset = dist_int(gen); 
-
-                    for (int x = 0; x < map.getSize().y(); ++x)
-                    {
-                        int y = static_cast<int>(offsetY + amplitude * std::sin(2 * CV_PI * (x + xOffset) / frequency));
-                        if (x > 0) 
-                        {
-                            // 连接相邻的点，生成连续的波浪线
-                            cv::line(image, 
-                                    cv::Point(x - 1, static_cast<int>(offsetY + amplitude * std::sin(2 * CV_PI * ((x - 1) + xOffset) / frequency))),
-                                    cv::Point(x, y), 
-                                    cv::Scalar(255), // 白色波浪线
-                                    thickness);               // 波浪线的厚度
-                        }
-                    }
-                    offsetY += lineGap;
-
-                    map_design.emplace_back(step_index_length);
-                    map_design.emplace_back(gap_index_length);
-                    map_design.emplace_back(xOffset);
-                }
-            
-                // cv::imshow("Wave Image", image);
-                // cv::waitKey(0);
-
-                for (int x_i = 0; x_i < image.rows; x_i++)
-                {
-                    for (int y_j = 0; y_j < image.cols; y_j++)
-                    {
-                        if (image.at<uchar>(x_i, y_j) == 255)
-                        {
-                            map["elevation"](x_i, y_j) = step_elevation;
-                        }
-                        else
-                        {
-                            map["elevation"](x_i, y_j) = gap_elevation;
-                        }
-                    }
-                }
-                grid_map_msgs::GridMap msg;
-                grid_map::GridMapRosConverter::toMessage(map, msg);
-                map_pub.publish(msg);
-
-                file<<"map_design: ";
-                for (auto i : map_design)
-                {
-                    file<<i<<" ";
-                }
-                file<<endl;
                 local_planner_traditional.mapPrepare(map);
                 local_planner_propose.mapPrepare(map);
 
@@ -915,22 +932,25 @@ for (size_t i = 0; i < 2; i++)
                     {
                         LOG(INFO)<<"Traditional: goal is feasible";
                         
-                        file<<"tra stat and goal: "<<left_foot_tra.transpose()<<", "<<right_foot_tra.transpose()<<", "<<goal_point_tra.transpose()<<endl;
+                        // file<<"tra stat and goal: "<<left_foot_tra.transpose()<<", "<<right_foot_tra.transpose()<<", "<<goal_point_tra.transpose()<<endl;
                         local_planner_traditional.initial(left_foot_tra, right_foot_tra, 0, goal_point_tra);
-                        const int TIME_LIMIT = 300;
+                        const int TIME_LIMIT = 180;
                         executeTaskWithTimeout([this]() { traditionalPlanner(); }, TIME_LIMIT);
-                        
                     }
                     else
                     {
                         LOG(ERROR)<<"Traditional: goal is not feasible";
-                        file<<"Traditional: goal is not feasible"<<endl;
+                        // file<<"error goal"<<endl;
+                        result_once.emplace_back("error goal");
+                        // file<<"Traditional: goal is not feasible"<<endl;
                     }
                 }
                 else
                 {
                     LOG(ERROR)<<"Traditional: start is not feasible";
-                    file<<"Traditional: start is not feasible"<<endl;
+                    // file<<"error start"<<endl;
+                    result_once.emplace_back("error start");
+                    // file<<"Traditional: start is not feasible"<<endl;
                 }
                 
 
@@ -940,25 +960,148 @@ for (size_t i = 0; i < 2; i++)
                     if (CheckFeasibleGoalPropose(map, goal_point, goal_point_propose))
                     {
                         LOG(INFO)<<"Propose: goal is feasible";
-                        file<<"pro stat and goal: "<<propose_left_foot.transpose()<<", "<<propose_right_foot.transpose()<<", "<<goal_point_propose.transpose()<<endl;
+                        // file<<"pro stat and goal: "<<propose_left_foot.transpose()<<", "<<propose_right_foot.transpose()<<", "<<goal_point_propose.transpose()<<endl;
                         local_planner_propose.initial(propose_left_foot, propose_right_foot, 0, goal_point_propose);
-                        const int TIME_LIMIT = 300;
+                        const int TIME_LIMIT = 180;
                         executeTaskWithTimeout([this]() { proposePlanner(); }, TIME_LIMIT);
                     }
                     else
                     {
                         LOG(ERROR)<<"Propose: goal is not feasible";
+                        // file<<"error goal"<<endl;
+                        result_once.emplace_back("error goal");
+                        // file<<"Propose: goal is not feasible"<<endl;
                     }
                 }
                 else
                 {
                     LOG(ERROR)<<"Propose: start is not feasible";
+                    result_once.emplace_back("error start");
+                    // file<<"error start"<<endl;
+                    // file<<"Propose: start is not feasible"<<endl;
                 }
+                results.emplace_back(result_once);
             }
         }
+        
+        
+        for (auto & start_point : start_points2)
+        {
+            LOG(INFO)<<"start point: "<<start_point.transpose();
+            for (auto & goal_point : goal_points2)
+            {
+                result_once.clear();
+                // file<<"start point: "<<start_point.transpose()<<", goal_point: "<<goal_point.transpose()<<endl;
+                std::ostringstream oss;
+                oss << std::fixed << std::setprecision(3); // 固定小数点，保留三位小数
+                oss << "start point: " << start_point.x() << " " << start_point.y() << " " << start_point.z() << ", goal point: " << goal_point.x() << " " << goal_point.y()<< " " << goal_point.z();
+                // std::string start_goal = oss.str();
+                // file<<oss.str()<<std::endl;
+                result_once.emplace_back(oss.str());
+                std::shared_ptr<AstarHierarchicalFootstepPlannerTraditional> traditional_planner_ptr = std::make_shared<AstarHierarchicalFootstepPlannerTraditional>();
+                traditional_planner_ptr->setCheckParam(checkXupper, checkXButton);
+                local_planner_traditional.setPlanner(traditional_planner_ptr);
+                local_planner_traditional.setFootParam(foot_param);
+                local_planner_traditional.setHipWidth(hip_width);
+
+                std::shared_ptr<AstarHierarchicalFootstepPlannerPropose> propose_planner_ptr = std::make_shared<AstarHierarchicalFootstepPlannerPropose>();
+                local_planner_propose.setPlanner(propose_planner_ptr);
+                local_planner_propose.setFootParam(foot_param);
+                local_planner_propose.setHipWidth(hip_width);
+
+                local_planner_traditional.mapPrepare(map);
+                local_planner_propose.mapPrepare(map);
+                LOG(INFO)<<"mapPrepare finish";
+
+                Eigen::Vector3d goal_point_tra, goal_point_propose;
+                Eigen::Vector3d left_foot_tra, right_foot_tra, propose_left_foot, propose_right_foot;
+
+                if (checkFeasibleStartTraditional(map, start_point, left_foot_tra, right_foot_tra))
+                {
+                    LOG(INFO)<<"Traditional: start is feasible";
+                    if (CheckFeasibleGoalTraditional(map, goal_point, goal_point_tra))
+                    {
+                        LOG(INFO)<<"Traditional: goal is feasible";
+                        // file<<"tra stat and goal: "<<left_foot_tra.transpose()<<", "<<right_foot_tra.transpose()<<", "<<goal_point_tra.transpose()<<endl;
+                        local_planner_traditional.initial(left_foot_tra, right_foot_tra, 0, goal_point_tra);
+                        const int TIME_LIMIT = 180;
+                        executeTaskWithTimeout([this]() { traditionalPlanner(); }, TIME_LIMIT);
+                    }
+                    else
+                    {
+                        LOG(ERROR)<<"Traditional: goal is not feasible";
+                        // file<<"error goal"<<endl;
+                        result_once.emplace_back("error goal");
+                        // file<<"Traditional: goal is not feasible"<<endl;
+                    }
+                }
+                else
+                {
+                    LOG(ERROR)<<"Traditional: start is not feasible";
+                    // file<<"error start"<<endl;
+                    result_once.emplace_back("error start");
+                    // file<<"Traditional: start is not feasible"<<endl;
+                }
+                
+
+                if (checkFeasibleStartPropose(map, start_point, propose_left_foot, propose_right_foot))
+                {
+                    LOG(INFO)<<"Propose: start is feasible";
+                    if (CheckFeasibleGoalPropose(map, goal_point, goal_point_propose))
+                    {
+                        LOG(INFO)<<"Propose: goal is feasible";
+                        // file<<"pro stat and goal: "<<propose_left_foot.transpose()<<", "<<propose_right_foot.transpose()<<", "<<goal_point_propose.transpose()<<endl;
+                        local_planner_propose.initial(propose_left_foot, propose_right_foot, 0, goal_point_propose);
+                        const int TIME_LIMIT = 180;
+                        executeTaskWithTimeout([this]() { proposePlanner(); }, TIME_LIMIT);
+                    }
+                    else
+                    {
+                        LOG(ERROR)<<"Propose: goal is not feasible";
+                        // file<<"Propose: goal is not feasible"<<endl;
+                        // file<<"error goal"<<endl;
+                        result_once.emplace_back("error goal");
+                    }
+                }
+                else
+                {
+                    LOG(ERROR)<<"Propose: start is not feasible";
+                    result_once.emplace_back("error start");
+                    // file<<"error start"<<endl;
+                    // file<<"Propose: start is not feasible"<<endl;
+                }
+                results.emplace_back(result_once);
+            }
+        }
+        
+        LOG(INFO)<<"finish one test";
+        const size_t chunk_size = 9;
+        while (!results.empty())
+        {
+            std::vector<vector<string>> sub_vector;
+
+            // 将最多 chunk_size 个元素从 original 移动到 sub_vector
+            for (size_t i = 0; i < chunk_size && !results.empty(); ++i) 
+            {
+                sub_vector.push_back(results.front());
+                results.erase(results.begin());
+            }
+            int cols = sub_vector.at(0).size();
+
+            for (int i = 0; i < cols; i++)
+            {
+                for (const auto& element : sub_vector)
+                {
+                    file<<element.at(i)<<"\t";
+                }
+                file<<endl;
+            }
+        }
+        file<<endl;
+
+
         test_index_num++;
-        LOG(INFO)<<"test_index_num: "<<test_index_num;
-    }  
+	}
 #endif
 }
 
