@@ -10,10 +10,19 @@
 #include <boost/chrono.hpp>
 #include <random>
 #include <grid_map_ros/GridMapRosConverter.hpp>
+#include <pcl/filters/voxel_grid.h>
+#include <pcl/filters/passthrough.h>
+#include <pcl/filters/statistical_outlier_removal.h>
+#include <pcl/io/pcd_io.h>
+#include <pcl/point_cloud.h>
+#include <tf2/utils.h>
+#include <tf2/LinearMath/Matrix3x3.h>
+#include <tf2/LinearMath/Quaternion.h>
 // #define discontinuous_steps
 #define WAVE
 // #define flat_plane
 // #define single_terrain_for_test
+// #define Map_from_PCD
 variousTerrainPlanner::variousTerrainPlanner(ros::NodeHandle nh_):nh(nh_)
 {
     map_pub = nh.advertise<grid_map_msgs::GridMap>("map", 1, true);
@@ -40,16 +49,16 @@ variousTerrainPlanner::variousTerrainPlanner(ros::NodeHandle nh_):nh(nh_)
     // }
     
 
-	grid_map::Position start(0.4, 0);
+	grid_map::Position start(0.2, 0);
     start_points1.emplace_back(Eigen::Vector3d(start.x(), start.y(), 0));
     start_points1.emplace_back(Eigen::Vector3d(start.x(), start.y(), -45/57.3));
     start_points1.emplace_back(Eigen::Vector3d(start.x(), start.y(), 45/57.3));
 
     vector<Eigen::Vector2d> tmp_goal_points;
-    tmp_goal_points.emplace_back(Eigen::Vector2d(4.5, 0));
+    tmp_goal_points.emplace_back(Eigen::Vector2d(4.7, 0));
     // tmp_goal_points.emplace_back(Eigen::Vector2d(3.5, 0));
-    tmp_goal_points.emplace_back(Eigen::Vector2d(4.4, 2));
-    tmp_goal_points.emplace_back(Eigen::Vector2d(4.4, -2));
+    tmp_goal_points.emplace_back(Eigen::Vector2d(4.7, 2));
+    tmp_goal_points.emplace_back(Eigen::Vector2d(4.7, -2));
     // tmp_goal_points.emplace_back(Eigen::Vector2d(3.4, 2));
     // tmp_goal_points.emplace_back(Eigen::Vector2d(3.4, -2));
     for (auto & tmp_goal_point : tmp_goal_points)
@@ -61,15 +70,15 @@ variousTerrainPlanner::variousTerrainPlanner(ros::NodeHandle nh_):nh(nh_)
         goal_points1.emplace_back(Eigen::Vector3d(tmp_goal_point.x(), tmp_goal_point.y(), 45/57.3));
     }
 
-    grid_map::Position3 start_(2.5, 2.0, -90/57.3);
+    grid_map::Position3 start_(2.5, 2.3, -90/57.3);
     start_points2.emplace_back(Eigen::Vector3d(start_.x(), start_.y(), start_.z() + 0));
     start_points2.emplace_back(Eigen::Vector3d(start_.x(), start_.y(), start_.z() -45/57.3));
     start_points2.emplace_back(Eigen::Vector3d(start_.x(), start_.y(), start_.z() + 45/57.3));
 
     vector<Eigen::Vector3d> tmp_goal_points2;
-    tmp_goal_points2.emplace_back(Eigen::Vector3d(2.5, -2, -90/57.3));
-    tmp_goal_points2.emplace_back(Eigen::Vector3d(4.5, -2, -90/57.3));
-    tmp_goal_points2.emplace_back(Eigen::Vector3d(0.5, -2, -90/57.3));
+    tmp_goal_points2.emplace_back(Eigen::Vector3d(2.5, -2.2, -90/57.3));
+    tmp_goal_points2.emplace_back(Eigen::Vector3d(4.5, -2.2, -90/57.3));
+    tmp_goal_points2.emplace_back(Eigen::Vector3d(0.5, -2.2, -90/57.3));
     for (auto & tmp_goal_point : tmp_goal_points2)
     {
         goal_points2.emplace_back(Eigen::Vector3d(tmp_goal_point.x(), tmp_goal_point.y(), tmp_goal_point.z()));
@@ -82,7 +91,7 @@ bool variousTerrainPlanner::CheckFeasibleGoalTraditional(grid_map::GridMap & map
 {
     if (local_planner_traditional.getPlannerPtr())
     {
-        grid_map::SpiralIterator iterator(map, cand_goal.head(2), (foot_param.x_upper + foot_param.x_button)/2);
+        grid_map::SpiralIterator iterator(map, cand_goal.head(2), (foot_param.x_upper + foot_param.x_button)/2 + 0.1);
         while (!iterator.isPastEnd())
         {
             grid_map::Position position;
@@ -107,7 +116,7 @@ bool variousTerrainPlanner::CheckFeasibleGoalPropose(grid_map::GridMap & map, Ei
 {
     if (local_planner_propose.getPlannerPtr())
     {
-        grid_map::SpiralIterator iterator(map, cand_goal.head(2), (foot_param.x_upper + foot_param.x_button)/2);
+        grid_map::SpiralIterator iterator(map, cand_goal.head(2), (foot_param.x_upper + foot_param.x_button)/2 + 0.1);
         while (!iterator.isPastEnd())
         {
             grid_map::Position position;
@@ -130,7 +139,7 @@ bool variousTerrainPlanner::CheckFeasibleGoalPropose(grid_map::GridMap & map, Ei
 
 bool variousTerrainPlanner::checkFeasibleStartTraditional(grid_map::GridMap & map, Eigen::Vector3d & start, Eigen::Vector3d & left_foot_tra, Eigen::Vector3d & right_foot_tra)
 {
-    grid_map::SpiralIterator iterator(map, start.head(2), (foot_param.x_upper + foot_param.x_button)/2);
+    grid_map::SpiralIterator iterator(map, start.head(2), (foot_param.x_upper + foot_param.x_button)/2 + 0.1);
     while (!iterator.isPastEnd())
     {
         grid_map::Position position;
@@ -147,7 +156,7 @@ bool variousTerrainPlanner::checkFeasibleStartTraditional(grid_map::GridMap & ma
 
 bool variousTerrainPlanner::checkFeasibleStartPropose(grid_map::GridMap & map, Eigen::Vector3d & start, Eigen::Vector3d & propose_left_foot, Eigen::Vector3d & propose_right_foot)
 {
-    grid_map::SpiralIterator iterator(map, start.head(2), (foot_param.x_upper + foot_param.x_button)/2);
+    grid_map::SpiralIterator iterator(map, start.head(2), (foot_param.x_upper + foot_param.x_button)/2 + 0.1);
     while (!iterator.isPastEnd())
     {
         grid_map::Position position;
@@ -401,7 +410,7 @@ for (size_t i = 0; i < 2; i++)
 
 #ifdef discontinuous_steps
     int test_index_num = 0;
-	while (ros::ok() && test_index_num < 6)
+	while (ros::ok() && test_index_num < 3)
 	{
         double map_length = 5.0;
         double map_width = 5.0;
@@ -414,12 +423,12 @@ for (size_t i = 0; i < 2; i++)
         std::random_device rd_step; // 随机数种子
         std::mt19937 gen_step(rd_step()); // 随机数生成器
         // std::uniform_int_distribution<> dist_int_step(19, 27);
-        std::uniform_int_distribution<> dist_int_step(20, 30);
+        std::uniform_int_distribution<> dist_int_step(5, 27);
         // int step_width = dist_int_step(gen_step);
 
         std::random_device rd_gap; // 随机数种子
         std::mt19937 gen_gap(rd_gap()); // 随机数生成器
-        std::uniform_int_distribution<> dist_int_gap(5, 12);
+        std::uniform_int_distribution<> dist_int_gap(5, 14);
         // std::uniform_int_distribution<> dist_int_gap(2, 14);
         // int gap_width = dist_int_gap(gen_gap);
 
@@ -462,16 +471,42 @@ for (size_t i = 0; i < 2; i++)
             map_design.emplace_back(gap_index_length);
             index_length = index_length + gap_index_length;
         }
+
+        // int fill_step = 0.5/map.getResolution();
+        // cv::Mat fill_image = cv::Mat::zeros(map.getSize()(1), map.getSize()(0), CV_8UC1);
+        // 填充台阶，以保证起点和终点的可用性
+        // for (int i = 0; i < fill_image.cols; i++)
+        // {
+        //     for (int j = 0; j < fill_step; j++)
+        //     {
+        //         fill_image.at<uchar>(j, i) = 255;
+        //         fill_image.at<uchar>(map.getSize()(0) - j - 1, i) = 255;
+        //     }
+        // }
+        // for (int i = 0; i < fill_image.rows; i++)
+        // {
+        //     for (int j = 0; j < fill_step; j++)
+        //     {
+        //         fill_image.at<uchar>(i, j) = 255;
+        //         fill_image.at<uchar>(i, map.getSize()(1) - j - 1) = 255;
+        //     }
+        // }
+        // // cv::imshow("fill_image", fill_image);
+        // // cv::waitKey(0);
+        // for (int i = 0; i < fill_image.rows; i++)
+        // {
+        //     for (int j = 0; j < fill_image.cols; j++)
+        //     {
+        //         if (fill_image.at<uchar>(i, j) == 255)
+        //         {
+        //             map["elevation"](i, j) = 0.1;
+        //         }
+        //     }
+        // }
+
         grid_map_msgs::GridMap msg;
         grid_map::GridMapRosConverter::toMessage(map, msg);
         map_pub.publish(msg);
-
-        // file<<"map_design: ";
-        // for (auto i : map_design)
-        // {
-            // file<<i<<" ";
-        // }
-        // file<<endl;
 
         string terrain_design = "map_design: ";
         for (auto i : map_design)
@@ -689,31 +724,7 @@ for (size_t i = 0; i < 2; i++)
 
 
         test_index_num++;
-		// if (checkFeasibleStart(map, left_foot_tra, left_right_tra, propose_left_foot, propose_right_foot))
-		// {
-		// 	if (CheckFeasibleGoal(map, goal_points))
-		// 	{
-		// 		LOG(INFO)<<left_foot_tra.transpose();
-		// 		LOG(INFO)<<left_right_tra.transpose();
-		// 		LOG(INFO)<<propose_left_foot.transpose();
-		// 		LOG(INFO)<<propose_right_foot.transpose();
-		// 		local_planner_traditional.initial(left_foot_tra, left_right_tra, 0, goal_points.at(0));
-		// 		local_planner_propose.initial(propose_left_foot, propose_right_foot, 0, goal_points.at(0));
-		// 		const int TIME_LIMIT = 60;
-		// 		executeTaskWithTimeout([this]() { proposePlanner(); }, TIME_LIMIT);
-		// 		executeTaskWithTimeout([this]() { traditionalPlanner(); }, TIME_LIMIT);
-		// 	}
-		// 	else
-		// 	{
-		// 		LOG(ERROR)<<"goal point is not feasible";
-		// 	}
-		// }
-		// else
-		// {
-		// 	LOG(ERROR)<<"start point is not feasible";
-		// }
 		
-		// break;
 	}
 #endif
 
@@ -791,6 +802,7 @@ for (size_t i = 0; i < 2; i++)
 #endif
 
 #ifdef WAVE
+    // test_index_num = 0;
     int test_index_num = 0;
 	while (ros::ok() && test_index_num < 10)
 	{
@@ -872,17 +884,45 @@ for (size_t i = 0; i < 2; i++)
             }
         }
 
-        
-        grid_map_msgs::GridMap msg;
-        grid_map::GridMapRosConverter::toMessage(map, msg);
-        map_pub.publish(msg);
-
-        // file<<"map_design: ";
-        // for (auto i : map_design)
+        // int fill_step = 0.5/map.getResolution();
+        // cv::Mat fill_image = cv::Mat::zeros(map.getSize()(1), map.getSize()(0), CV_8UC1);
+        // // 填充台阶，以保证起点和终点的可用性
+        // for (int i = 0; i < fill_image.cols; i++)
         // {
-            // file<<i<<" ";
+        //     for (int j = 0; j < fill_step; j++)
+        //     {
+        //         fill_image.at<uchar>(j, i) = 255;
+        //         fill_image.at<uchar>(map.getSize()(0) - j - 1, i) = 255;
+        //     }
         // }
-        // file<<endl;
+        // for (int i = 0; i < fill_image.rows; i++)
+        // {
+        //     for (int j = 0; j < fill_step; j++)
+        //     {
+        //         fill_image.at<uchar>(i, j) = 255;
+        //         fill_image.at<uchar>(i, map.getSize()(1) - j - 1) = 255;
+        //     }
+        // }
+        // // cv::imshow("fill_image", fill_image);
+        // // cv::waitKey(0);
+        // for (int i = 0; i < fill_image.rows; i++)
+        // {
+        //     for (int j = 0; j < fill_image.cols; j++)
+        //     {
+        //         if (fill_image.at<uchar>(i, j) == 255)
+        //         {
+        //             map["elevation"](i, j) = 0.1;
+        //         }
+        //     }
+        // }
+        grid_map_msgs::GridMap msg;
+            grid_map::GridMapRosConverter::toMessage(map, msg);
+            map_pub.publish(msg);
+        
+        
+        
+
+        
 
         string terrain_design = "map_design: ";
         for (auto i : map_design)
@@ -1103,6 +1143,193 @@ for (size_t i = 0; i < 2; i++)
         test_index_num++;
 	}
 #endif
+
+#ifdef Map_from_PCD
+    pcl::PointCloud<pcl::PointXYZ> cloud;
+    pcl::io::loadPCDFile("/home/lichao/TCDS/src/bag_to_pcd/data/cloud_0.pcd", cloud);
+    LOG(INFO)<<"load pcd file"<< cloud.size();
+
+    pcl::VoxelGrid<pcl::PointXYZ> voxel_filter;
+    voxel_filter.setInputCloud(cloud.makeShared());
+
+    float leaf_size = 0.005f; // 体素尺寸（单位：米）
+    voxel_filter.setLeafSize(leaf_size, leaf_size, leaf_size);
+
+    pcl::PointCloud<pcl::PointXYZ>::Ptr filtered_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+    voxel_filter.filter(*filtered_cloud);
+    LOG(INFO)<<"filter pcd file"<< filtered_cloud->size();
+
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZ>());
+    pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sor;
+    sor.setInputCloud(filtered_cloud);                 // 设置输入点云
+    sor.setMeanK(10);                         // 设置每个点的邻居点数
+    sor.setStddevMulThresh(1.0);              // 设置标准差倍数的阈值
+    sor.filter(*cloud_filtered);  
+
+    pcl::io::savePCDFileASCII("/home/lichao/TCDS/src/pip_line/data/cloud.pcd", *cloud_filtered);
+    Eigen::Matrix4d T_install_depth = Eigen::Matrix4d::Identity();
+    T_install_depth(1, 3) = -0.001;
+    T_install_depth(2, 3) = 0.026 - 0.0045;
+    Eigen::Matrix4d T_hole_install = Eigen::Matrix4d::Identity();
+    Eigen::Matrix3d R;
+    R<<- 0.669130606, 0, 0.743144825,
+        0, 1, 0,
+        - 0.743144825, 0, -0.669130606;
+    T_hole_install.block<3,3>(0,0) = R;
+    T_hole_install(0, 3) = 0.07025;
+    T_hole_install(2, 3) = 0.00424;
+    Eigen::Matrix4d T_base_hole = Eigen::Matrix4d::Identity();
+    T_base_hole(0, 3) = 0.05675;
+    T_base_hole(2, 3) = 0.49123;
+    Eigen::Matrix4d T_world_base = Eigen::Matrix4d::Identity();
+    // 一定要注意根据实际高度调节，控制端反馈
+    T_world_base.block<3,1>(0,3) = Eigen::Vector3d(0, 0, 0.67 + 0.08);
+    Eigen::Matrix4d T_world_camera = T_world_base * T_base_hole * T_hole_install * T_install_depth;
+
+    pcl::PointCloud<pcl::PointXYZ> need_points;
+    for (auto & p : cloud_filtered->points)
+    {
+        // if (p.x > -1.5 && p.x < 3.5)
+        // {
+        //     if (p.y > -3 && p.y < 9)
+        //     {
+        //         // need_points.emplace_back(pcl::PointXYZ(p.x + 1.5, p.y - 3, 9 - p.z));
+        //         need_points.emplace_back(p);
+        //     }
+        // }
+        Eigen::Vector3d p_world(p.x, p.y, p.z);
+        Eigen::Vector3d p_camera = T_world_camera.block<3,3>(0,0) * p_world + T_world_camera.block<3,1>(0,3);
+        need_points.emplace_back(pcl::PointXYZ(p_camera(0), p_camera(1), p_camera(2)));
+        // if (p_camera(2) > 0.0)
+        // {
+        //     need_points.emplace_back(pcl::PointXYZ(p_camera(0), p_camera(1), p_camera(2)));
+        // }
+    }
+    LOG(INFO)<<"filter pcd file"<< need_points.size();
+
+    double map_length = 1.6;
+    double map_width = 2.0;
+    double resolution =0.01;
+    grid_map::GridMap map({"elevation"});
+    map.setFrameId("map");
+    map.setGeometry(grid_map::Length(map_length, map_width), resolution, grid_map::Position(map_length/2.0, 0));
+
+    for (auto & p : need_points.points)
+    {
+        if (map.isInside(grid_map::Position(p.x, p.y)))
+        {
+            grid_map::Index index;
+            map.getIndex(grid_map::Position(p.x, p.y), index);
+            map.at("elevation", index) = p.z;
+        }
+    }
+
+    for (int i = 118; i < map.getSize().x(); i++)
+    {
+        for (int j = 50; j < map.getSize().y()-50; j++)
+        {
+            map.at("elevation", grid_map::Index(i, j)) = 0.05;
+        }
+    }
+    
+
+    // start: position: 
+    //   x: 2.2664873600006104
+    //   y: -0.0054368977434933186
+    //   z: 0.0
+    // orientation: 
+    //   x: 0.0
+    //   y: 0.0
+    //   z: -0.6860311125736688
+    //   w: 0.7275722043762627
+
+    // goal1 : 
+//     position: 
+//     x: 3.45186185836792
+//     y: -4.003772258758545
+//     z: 0.0
+//   orientation: 
+//     x: 0.0
+//     y: 0.0
+//     z: -0.5775723631826717
+//     w: 0.816339491441878
+
+// goal2 :
+// position: 
+//     x: 1.5601766109466553
+//     y: -4.574963092803955
+//     z: 0.0
+//   orientation: 
+//     x: 0.0
+//     y: 0.0
+//     z: -0.8506509125327667
+//     w: 0.5257309435511393
+    // Eigen::Vector3d start(2.2664873600006104, -0.0054368977434933186, 0.0);
+    // Eigen::Vector3d goal1(3.45186185836792, -4.003772258758545, 0.0);
+    // Eigen::Vector3d goal2(1.5601766109466553, -4.574963092803955, 0.0);
+    // tf2::Quaternion quaternion_start(0.0, 0.0, -0.6860311125736688, 0.7275722043762627);
+    // tf2::Quaternion quaternion_goal1(0.0, 0.0, -0.5775723631826717, 0.816339491441878);
+    // tf2::Quaternion quaternion_goal2(0.0, 0.0, -0.8506509125327667, 0.5257309435511393);
+    // start.z() = tf2::getYaw(quaternion_start);
+    // goal1.z() = tf2::getYaw(quaternion_goal1);
+    // goal2.z() = tf2::getYaw(quaternion_goal2);
+    
+    std::shared_ptr<AstarHierarchicalFootstepPlannerTraditional> traditional_planner_ptr = std::make_shared<AstarHierarchicalFootstepPlannerTraditional>();
+    traditional_planner_ptr->setCheckParam(checkXupper, checkXButton);
+    local_planner_traditional.setPlanner(traditional_planner_ptr);
+    local_planner_traditional.setFootParam(foot_param);
+    local_planner_traditional.setHipWidth(hip_width);
+
+    std::shared_ptr<AstarHierarchicalFootstepPlannerPropose> propose_planner_ptr = std::make_shared<AstarHierarchicalFootstepPlannerPropose>();
+    local_planner_propose.setPlanner(propose_planner_ptr);
+    local_planner_propose.setFootParam(foot_param);
+    local_planner_propose.setHipWidth(hip_width);
+
+    local_planner_traditional.mapPrepare(map);
+    local_planner_propose.mapPrepare(map);
+
+    // Eigen::Vector3d left_foot_tra, right_foot_tra;
+    // if (checkFeasibleStartTraditional(map, start, left_foot_tra, right_foot_tra))
+    // {
+    //     local_planner_traditional.initial(left_foot_tra, right_foot_tra, 0, goal1);
+    //     if (local_planner_traditional.plan())
+    //     {
+    //         LOG(INFO)<<"traditional plan success";
+    //     }
+    // }
+    
+    
+    ros::Rate loop_rate(2);
+    while (ros::ok())
+    {
+        grid_map_msgs::GridMap msg;
+        grid_map::GridMapRosConverter::toMessage(map, msg);
+        map_pub.publish(msg);
+        loop_rate.sleep(); 
+    }
+    
+    
+
+    // pcl::PassThrough<pcl::PointXYZ> pass_filter;
+    // pass_filter.setInputCloud(filtered_cloud);
+    // // pass_filter.setFilterFieldName("x");        // 选择 z 轴
+    // // pass_filter.setFilterLimits(-1.5, 3.5);      // 设置 z 值范围在 [0.0, 1.0]
+
+    // pass_filter.setFilterFieldName("y");
+    // pass_filter.setFilterLimits(-2.5, 9);
+
+    // // 可选：保留范围外的点（默认为 false）
+    // // pass_filter.getFilterLimitsNegative(false);
+    // pass_filter.setNegative(false);
+
+    // // 执行过滤
+    // pcl::PointCloud<pcl::PointXYZ>::Ptr filtered_cloud2(new pcl::PointCloud<pcl::PointXYZ>);
+    // pass_filter.filter(*filtered_cloud2);
+    // LOG(INFO)<<"pass through pcd file"<< filtered_cloud2->size();
+
+    
+#endif
+
 }
 
 

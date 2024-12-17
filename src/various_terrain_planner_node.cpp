@@ -17,6 +17,5 @@ int main(int argc, char** argv)
     variousTerrainPlanner planner(nh);
     planner.execute();
     return 0;
-
 }
 

@@ -49,7 +49,7 @@ find_package(PCL 1.10 REQUIRED
   COMPONENTS
     common
     # features
-    # filters
+    filters
     io
     # kdtree
     # segmentation
@@ -88,6 +88,7 @@ include
   ${PYTHON_INCLUDE_DIRS}
   # ${PCL_INCLUDE_DIRS}
   ${PCL_COMMON_INCLUDE_DIRS}
+  ${PCL_FILTERS_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
   ${Boost_INCLUDE_DIRS}
   ${OPENNI_INCLUDE_DIRS}
@@ -237,6 +238,7 @@ target_link_libraries(various_terrain_planner
   ${catkin_LIBRARIES}
   ${PCL_COMMON_LIBRARIES}
   ${PCL_IO_LIBRARIES}
+  ${PCL_FILTERS_LIBRARIES}
   ${Boost_LIBRARIES}
   glog::glog
   ${OPENNI_LIBRARIES}

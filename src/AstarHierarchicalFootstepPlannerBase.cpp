@@ -9,6 +9,10 @@
 #include <grid_map_core/iterators/CircleIterator.hpp>
 #include <chrono>
 #include <boost/thread.hpp>
+
+#define OUR_ROBOT
+// #define ATLAS_ROBOT
+
 // 这个构造函数，有问题，暂时不要使用
 // AstarHierarchicalFootstepPlannerBase::AstarHierarchicalFootstepPlannerBase(grid_map::GridMap & lm, FootParam footparam_, double hip_width_)
 // {
@@ -99,6 +103,8 @@ void AstarHierarchicalFootstepPlannerBase::setBasicInfor(grid_map::GridMap & lab
 
 void AstarHierarchicalFootstepPlannerBase::initial_transitions()
 {
+#ifdef OUR_ROBOT
+
     for (int i = -1; i < 4; i++)
     {
         for (int j = -2; j < 9; j++)
@@ -133,52 +139,6 @@ void AstarHierarchicalFootstepPlannerBase::initial_transitions()
         }
     }
     
-
-    // transitions.emplace_back(Eigen::Vector3d(0.09, 0.22, 0));
-    // transitions.emplace_back(Eigen::Vector3d(0.09, 0.25, 0));
-    // transitions.emplace_back(Eigen::Vector3d(0.09, 0.28, 0));
-    // transitions.emplace_back(Eigen::Vector3d(0.08, 0.22, 0));
-    // transitions.emplace_back(Eigen::Vector3d(0.08, 0.25, 0));
-    // transitions.emplace_back(Eigen::Vector3d(0.08, 0.28, 0));
-
-    // transitions.emplace_back(Eigen::Vector3d(0.07, 0.22, 0));
-    // transitions.emplace_back(Eigen::Vector3d(0.07, 0.25, 0));
-    // transitions.emplace_back(Eigen::Vector3d(0.07, 0.28, 0));
-    // transitions.emplace_back(Eigen::Vector3d(0.06, 0.22, 0));
-    // transitions.emplace_back(Eigen::Vector3d(0.06, 0.25, 0));
-    // transitions.emplace_back(Eigen::Vector3d(0.06, 0.28, 0));
-
-    // transitions.emplace_back(Eigen::Vector3d(0.05, 0.22, 0));
-    // transitions.emplace_back(Eigen::Vector3d(0.05, 0.25, 0));
-    // transitions.emplace_back(Eigen::Vector3d(0.05, 0.28, 0));
-    // transitions.emplace_back(Eigen::Vector3d(0.04, 0.22, 0));
-    // transitions.emplace_back(Eigen::Vector3d(0.04, 0.25, 0));
-    // transitions.emplace_back(Eigen::Vector3d(0.04, 0.28, 0));
-
-    // transitions.emplace_back(Eigen::Vector3d(0.03, 0.22, 0));
-    // transitions.emplace_back(Eigen::Vector3d(0.03, 0.25, 0));
-    // transitions.emplace_back(Eigen::Vector3d(0.03, 0.28, 0));
-    // transitions.emplace_back(Eigen::Vector3d(0.02, 0.22, 0));
-    // transitions.emplace_back(Eigen::Vector3d(0.02, 0.25, 0));
-    // transitions.emplace_back(Eigen::Vector3d(0.02, 0.28, 0));
-
-    // transitions.emplace_back(Eigen::Vector3d(0.01, 0.22, 0));
-    // transitions.emplace_back(Eigen::Vector3d(0.01, 0.25, 0));
-    // transitions.emplace_back(Eigen::Vector3d(0.01, 0.28, 0));
-
-    // transitions.emplace_back(Eigen::Vector3d(-0.01, 0.22, 0));
-    // transitions.emplace_back(Eigen::Vector3d(-0.01, 0.25, 0));
-    // transitions.emplace_back(Eigen::Vector3d(-0.01, 0.28, 0));
-    // transitions.emplace_back(Eigen::Vector3d(-0.02, 0.22, 0));
-    // transitions.emplace_back(Eigen::Vector3d(-0.02, 0.25, 0));
-    // transitions.emplace_back(Eigen::Vector3d(-0.02, 0.28, 0));
-    // transitions.emplace_back(Eigen::Vector3d(-0.03, 0.22, 0));
-    // transitions.emplace_back(Eigen::Vector3d(-0.03, 0.25, 0));
-    // transitions.emplace_back(Eigen::Vector3d(-0.03, 0.28, 0));
-
-    // transitions.emplace_back(Eigen::Vector3d(0.0, 0.25, 0));
-    // transitions.emplace_back(Eigen::Vector3d(0.0, 0.3, 0));
-    // transitions.emplace_back(Eigen::Vector3d(0.0, 0.35, 0));
     for (int i = -1; i < 2; i++)
     {
         for (int j = -2; j < 3; j++)
@@ -196,6 +156,60 @@ void AstarHierarchicalFootstepPlannerBase::initial_transitions()
             }
         }
     }
+#endif
+
+#ifdef ATLAS_ROBOT
+    for (int i = -1; i < 5; i++)
+    {
+        for (int j = -2; j < 7; j++)
+        {
+            for (int k = -1; k < 5; k++)
+            {
+                if (j == -1 && (k == -3 || k == -2))// 靠的太近时角度不允许内转太多
+                {
+                    continue;
+                }
+                if (j == 0 && k ==-3)
+                {
+                    continue;
+                }
+                
+                Eigen::Vector3d transition = Eigen::Vector3d(i * 0.16,   0.04 * j + 0.23,  k*5/57.3);
+                // LOG(INFO)<<transition.transpose();
+                transitions.emplace_back(transition);
+            }
+        }
+    }
+    for (int i = -7; i < 8; i+=2)
+    {
+        for (int j = 0; j < 9; j++)
+        {
+            for (int k = -1; k < 1; k++)
+            {
+                Eigen::Vector3d transition = Eigen::Vector3d(i * 0.02,  0.02 * j + 0.23,  k*5/57.3);
+                transitions.emplace_back(transition);
+            }
+        }
+    }
+
+    for (int i = -2; i < 3; i++)
+    {
+        for (int j = -2; j < 3; j++)
+        {
+            for (int k = -1; k < 2; k++)
+            {
+                if (j == -1 && k == -2)// 靠的太近时角度不允许内转太多
+                {
+                    continue;
+                }
+                Eigen::Vector3d transition = Eigen::Vector3d(i * 0.08,   0.03 * j + 0.23,  k*5/57.3);
+                // LOG(INFO)<<transition.transpose();
+                combine_transitions.emplace_back(transition);
+            }
+        }
+    }
+#endif
+
 }
 
 // 默认起点和终点位置是对的
@@ -583,6 +597,7 @@ bool AstarHierarchicalFootstepPlannerBase::computeTransitionScore(std::pair<Eige
 
     // 高度太高，则去除，高度也会是一个打分项
     double height_change = height - current_node->footstep.z;
+#ifdef OUR_ROBOT
     if (height_change > 0.16 || height_change < -0.15)
     {
 #ifdef DEBUG
@@ -592,6 +607,19 @@ bool AstarHierarchicalFootstepPlannerBase::computeTransitionScore(std::pair<Eige
         // LOG(INFO)<<transition_height<<" "<<current_node->footstep.z;
         return false;
     }
+#endif
+
+#ifdef ATLAS_ROBOT
+    if (height_change > 0.4 || height_change < -0.25)
+    {
+#ifdef DEBUG
+        LOG(INFO)<<"height is unsuaitable";
+        LOG(INFO)<<"height: "<<height;
+#endif
+        // LOG(INFO)<<transition_height<<" "<<current_node->footstep.z;
+        return false;
+    }
+#endif
     // LOG(INFO)<<"2";
     // 摆动脚跨越高度，这也是一个打分项
     double height_change_swing, swing_height_max;
@@ -705,10 +733,19 @@ bool AstarHierarchicalFootstepPlannerBase::traversibilityCheck(ScoreMarkerNodePt
         if (label_localmap.getPosition3("elevation",*iterator, p3))
         {
             double dis = (p3 - center).dot(normal);
+#ifdef OUR_ROBOT
             if (dis > 0.3)
             {
                 return false;
             }
+#endif
+
+#ifdef ATLAS_ROBOT
+            if (dis > 0.5)
+            {
+                return false;
+            }
+#endif
         }
     }
     for (grid_map::CircleIterator iterator(label_localmap, position, upperbody_radius); !iterator.isPastEnd(); ++iterator)
@@ -717,10 +754,20 @@ bool AstarHierarchicalFootstepPlannerBase::traversibilityCheck(ScoreMarkerNodePt
         if (label_localmap.getPosition3("elevation",*iterator, p3))
         {
             double dis = (p3 - center).dot(normal);
+#ifdef OUR_ROBOT
             if (dis > 0.6)
             {
                 return false;
             }
+#endif
+
+#ifdef ATLAS_ROBOT
+            if (dis > 0.8)
+            {
+                return false;
+            }
+#endif
+
         }
     }
     return true;
@@ -1227,7 +1274,6 @@ bool AstarHierarchicalFootstepPlannerBase::nodeExtension(FootstepNodePtr current
     // 基础节点，在地图坐标系下的节点
     child_nodes.clear();
     vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> special_transitions = basicTransitions(current_node);
-
 #ifdef DEBUG
     LOG(INFO)<<"node size: "<<special_transitions.size();
     for (auto & node : special_transitions)
@@ -1244,7 +1290,7 @@ bool AstarHierarchicalFootstepPlannerBase::nodeExtension(FootstepNodePtr current
     int originalHeight = plane_image.rows;
 
     // 放大倍数
-    float scaleFactor = 2.0;  // 放大为原来的两倍
+    float scaleFactor = 1.0;  // 放大为原来的两倍
 
     // 计算放大后的尺寸
     int scaledWidth = static_cast<int>(originalWidth * scaleFactor);
@@ -1594,7 +1640,7 @@ bool AstarHierarchicalFootstepPlannerBase::computeHcost(FootstepNodePtr node, do
             angle_diff = abs(node->footstep.yaw - end_right_p->footstep.yaw);
         }
         // LOG(INFO)<<dis1<<" "<<dis2<<" "<<angle_diff;
-        hcost = ((dis)*8 + dis_z * 2 + angle_diff * 0.2) * 2;
+        hcost = ((dis)*10 + dis_z * 2 + angle_diff * 0.2) * 3;
         return true;
     }
     else
@@ -1609,7 +1655,7 @@ bool AstarHierarchicalFootstepPlannerBase::computeGcost(FootstepNodePtr node, do
     dis = (Eigen::Vector2d(node->footstep.x, node->footstep.y) - Eigen::Vector2d(node->PreFootstepNode->footstep.x, node->PreFootstepNode->footstep.y)).norm();
     angle_diff = abs(node->footstep.yaw - node->PreFootstepNode->footstep.yaw);
     height_diff = abs(node->footstep.z - node->PreFootstepNode->footstep.z);
-    gcost = dis  /* angle_diff * 0.5 /*+ height_diff */ + node->PreFootstepNode->Gcost;
+    gcost = dis * 0.6  /* angle_diff * 0.5 /*+ height_diff */ + node->PreFootstepNode->Gcost;
     return true;
 }
 
@@ -2069,7 +2115,7 @@ bool AstarHierarchicalFootstepPlannerBase::plan()
                     cv::circle(tmp_image, cv::Point(right_index.y(), right_index.x()), 3, cv::Scalar(255, 255, 255), 2);
                 }
                 // cv::imshow("tmp_image", tmp_image);
-                double scaleFactor = 3.0;
+                double scaleFactor = 1.0;
 
                 // 定义放大后的图像尺寸
                 cv::Size newSize(static_cast<int>(tmp_image.cols * scaleFactor), static_cast<int>(tmp_image.rows * scaleFactor));
@@ -2385,6 +2431,9 @@ bool AstarHierarchicalFootstepPlannerBase::checkFootstepsResult()
             }
         }
         // roll方向
+
+        // E20241216 08:14:35.815896 12866 AstarHierarchicalFootstepPlannerBase.cpp:2436] roll
+// E20241216 08:14:35.816156 12866 AstarHierarchicalFootstepPlannerBase.h:728] steps is error, planning algorithm is need to check
         if (abs(last_step.roll - current_step.roll) > 15/57.3)
         {
             LOG(ERROR)<<"roll";
