@@ -168,6 +168,14 @@ src/various_terrain_planner_node.cpp
 add_executable(test_gridmap
 src/test_gridmap.cpp
 )
+
+add_executable(CBS_planner
+src/CBS_planner.cpp
+)
+
+add_executable(CBS_planner_random
+src/CBS_planner_random.cpp
+)
 # add_executable(test_planner 
 # test/test_footstep_planner/test.cpp
 # src/plane_detection/quatree_node_20240618.cpp
@@ -248,6 +256,22 @@ target_link_libraries(test_gridmap
 ${PCL_COMMON_LIBRARIES}
 ${PCL_IO_LIBRARIES}
   ${catkin_LIBRARIES}
+)
+
+target_link_libraries(CBS_planner
+  ${catkin_LIBRARIES}
+  ${PCL_COMMON_LIBRARIES}
+  ${PCL_IO_LIBRARIES}
+  glog::glog
+  ${OPENNI_LIBRARIES}
+)
+
+target_link_libraries(CBS_planner_random
+  ${catkin_LIBRARIES}
+  ${PCL_COMMON_LIBRARIES}
+  ${PCL_IO_LIBRARIES}
+  glog::glog
+  ${OPENNI_LIBRARIES}
 )
 
 # target_link_libraries(test_planner
