@@ -139,8 +139,24 @@ void drawFilledRotatedRectangle(cv::Mat& image, cv::Point2f topLeftCorner, float
     cv::fillConvexPoly(image, intCorners, 4, 255);
 }
 
-visualization_msgs::MarkerArray getAreaMarker(vector<Eigen::Vector3d> steps, grid_map::GridMap & map)
+vector<Eigen::Vector3d> computeCornerPoints(Eigen::Matrix3d R, double x, double y)
 {
+    vector<Eigen::Vector3d> corners;
+    Eigen::Vector3d LT(x, y, 0);
+    Eigen::Vector3d LB(-x, y, 0);
+    Eigen::Vector3d RB(-x, -y, 0);
+    Eigen::Vector3d RT(-x, y, 0);
+    corners.emplace_back(R * LT);
+    corners.emplace_back(R * LB);
+    corners.emplace_back(R * RB);
+    corners.emplace_back(R * RT);
+    return corners;
+}
+
+
+visualization_msgs::MarkerArray getAreaMarker(vector<Eigen::Vector3d> steps, grid_map::GridMap & map, Eigen::Vector2d center)
+{
+    Eigen::Vector3d center_3D(center.x(), center.y(), 0);
     visualization_msgs::MarkerArray markerArray;
     
     // 根据点云提取平面，根据平面确定角度
@@ -187,6 +203,14 @@ visualization_msgs::MarkerArray getAreaMarker(vector<Eigen::Vector3d> steps, gri
                 q_new = Eigen::AngleAxisd(euler(0), Eigen::Vector3d::UnitZ()) *
                     Eigen::AngleAxisd(euler(1), Eigen::Vector3d::UnitY()) *
                     Eigen::AngleAxisd(euler(2), Eigen::Vector3d::UnitX());
+
+                vector<Eigen::Vector3d> corners = computeCornerPoints(q_new.toRotationMatrix(), 0.27/2, 0.13/2);
+
+                for (int i = 0; i < corners.size(); i++)
+                {
+                    cout<<"cornner "<<i<<": "<<(corners.at(i) + Eigen::Vector3d(marker.pose.position.x, marker.pose.position.y, marker.pose.position.z) - center_3D).transpose()<<endl;
+                }
+                
                 tf.block<3, 3>(0, 0) = q_new.toRotationMatrix();
                 tf.block<3, 1>(0, 3) = Eigen::Vector3d(marker.pose.position.x, marker.pose.position.y, marker.pose.position.z);
                 marker.pose.orientation.x = q_new.x();
@@ -245,8 +269,15 @@ visualization_msgs::MarkerArray getAreaMarker(vector<Eigen::Vector3d> steps, gri
                 q_new = Eigen::AngleAxisd(euler(0), Eigen::Vector3d::UnitZ()) *
                     Eigen::AngleAxisd(euler(1), Eigen::Vector3d::UnitY()) *
                     Eigen::AngleAxisd(euler(2), Eigen::Vector3d::UnitX());
+                vector<Eigen::Vector3d> corners = computeCornerPoints(q_new.toRotationMatrix(), 0.27/2, 0.13/2);
+
+                for (int i = 0; i < corners.size(); i++)
+                {
+                    cout<<"cornner "<<i<<": "<<(corners.at(i) + Eigen::Vector3d(marker.pose.position.x, marker.pose.position.y, marker.pose.position.z) - center_3D).transpose()<<endl;
+                }
                 tf.block<3, 3>(0, 0) = q_new.toRotationMatrix();
                 tf.block<3, 1>(0, 3) = Eigen::Vector3d(marker.pose.position.x, marker.pose.position.y, marker.pose.position.z);
+
                 marker.pose.orientation.x = q_new.x();
                 marker.pose.orientation.y = q_new.y();
                 marker.pose.orientation.z = q_new.z();
@@ -555,6 +586,8 @@ int main(int argc, char **argv)
     Eigen::Vector3d right = ad.toRotationMatrix() * Eigen::Vector3d(0, -0.2, 0) + start;
 
     Eigen::Vector2d center = (start + right).head(2)/2.0;   
+
+    LOG(INFO) << "center: " << center.transpose();
     for (auto & corner_points : corner_points)
     {
         for (auto & point : corner_points)
@@ -696,7 +729,7 @@ int main(int argc, char **argv)
     // steps.emplace_back(Eigen::Vector3d(step16.x(), step16.y(), 45));
     
     // 画步态点
-    visualization_msgs::MarkerArray markerArray = getAreaMarker(steps, map);
+    visualization_msgs::MarkerArray markerArray = getAreaMarker(steps, map, center);
     
     LOG(INFO)<<"markerArray.markers.size(): "<<markerArray.markers.size();
     // 发布Marker消息

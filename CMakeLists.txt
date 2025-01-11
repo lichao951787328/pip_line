@@ -176,6 +176,19 @@ src/CBS_planner.cpp
 add_executable(CBS_planner_random
 src/CBS_planner_random.cpp
 )
+
+add_executable(CBS_imageinpaper
+src/CBS_imageinpaper.cpp
+)
+
+add_executable(CBS_processing_image
+src/CBS_processing_image.cpp
+)
+
+add_executable(CBS_processing_image2
+src/CBS_processing_image2.cpp
+)
+
 # add_executable(test_planner 
 # test/test_footstep_planner/test.cpp
 # src/plane_detection/quatree_node_20240618.cpp
@@ -272,6 +285,28 @@ target_link_libraries(CBS_planner_random
   ${PCL_IO_LIBRARIES}
   glog::glog
   ${OPENNI_LIBRARIES}
+)
+
+target_link_libraries(CBS_imageinpaper
+  ${catkin_LIBRARIES}
+  ${PCL_COMMON_LIBRARIES}
+  ${PCL_IO_LIBRARIES}
+  glog::glog
+  ${OPENNI_LIBRARIES}
+)
+
+target_link_libraries(CBS_processing_image
+${catkin_LIBRARIES}
+  ${OpenCV_LIBRARIES}
+  ${PCL_IO_LIBRARIES}
+  ${PCL_FILTERS_LIBRARIES}
+)
+
+target_link_libraries(CBS_processing_image2
+${catkin_LIBRARIES}
+  ${OpenCV_LIBRARIES}
+  ${PCL_IO_LIBRARIES}
+  ${PCL_FILTERS_LIBRARIES}
 )
 
 # target_link_libraries(test_planner
