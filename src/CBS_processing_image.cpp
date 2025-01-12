@@ -15,7 +15,7 @@
 using namespace std;
 
 // #define FEASIBLE_IMAGE
-// #define FEASIBLE_IMAGE_CONTOUR
+#define FEASIBLE_IMAGE_CONTOUR
 // 第一个return之前的为获取可通行的平面，思路是先转成世界坐标系下的点云，并通过世界坐标系下的点云坐标确定在相机坐标系下的障碍点，再在相机坐标系下的点云中删除那些可能发生碰撞的障碍点。再进行平面检测
 
 // 第二个return是对处理结果进行修饰得到的平面和轮廓
@@ -160,7 +160,7 @@ int main(int argc, char** argv)
 #ifdef FEASIBLE_IMAGE_CONTOUR
     unsigned int default_colors[10][3] =
     {
-        {255, 0, 0},
+        // {255, 0, 0},
         {255, 255, 0},
         {100, 20, 50},
         // {0, 30, 255},

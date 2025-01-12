@@ -660,7 +660,8 @@ int main(int argc, char **argv)
     Eigen::Vector3d step4 = Eigen::Vector3d(0.65, 0.22, 0) + right;
     steps.emplace_back(Eigen::Vector3d(step4.x(), step4.y(), 10));
 
-    Eigen::Vector3d step5 = Eigen::Vector3d(1., 0.33, 0) + start;
+// 6步
+    Eigen::Vector3d step5 = Eigen::Vector3d(1., 0.30, 0) + start;
     steps.emplace_back(Eigen::Vector3d(step5.x(), step5.y(), 15));
 
     Eigen::Vector3d step6 = Eigen::Vector3d(1.2, 0.35, 0) + right;
@@ -681,7 +682,7 @@ int main(int argc, char **argv)
     Eigen::Vector3d step11 = Eigen::Vector3d(1.5, 0.65, 0) + start;
     steps.emplace_back(Eigen::Vector3d(step11.x(), step11.y(), 55));
 
-    Eigen::Vector3d step12 = Eigen::Vector3d(1.63, 0.85, 0) + right;
+    Eigen::Vector3d step12 = Eigen::Vector3d(1.61, 0.87, 0) + right;
     steps.emplace_back(Eigen::Vector3d(step12.x(), step12.y(), 55));
 
     Eigen::Vector3d step13 = Eigen::Vector3d(1.55, 0.9, 0) + start;
