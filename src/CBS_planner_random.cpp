@@ -651,22 +651,22 @@ int main(int argc, char **argv)
     Eigen::Vector3d step16 = Eigen::Vector3d(1.6, 0.88, 0) + right;
     steps.emplace_back(Eigen::Vector3d(step16.x(), step16.y(), 45));
 #else
-    Eigen::Vector3d step3 = Eigen::Vector3d(0.23, 0.05, 0) + right;
+    Eigen::Vector3d step3 = Eigen::Vector3d(0.23, 0.1, 0) + right;
     steps.emplace_back(Eigen::Vector3d(step3.x(), step3.y(), 10));
 
-    Eigen::Vector3d step2 = Eigen::Vector3d(0.57, 0.2, 0) + start;
+    Eigen::Vector3d step2 = Eigen::Vector3d(0.57, 0.22, 0) + start;
     steps.emplace_back(Eigen::Vector3d(step2.x(), step2.y(), 10));
 
-    Eigen::Vector3d step4 = Eigen::Vector3d(0.65, 0.2, 0) + right;
+    Eigen::Vector3d step4 = Eigen::Vector3d(0.65, 0.22, 0) + right;
     steps.emplace_back(Eigen::Vector3d(step4.x(), step4.y(), 10));
 
-    Eigen::Vector3d step5 = Eigen::Vector3d(1, 0.25, 0) + start;
+    Eigen::Vector3d step5 = Eigen::Vector3d(1., 0.33, 0) + start;
     steps.emplace_back(Eigen::Vector3d(step5.x(), step5.y(), 15));
 
-    Eigen::Vector3d step6 = Eigen::Vector3d(1.2, 0.28, 0) + right;
+    Eigen::Vector3d step6 = Eigen::Vector3d(1.2, 0.35, 0) + right;
     steps.emplace_back(Eigen::Vector3d(step6.x(), step6.y(), 20));
 
-    Eigen::Vector3d step7 = Eigen::Vector3d(1.3, 0.33, 0) + start;
+    Eigen::Vector3d step7 = Eigen::Vector3d(1.3, 0.37, 0) + start;
     steps.emplace_back(Eigen::Vector3d(step7.x(), step7.y(), 30));
 
     Eigen::Vector3d step8 = Eigen::Vector3d(1.45, 0.4, 0) + right;

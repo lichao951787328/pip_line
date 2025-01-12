@@ -412,87 +412,44 @@ int main(int argc, char** argv)
         }
     }
 
-#ifndef FEASIBLE_IMAGE_CONTOUR
-    // 获取一些feasible的轮廓，并将其在图像上画出来，用于对于落脚点是否合适
-    cv::Mat feasible_image1 = cv::imread("/home/lichao/TCDS/src/pip_line/data/CBS_needed/feasible_planes/feasible_image1.jpg");
+// #ifndef FEASIBLE_IMAGE_CONTOUR
+//     // 获取一些feasible的轮廓，并将其在图像上画出来，用于对于落脚点是否合适
+//     cv::Mat feasible_image1 = cv::imread("/home/lichao/TCDS/src/pip_line/data/CBS_needed/feasible_planes/feasible_image1.jpg");
     
-    cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(14, 14));
-    cv::morphologyEx(feasible_image1, feasible_image1, cv::MORPH_CLOSE, kernel);
-    cv::imshow("feasible_image1", feasible_image1);
-    cv::waitKey(0);
+//     cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(14, 14));
+//     cv::morphologyEx(feasible_image1, feasible_image1, cv::MORPH_CLOSE, kernel);
+//     cv::imshow("feasible_image1", feasible_image1);
+//     cv::waitKey(0);
 
-    cv::Mat feasible_image2 = cv::imread("/home/lichao/TCDS/src/pip_line/data/CBS_needed/feasible_planes/feasible_image2.jpg");
-    // cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(12, 12));
-    cv::morphologyEx(feasible_image2, feasible_image2, cv::MORPH_CLOSE, kernel);
+//     cv::Mat feasible_image2 = cv::imread("/home/lichao/TCDS/src/pip_line/data/CBS_needed/feasible_planes/feasible_image2.jpg");
+//     // cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(12, 12));
+//     cv::morphologyEx(feasible_image2, feasible_image2, cv::MORPH_CLOSE, kernel);
 
-    vector<vector<cv::Point>> contours1, contours2;
-    vector<cv::Vec4i> hierarchy1, hierarchy2;
+//     vector<vector<cv::Point>> contours1, contours2;
+//     vector<cv::Vec4i> hierarchy1, hierarchy2;
 
-    cv::cvtColor(feasible_image1, feasible_image1, cv::COLOR_BGR2GRAY);
-    cv::threshold(feasible_image1, feasible_image1, 200, 255, cv::THRESH_BINARY);
-    cv::findContours(feasible_image1, contours1, hierarchy1, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+//     cv::cvtColor(feasible_image1, feasible_image1, cv::COLOR_BGR2GRAY);
+//     cv::threshold(feasible_image1, feasible_image1, 200, 255, cv::THRESH_BINARY);
+//     cv::findContours(feasible_image1, contours1, hierarchy1, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
-    cv::cvtColor(feasible_image2, feasible_image2, cv::COLOR_BGR2GRAY);
-    cv::threshold(feasible_image2, feasible_image2, 200, 255, cv::THRESH_BINARY);
-    cv::findContours(feasible_image2, contours2, hierarchy2, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+//     cv::cvtColor(feasible_image2, feasible_image2, cv::COLOR_BGR2GRAY);
+//     cv::threshold(feasible_image2, feasible_image2, 200, 255, cv::THRESH_BINARY);
+//     cv::findContours(feasible_image2, contours2, hierarchy2, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
-    vector<vector<cv::Point>> approxContours1(contours1.size());
-    vector<vector<cv::Point>> approxContours2(contours2.size());
+//     vector<vector<cv::Point>> approxContours1(contours1.size());
+//     vector<vector<cv::Point>> approxContours2(contours2.size());
 
-    if (!contours1.empty()) {
-        cv::approxPolyDP(contours1[0], approxContours1[0], 5, true);
-        cv::drawContours(colored_image, approxContours1, 0, cv::Scalar(0, 0, 255), 2);
-    }
+//     if (!contours1.empty()) {
+//         cv::approxPolyDP(contours1[0], approxContours1[0], 5, true);
+//         cv::drawContours(colored_image, approxContours1, 0, cv::Scalar(0, 0, 255), 2);
+//     }
 
-    if (!contours2.empty()) {
-        cv::approxPolyDP(contours2[0], approxContours2[0], 5, true);
-        cv::drawContours(colored_image, approxContours2, 0, cv::Scalar(0, 0, 255), 2);
-    }
-    // cv::Mat full_image1 = cv::imread("/home/lichao/TCDS/src/pip_line/data/CBS_needed/plane00.jpg");
-    // cv::Mat full_image2 = cv::imread("/home/lichao/TCDS/src/pip_line/data/CBS_needed/plane01.jpg");
+//     if (!contours2.empty()) {
+//         cv::approxPolyDP(contours2[0], approxContours2[0], 5, true);
+//         cv::drawContours(colored_image, approxContours2, 0, cv::Scalar(0, 0, 255), 2);
+//     }
 
-
-    // for (int i = 0; i < feasible_image1.rows; i++)
-    // {
-    //     for (int j = 0; j < feasible_image1.cols; j++)
-    //     {
-    //         if (feasible_image1.at<uchar>(i, j) == 255)
-    //         {
-    //             full_image1.at<uchar>(i, j) = 0;
-    //         }
-    //     }
-    // }
-
-    // for (int i = 0; i < feasible_image2.rows; i++)
-    // {
-    //     for (int j = 0; j < feasible_image2.cols; j++)
-    //     {
-    //         if (feasible_image2.at<uchar>(i, j) == 255)
-    //         {
-    //             full_image2.at<uchar>(i, j) = 0;
-    //         }
-    //     }
-    // }
-    // cv::imshow("full_image1", full_image1);
-    // cv::waitKey(0);
-    // cv::imshow("full_image2", full_image2);
-    // cv::waitKey(0);
-
-    // vector<vector<cv::Point>> contours1, contours2;
-    // vector<cv::Vec4i> hierarchy1, hierarchy2;
-
-    // cv::cvtColor(full_image1, full_image1, cv::COLOR_BGR2GRAY);
-    // cv::threshold(full_image1, full_image1, 200, 255, cv::THRESH_BINARY);
-    // cv::findContours(full_image1, contours1, hierarchy1, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-
-    // cv::cvtColor(full_image2, full_image2, cv::COLOR_BGR2GRAY);
-    // cv::threshold(full_image2, full_image2, 200, 255, cv::THRESH_BINARY);
-    // cv::findContours(full_image2, contours2, hierarchy2, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-
-    // cv::drawContours(colored_image, contours1, -1, cv::Scalar(0, 255, 0), 2);
-    // cv::drawContours(colored_image, contours2, -1, cv::Scalar(0, 255, 0), 2);
-
-#endif
+// #endif
     cv::imwrite("/home/lichao/TCDS/src/pip_line/data/CBS_needed/paper/plan_result.jpg", colored_image);
     cv::imshow("colored_image", colored_image);
     cv::waitKey(0); 
