@@ -88,7 +88,7 @@ int main(int argc, char** argv)
 
             Eigen::Vector3d po_w = T_world_camera.block<3,3>(0,0)* Eigen::Vector3d(point.x, point.y, point.z) + T_world_camera.block<3,1>(0,3);
             cloud_world.emplace_back(pcl::PointXYZ(po_w.x(), po_w.y(), po_w.z()));
-            if (po_w.z() > 0.4)
+            if (po_w.z() > 0.35)
             {
                 obstacle_mask.at<uchar>(j, i) = 255;
                 // obstacle_cloud.emplace_back(pcl::PointXYZ(po_w.x(), po_w.y(), po_w.z()));
@@ -127,7 +127,7 @@ int main(int argc, char** argv)
             for (auto & obstcle_point : cloud_filtered_stat)
             {
                 Eigen::Vector3d obsacle = T_world_camera.block<3,3>(0,0)* Eigen::Vector3d(obstcle_point.x, obstcle_point.y, obstcle_point.z) + T_world_camera.block<3,1>(0,3);
-                if ((po_w - obsacle).head(2).norm() < 0.25)
+                if ((po_w - obsacle).head(2).norm() < 0.35)
                 {
                     cloud.at(i, j).x = 0;
                     cloud.at(i, j).y = 0;
@@ -174,7 +174,7 @@ int main(int argc, char** argv)
     cv::Mat img1 = cv::imread("/home/lichao/TCDS/src/pip_line/data/CBS_paper_image/combined.jpg");
     cv::Mat img2 = cv::imread("/home/lichao/TCDS/src/pip_line/data/CBS_needed/feasible_planes/feasible_image1.jpg");
     cv::Mat img3 = cv::imread("/home/lichao/TCDS/src/pip_line/data/CBS_needed/feasible_planes/feasible_image2.jpg");
-    cv::Mat img4 = cv::imread("/home/lichao/TCDS/src/pip_line/data/CBS_needed/feasible_planes/feasible_image3.jpg");
+    cv::Mat img4 = cv::imread("/home/lichao/TCDS/src/pip_line/data/CBS_needed/plane02.jpg");
     vector<cv::Mat> images;
     images.push_back(img1);
     images.push_back(img2);
@@ -211,7 +211,7 @@ int main(int argc, char** argv)
         }
         
         colors.at(i).copyTo(colored_image, mask);
-        cv::drawContours(colored_image, approxContours, -1, cv::Scalar(0, 0, 255), 2);
+        cv::drawContours(colored_image, approxContours, -1, cv::Scalar(0, 0, 255), 1);
     }
     cv::imshow("colored_image", colored_image);
     cv::imwrite("/home/lichao/TCDS/src/pip_line/data/CBS_needed/colored_image_feasible.jpg", colored_image);
@@ -288,13 +288,18 @@ int main(int argc, char** argv)
         // cv::Mat color(images[i].size(), images[i].type(), cv::Scalar(default_colors[i % 10][0], default_colors[i % 10][1], default_colors[i % 10][2]));
         // color.copyTo(colored_image, mask);
         colors.at(i).copyTo(colored_image, mask);
-        cv::drawContours(colored_image, approxContours, -1, cv::Scalar(0, 0, 255), 2);
+        cv::drawContours(colored_image, approxContours, -1, cv::Scalar(0, 0, 255), 1);
     }
     cv::imshow("colored_image", colored_image);
     cv::imwrite("/home/lichao/TCDS/src/pip_line/data/CBS_needed/colored_image_seg.jpg", colored_image);
     cv::waitKey(0);
+#endif
 
+#ifdef FEASIBLE_IMAGE_CONTOUR
     std::ifstream infile("/home/lichao/TCDS/src/pip_line/data/CBS_needed/steps_data.txt");
+#else
+    std::ifstream infile("/home/lichao/TCDS/src/pip_line/data/CBS_needed/steps_data_nofeasible.txt");
+#endif
     std::string line;
     std::vector<std::vector<Eigen::Vector3d>> steps;
 
@@ -346,33 +351,152 @@ int main(int argc, char** argv)
     T_world_base.block<3,1>(0,3) = Eigen::Vector3d(0, 0, 0.71);
     T_world_camera = T_world_base * T_base_hole * T_hole_install * T_install_depth;
     Eigen::Matrix4d T_camera_world = T_world_camera.inverse();
+
+    // Eigen::Matrix3d R_color_depth;
+    // R_color_depth<<0.999988, 0.000136, 0.004821, 0, 0.999781, -0.0208975, -0.0048223, 0.020897,0.9997699856;
+    // Eigen::Vector3d t_color_depth(0.0008362, 0.0137957567, -0.0089674);
+    // Eigen::Matrix4d T_color_depth = Eigen::Matrix4d::Identity();
+    // T_color_depth.block<3, 3>(0, 0) = R_color_depth;
+    // T_color_depth.block<3, 1>(0, 3) = t_color_depth;
+
+    // 需要有一个转换矩阵，因为采集时的位置跟走的时侯不一样
+    Eigen::Matrix4d T_bias = Eigen::Matrix4d::Identity();
+    Eigen::AngleAxisd ad(23/57.3, Eigen::Vector3d::UnitZ());
+    Eigen::AngleAxisd ad_y(7/57.3, Eigen::Vector3d::UnitY());
+    // Eigen::Vector3d t_bias(-0.06, -0.05, 0);
+    // Eigen::Vector3d t_bias(-0.0, -0.00, 0);
+
+    T_bias.block<3, 3>(0, 0) = ad_y.toRotationMatrix() * ad.toRotationMatrix();
+    // T_bias.block<3, 1>(0, 3) = t_bias;
+
+    cout<<"steps: "<<steps.size()<<endl;
+    // 计算每个step的平移量
+    Eigen::Vector3d t_bias_start(0.0, 0.0, 0.0);
+    Eigen::Vector3d t_bias_end(-0.06, -0.06, 0.0);
+    Eigen::Vector3d t_bias_increment = (t_bias_end - t_bias_start) / (steps.size() - 1);
+
     // 使用上述的矩阵将点转到像素坐标系下
     std::vector<cv::Point> pixel_points;
-    for (const auto& step : steps)
+    for (size_t step_index = 0; step_index < steps.size(); ++step_index)
     {
-        for (const auto& point : step)
-        {
-            Eigen::Vector3d point_camera = T_camera_world.block<3,3>(0,0)* Eigen::Vector3d(point.x(), point.y(), point.z()) + T_camera_world.block<3,1>(0,3);
 
-            double u = fx * point_camera.x() / point_camera.z() + cx;
-            double v = fy * point_camera.y() / point_camera.z() + cy;
+        const auto& step = steps[step_index];
+        Eigen::Vector3d t_bias_current = t_bias_start + t_bias_increment * step_index;
+        T_bias.block<3, 1>(0, 3) = t_bias_current;
+        // cout<<"points size: "<<step.size()<<endl;
+
+        for (int i = 0; i < step.size(); i++)
+        {
+            // cout<<"i: "<<i<<endl;
+            Eigen::Vector3d point = step.at(i);
+            Eigen::Vector3d point_camera_new = T_bias.inverse().block<3,3>(0,0)*Eigen::Vector3d(point.x(), point.y(), point.z()) + T_bias.inverse().block<3,1>(0,3);
+
+            Eigen::Vector3d point_camera_depth = T_camera_world.block<3,3>(0,0)* point_camera_new + T_camera_world.block<3,1>(0,3);
+
+            double u = fx * point_camera_depth.x() / point_camera_depth.z() + cx;
+            double v = fy * point_camera_depth.y() / point_camera_depth.z() + cy;
             cv::Point pixel_point(u, v);
-            cout << "u: " << u << ", v: " << v << endl;
+            // cout << "u: " << u << ", v: " << v << endl;
             pixel_points.push_back(pixel_point);
-            cv::circle(colored_image, pixel_point, 5, cv::Scalar(255, 0, 0), -1);
-            if (pixel_points.size() == 4)
+            // cv::circle(colored_image, pixel_point, 5, cv::Scalar(255, 0, 0), -1);
+        }
+        
+        cv::Scalar color = (step_index % 2 == 0) ? cv::Scalar(0, 0, 255) : cv::Scalar(255, 0, 0);
+        if (pixel_points.size() == 4)
+        {
+            for (int i = 0; i < 4; i++)
             {
-                for (int i = 0; i < 4; i++)
-                {
-                    cv::line(colored_image, pixel_points[i], pixel_points[(i + 1) % 4], cv::Scalar(0, 255, 0), 2);
-                }
-                pixel_points.clear();
+                cv::line(colored_image, pixel_points[i], pixel_points[(i + 1) % 4], color, 2);
             }
+            pixel_points.clear();
         }
     }
+
+#ifndef FEASIBLE_IMAGE_CONTOUR
+    // 获取一些feasible的轮廓，并将其在图像上画出来，用于对于落脚点是否合适
+    cv::Mat feasible_image1 = cv::imread("/home/lichao/TCDS/src/pip_line/data/CBS_needed/feasible_planes/feasible_image1.jpg");
+    
+    cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(14, 14));
+    cv::morphologyEx(feasible_image1, feasible_image1, cv::MORPH_CLOSE, kernel);
+    cv::imshow("feasible_image1", feasible_image1);
+    cv::waitKey(0);
+
+    cv::Mat feasible_image2 = cv::imread("/home/lichao/TCDS/src/pip_line/data/CBS_needed/feasible_planes/feasible_image2.jpg");
+    // cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(12, 12));
+    cv::morphologyEx(feasible_image2, feasible_image2, cv::MORPH_CLOSE, kernel);
+
+    vector<vector<cv::Point>> contours1, contours2;
+    vector<cv::Vec4i> hierarchy1, hierarchy2;
+
+    cv::cvtColor(feasible_image1, feasible_image1, cv::COLOR_BGR2GRAY);
+    cv::threshold(feasible_image1, feasible_image1, 200, 255, cv::THRESH_BINARY);
+    cv::findContours(feasible_image1, contours1, hierarchy1, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+
+    cv::cvtColor(feasible_image2, feasible_image2, cv::COLOR_BGR2GRAY);
+    cv::threshold(feasible_image2, feasible_image2, 200, 255, cv::THRESH_BINARY);
+    cv::findContours(feasible_image2, contours2, hierarchy2, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+
+    vector<vector<cv::Point>> approxContours1(contours1.size());
+    vector<vector<cv::Point>> approxContours2(contours2.size());
+
+    if (!contours1.empty()) {
+        cv::approxPolyDP(contours1[0], approxContours1[0], 5, true);
+        cv::drawContours(colored_image, approxContours1, 0, cv::Scalar(0, 0, 255), 2);
+    }
+
+    if (!contours2.empty()) {
+        cv::approxPolyDP(contours2[0], approxContours2[0], 5, true);
+        cv::drawContours(colored_image, approxContours2, 0, cv::Scalar(0, 0, 255), 2);
+    }
+    // cv::Mat full_image1 = cv::imread("/home/lichao/TCDS/src/pip_line/data/CBS_needed/plane00.jpg");
+    // cv::Mat full_image2 = cv::imread("/home/lichao/TCDS/src/pip_line/data/CBS_needed/plane01.jpg");
+
+
+    // for (int i = 0; i < feasible_image1.rows; i++)
+    // {
+    //     for (int j = 0; j < feasible_image1.cols; j++)
+    //     {
+    //         if (feasible_image1.at<uchar>(i, j) == 255)
+    //         {
+    //             full_image1.at<uchar>(i, j) = 0;
+    //         }
+    //     }
+    // }
+
+    // for (int i = 0; i < feasible_image2.rows; i++)
+    // {
+    //     for (int j = 0; j < feasible_image2.cols; j++)
+    //     {
+    //         if (feasible_image2.at<uchar>(i, j) == 255)
+    //         {
+    //             full_image2.at<uchar>(i, j) = 0;
+    //         }
+    //     }
+    // }
+    // cv::imshow("full_image1", full_image1);
+    // cv::waitKey(0);
+    // cv::imshow("full_image2", full_image2);
+    // cv::waitKey(0);
+
+    // vector<vector<cv::Point>> contours1, contours2;
+    // vector<cv::Vec4i> hierarchy1, hierarchy2;
+
+    // cv::cvtColor(full_image1, full_image1, cv::COLOR_BGR2GRAY);
+    // cv::threshold(full_image1, full_image1, 200, 255, cv::THRESH_BINARY);
+    // cv::findContours(full_image1, contours1, hierarchy1, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+
+    // cv::cvtColor(full_image2, full_image2, cv::COLOR_BGR2GRAY);
+    // cv::threshold(full_image2, full_image2, 200, 255, cv::THRESH_BINARY);
+    // cv::findContours(full_image2, contours2, hierarchy2, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+
+    // cv::drawContours(colored_image, contours1, -1, cv::Scalar(0, 255, 0), 2);
+    // cv::drawContours(colored_image, contours2, -1, cv::Scalar(0, 255, 0), 2);
+
+#endif
+    cv::imwrite("/home/lichao/TCDS/src/pip_line/data/CBS_needed/paper/plan_result.jpg", colored_image);
     cv::imshow("colored_image", colored_image);
     cv::waitKey(0); 
-#endif
+
     return 0;
 #endif
 }

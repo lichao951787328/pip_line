@@ -11,6 +11,9 @@
 #include <pcl/point_types.h>
 #include <pcl/io/pcd_io.h>
 using namespace std;
+
+// #ifdef FEASIBLE_IMAGE
+
 plane_detection pd;
 
 vector<Eigen::Matrix4d> steps_raw;
@@ -145,7 +148,7 @@ vector<Eigen::Vector3d> computeCornerPoints(Eigen::Matrix3d R, double x, double 
     Eigen::Vector3d LT(x, y, 0);
     Eigen::Vector3d LB(-x, y, 0);
     Eigen::Vector3d RB(-x, -y, 0);
-    Eigen::Vector3d RT(-x, y, 0);
+    Eigen::Vector3d RT(x, -y, 0);
     corners.emplace_back(R * LT);
     corners.emplace_back(R * LB);
     corners.emplace_back(R * RB);
@@ -204,7 +207,7 @@ visualization_msgs::MarkerArray getAreaMarker(vector<Eigen::Vector3d> steps, gri
                     Eigen::AngleAxisd(euler(1), Eigen::Vector3d::UnitY()) *
                     Eigen::AngleAxisd(euler(2), Eigen::Vector3d::UnitX());
 
-                vector<Eigen::Vector3d> corners = computeCornerPoints(q_new.toRotationMatrix(), 0.27/2, 0.13/2);
+                vector<Eigen::Vector3d> corners = computeCornerPoints(q_new.toRotationMatrix(), 0.23/2, 0.13/2);
 
                 for (int i = 0; i < corners.size(); i++)
                 {
@@ -269,7 +272,7 @@ visualization_msgs::MarkerArray getAreaMarker(vector<Eigen::Vector3d> steps, gri
                 q_new = Eigen::AngleAxisd(euler(0), Eigen::Vector3d::UnitZ()) *
                     Eigen::AngleAxisd(euler(1), Eigen::Vector3d::UnitY()) *
                     Eigen::AngleAxisd(euler(2), Eigen::Vector3d::UnitX());
-                vector<Eigen::Vector3d> corners = computeCornerPoints(q_new.toRotationMatrix(), 0.27/2, 0.13/2);
+                vector<Eigen::Vector3d> corners = computeCornerPoints(q_new.toRotationMatrix(), 0.23/2, 0.13/2);
 
                 for (int i = 0; i < corners.size(); i++)
                 {
@@ -544,7 +547,7 @@ int main(int argc, char **argv)
     
     // planes_info = pd.planes_info;
     // single_results = pd.planes;
-
+#ifdef FEASIBLE_IMAGE
     // 针对障碍，除去可能发生碰撞的区域
     cv::Mat obstacle_mat_inflat = cv::Mat::zeros(map.getSize().x(), map.getSize().y(), CV_8UC1);
     for (int i = 0; i < obstacle_mat_inflat.rows; i++)
@@ -575,7 +578,7 @@ int main(int argc, char **argv)
         grid_map::Index index(point.y, point.x);
         map["elevation"](index.x(), index.y()) = NAN;
     }
-
+#endif
     
     
     vector<Eigen::Vector3d> steps;
@@ -601,7 +604,8 @@ int main(int argc, char **argv)
     
     steps.emplace_back(Eigen::Vector3d(right.x(), right.y(), 20));
     steps.emplace_back(Eigen::Vector3d(start.x(), start.y(), 20));
-    
+
+#ifdef FEASIBLE_IMAGE
     Eigen::Vector3d step3 = Eigen::Vector3d(0.23, 0.05, 0) + right;
     steps.emplace_back(Eigen::Vector3d(step3.x(), step3.y(), 10));
 
@@ -646,87 +650,47 @@ int main(int argc, char **argv)
 
     Eigen::Vector3d step16 = Eigen::Vector3d(1.6, 0.88, 0) + right;
     steps.emplace_back(Eigen::Vector3d(step16.x(), step16.y(), 45));
+#else
+    Eigen::Vector3d step3 = Eigen::Vector3d(0.23, 0.05, 0) + right;
+    steps.emplace_back(Eigen::Vector3d(step3.x(), step3.y(), 10));
 
-    // Eigen::Vector3d step4 = Eigen::Vector3d(0.72, 0, 0) + start;
-    // steps.emplace_back(Eigen::Vector3d(step4.x(), step4.y(), 0));
+    Eigen::Vector3d step2 = Eigen::Vector3d(0.57, 0.2, 0) + start;
+    steps.emplace_back(Eigen::Vector3d(step2.x(), step2.y(), 10));
 
-    // Eigen::Vector3d step6 = Eigen::Vector3d(1.05, 0., 0) + right;
-    // steps.emplace_back(Eigen::Vector3d(step6.x(), step6.y(), 0));
+    Eigen::Vector3d step4 = Eigen::Vector3d(0.65, 0.2, 0) + right;
+    steps.emplace_back(Eigen::Vector3d(step4.x(), step4.y(), 10));
 
-    // Eigen::Vector3d step7 = Eigen::Vector3d(1.05, 0., 0) + start;
-    // steps.emplace_back(Eigen::Vector3d(step7.x(), step7.y(), 0));
+    Eigen::Vector3d step5 = Eigen::Vector3d(1, 0.25, 0) + start;
+    steps.emplace_back(Eigen::Vector3d(step5.x(), step5.y(), 15));
 
-    // Eigen::Vector3d step8 = Eigen::Vector3d(1.2, 0., 0) + right;
-    // steps.emplace_back(Eigen::Vector3d(step8.x(), step8.y(), 10));
+    Eigen::Vector3d step6 = Eigen::Vector3d(1.2, 0.28, 0) + right;
+    steps.emplace_back(Eigen::Vector3d(step6.x(), step6.y(), 20));
 
-    // Eigen::Vector3d step9 = Eigen::Vector3d(1.2, 0.1, 0) + start;
-    // steps.emplace_back(Eigen::Vector3d(step9.x(), step9.y(), 20));
+    Eigen::Vector3d step7 = Eigen::Vector3d(1.3, 0.33, 0) + start;
+    steps.emplace_back(Eigen::Vector3d(step7.x(), step7.y(), 30));
 
-    // Eigen::Vector3d step10 = Eigen::Vector3d(1.45, 0.15, 0) + right;
-    // steps.emplace_back(Eigen::Vector3d(step10.x(), step10.y(), 25));
+    Eigen::Vector3d step8 = Eigen::Vector3d(1.45, 0.4, 0) + right;
+    steps.emplace_back(Eigen::Vector3d(step8.x(), step8.y(), 35));
 
-    // Eigen::Vector3d step11 = Eigen::Vector3d(1.45, 0.25, 0) + start;
-    // steps.emplace_back(Eigen::Vector3d(step11.x(), step11.y(), 35));
+    Eigen::Vector3d step9 = Eigen::Vector3d(1.4, 0.35, 0) + start;
+    steps.emplace_back(Eigen::Vector3d(step9.x(), step9.y(), 45));
 
-    // Eigen::Vector3d step12 = Eigen::Vector3d(1.55, 0.23, 0) + right;
-    // steps.emplace_back(Eigen::Vector3d(step12.x(), step12.y(), 40));
+    Eigen::Vector3d step10 = Eigen::Vector3d(1.55, 0.5, 0) + right;
+    steps.emplace_back(Eigen::Vector3d(step10.x(), step10.y(), 50));
 
-    // Eigen::Vector3d step13 = Eigen::Vector3d(1.45, 0.25, 0) + start;
-    // steps.emplace_back(Eigen::Vector3d(step13.x(), step13.y(), 45));
+    Eigen::Vector3d step11 = Eigen::Vector3d(1.5, 0.65, 0) + start;
+    steps.emplace_back(Eigen::Vector3d(step11.x(), step11.y(), 55));
 
-    // Eigen::Vector3d step14 = Eigen::Vector3d(1.67, 0.38, 0) + right;
-    // steps.emplace_back(Eigen::Vector3d(step14.x(), step14.y(), 50));
+    Eigen::Vector3d step12 = Eigen::Vector3d(1.63, 0.85, 0) + right;
+    steps.emplace_back(Eigen::Vector3d(step12.x(), step12.y(), 55));
 
-    // Eigen::Vector3d step15 = Eigen::Vector3d(1.45, 0.28, 0) + start;
-    // steps.emplace_back(Eigen::Vector3d(step15.x(), step15.y(), 55));
+    Eigen::Vector3d step13 = Eigen::Vector3d(1.55, 0.9, 0) + start;
+    steps.emplace_back(Eigen::Vector3d(step13.x(), step13.y(), 45));
 
-    // Eigen::Vector3d step16 = Eigen::Vector3d(1.67, 0.44, 0) + right;
-    // steps.emplace_back(Eigen::Vector3d(step16.x(), step16.y(), 65));
+    Eigen::Vector3d step14 = Eigen::Vector3d(1.6, 0.9, 0) + right;
+    steps.emplace_back(Eigen::Vector3d(step14.x(), step14.y(), 45));
+#endif
 
-    // Eigen::Vector3d step17 = Eigen::Vector3d(1.52, 0.55, 0) + start;
-    // steps.emplace_back(Eigen::Vector3d(step17.x(), step17.y(), 70));
-
-    // Eigen::Vector3d step18 = Eigen::Vector3d(1.7, 0.8, 0) + right;
-    // steps.emplace_back(Eigen::Vector3d(step18.x(), step18.y(), 65));
-
-    // Eigen::Vector3d step19 = Eigen::Vector3d(1.52, 0.8, 0) + start;
-    // steps.emplace_back(Eigen::Vector3d(step19.x(), step19.y(), 65));
-
-    // Eigen::Vector3d step20 = Eigen::Vector3d(1.67, 0.8, 0) + right;
-    // steps.emplace_back(Eigen::Vector3d(step20.x(), step20.y(), 55));
-
-    // Eigen::Vector3d step7 = Eigen::Vector3d(1, 0.25, 0) + start;
-    // steps.emplace_back(Eigen::Vector3d(step7.x(), step7.y(), 15));
-
-    // Eigen::Vector3d step7 = Eigen::Vector3d(0.88, 0.25, 0) + start;
-    // steps.emplace_back(Eigen::Vector3d(step7.x(), step7.y(), 15));
-
-    // Eigen::Vector3d step8 = Eigen::Vector3d(1.12, 0.1, 0) + start;
-    // steps.emplace_back(Eigen::Vector3d(step8.x(), step8.y(), 25));
-
-    // Eigen::Vector3d step9 = Eigen::Vector3d(1.18, 0.4, 0) + start;
-    // steps.emplace_back(Eigen::Vector3d(step9.x(), step9.y(), 40));
-
-    // Eigen::Vector3d step10 = Eigen::Vector3d(1.42, 0.29, 0) + start;
-    // steps.emplace_back(Eigen::Vector3d(step10.x(), step10.y(), 50));
-
-    // Eigen::Vector3d step11 = Eigen::Vector3d(1.3, 0.46, 0) + start;
-    // steps.emplace_back(Eigen::Vector3d(step11.x(), step11.y(), 65));
-
-    // Eigen::Vector3d step12 = Eigen::Vector3d(1.52, 0.44, 0) + start;
-    // steps.emplace_back(Eigen::Vector3d(step12.x(), step12.y(), 70));
-
-    // Eigen::Vector3d step13 = Eigen::Vector3d(1.36, 0.78, 0) + start;
-    // steps.emplace_back(Eigen::Vector3d(step13.x(), step13.y(), 70));
-
-    // Eigen::Vector3d step14 = Eigen::Vector3d(1.55, 0.77, 0) + start;
-    // steps.emplace_back(Eigen::Vector3d(step14.x(), step14.y(), 65));
-
-    // Eigen::Vector3d step15 = Eigen::Vector3d(1.38, 1, 0) + start;
-    // steps.emplace_back(Eigen::Vector3d(step15.x(), step15.y(), 55));
-
-    // Eigen::Vector3d step16 = Eigen::Vector3d(1.53, 0.83, 0) + start;
-    // steps.emplace_back(Eigen::Vector3d(step16.x(), step16.y(), 45));
     
     // 画步态点
     visualization_msgs::MarkerArray markerArray = getAreaMarker(steps, map, center);
