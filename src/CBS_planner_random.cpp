@@ -12,7 +12,7 @@
 #include <pcl/io/pcd_io.h>
 using namespace std;
 
-// #ifdef FEASIBLE_IMAGE
+#define FEASIBLE_IMAGE
 
 plane_detection pd;
 
@@ -618,16 +618,16 @@ int main(int argc, char **argv)
     Eigen::Vector3d step5 = Eigen::Vector3d(1, 0.19, 0) + start;
     steps.emplace_back(Eigen::Vector3d(step5.x(), step5.y(), 15));
 
-    Eigen::Vector3d step6 = Eigen::Vector3d(1.2, 0.2, 0) + right;
+    Eigen::Vector3d step6 = Eigen::Vector3d(1.1, 0.2, 0) + right;
     steps.emplace_back(Eigen::Vector3d(step6.x(), step6.y(), 20));
 
-    Eigen::Vector3d step7 = Eigen::Vector3d(1.35, 0.3, 0) + start;
-    steps.emplace_back(Eigen::Vector3d(step7.x(), step7.y(), 25));
+    Eigen::Vector3d step7 = Eigen::Vector3d(1.22, 0.26, 0) + start;
+    steps.emplace_back(Eigen::Vector3d(step7.x(), step7.y(), 35));
 
-    Eigen::Vector3d step8 = Eigen::Vector3d(1.45, 0.3, 0) + right;
-    steps.emplace_back(Eigen::Vector3d(step8.x(), step8.y(), 30));
+    Eigen::Vector3d step8 = Eigen::Vector3d(1.31, 0.3, 0) + right;
+    steps.emplace_back(Eigen::Vector3d(step8.x(), step8.y(), 35));
 
-    Eigen::Vector3d step9 = Eigen::Vector3d(1.4, 0.35, 0) + start;
+    Eigen::Vector3d step9 = Eigen::Vector3d(1.36, 0.32, 0) + start;
     steps.emplace_back(Eigen::Vector3d(step9.x(), step9.y(), 40));
 
     Eigen::Vector3d step10 = Eigen::Vector3d(1.5, 0.4, 0) + right;
