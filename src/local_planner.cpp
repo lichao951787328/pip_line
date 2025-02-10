@@ -31,11 +31,6 @@ void localPlannerPropose::setHipWidth(double hip_width_)
     hip_width = hip_width_;
 }
 
-// localPlanner::localPlanner(grid_map::GridMap & map_, Eigen::Vector3d start_left_, Eigen::Vector3d start_right_, Eigen::Vector3d goal_, FootParam & foot_param_):map(map_),start_left(start_left_),start_right(start_right_),goal(goal_), foot_param(foot_param_)
-// {
-    
-// }
-
 void localPlannerPropose::initial(Eigen::Vector3d start_left_, Eigen::Vector3d start_right_, int support_flag_,Eigen::Vector3d goal_)
 {
     start_left = start_left_;

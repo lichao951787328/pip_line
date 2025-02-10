@@ -2,12 +2,13 @@
 #include <ros/ros.h>
 #include <grid_map_msgs/GridMap.h>
 #include <diy_msgs/robotState.h>
-#include <local_planner.h>
+#include <local_plannerBase.h>
 #include <nav_msgs/Path.h>
 #include <diy_msgs/footSteps.h>
 #include <tf2_ros/transform_listener.h>
 #include <tf2/LinearMath/Transform.h>
 #include <mutex>
+#include <list>
 using namespace std;
 // 如何保证map与state同步
 class localPlanNode
@@ -20,7 +21,8 @@ private:
     ros::Subscriber sub_robot_state;
     std::mutex received_mutex;
     bool robot_state_received;
-    diy_msgs::robotState robot_state;  
+    list<diy_msgs::robotState> robot_states;
+    // diy_msgs::robotState robot_state;  
     // 机器人参数
     FootParam foot_param;
     double hip_width;
@@ -33,7 +35,8 @@ private:
     diy_msgs::footSteps footsteps;
     ros::Publisher pub_footsteps;
 
-    localPlanner local_planner;
+    // localPlanner local_planner; 不使用此规划器，使用自己集成在local_plannerBase中的
+    localPlannerBase local_planner;
 
     string global_terrain_map_frame;
     string local_map_frame;
@@ -46,6 +49,8 @@ public:
     void robotStateCallback(const diy_msgs::robotState::ConstPtr& msg);
     void globalPathCallback(const nav_msgs::Path::ConstPtr& msg);
     vector<tf2::Transform> transformPose(tf2::Transform transform);
+    bool getLocalGoalFromPath(tf2::Transform transform_localmap_globalmap, grid_map::GridMap & map, Eigen::Vector3d & goal_localmap);
+    bool getRobotState(uint32_t map_id, diy_msgs::robotState & robot_state);
     ~localPlanNode();
 };
 
