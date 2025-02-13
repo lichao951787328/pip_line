@@ -4,7 +4,7 @@
 #include <grid_map_cv/InpaintFilter.hpp>
 #include <ros/package.h>
 #include <diy_msgs/footSteps.h>
-
+// #define DEBUG
 void initial_package_path(string package_name, string & package_path)
 {
   package_path = ros::package::getPath(package_name);
@@ -18,21 +18,21 @@ void initial_package_path(string package_name, string & package_path)
 localPlannerBase::localPlannerBase(std::shared_ptr<AstarHierarchicalFootstepPlannerBase> a):planner_P(std::move(a))
 {
     
-    // initial_package_path("pip_line", package_path);
-    // LOG(INFO)<<"package path is: "<<package_path;
-    // pd.initial(package_path + "/config/plane_fitter_pcd.ini");
+    initial_package_path("pip_line", package_path);
+    LOG(INFO)<<"package path is: "<<package_path;
+    pd.initial(package_path + "/config/plane_fitter_pcd.ini");
 
     // for debug using vscode
-    pd.initial("/home/lichao/TCDS/src/pip_line/config/plane_fitter_pcd.ini");
+    // pd.initial("/home/lichao/TCDS/src/pip_line/config/plane_fitter_pcd.ini");
 
 }
 localPlannerBase::localPlannerBase()
 {
-    // initial_package_path("pip_line", package_path);
-    // LOG(INFO)<<"package path is: "<<package_path;
-    // pd.initial(package_path + "/config/plane_fitter_pcd.ini");
+    initial_package_path("pip_line", package_path);
+    LOG(INFO)<<"package path is: "<<package_path;
+    pd.initial(package_path + "/config/plane_fitter_pcd.ini");
     // for debug using vscode
-    pd.initial("/home/lichao/TCDS/src/pip_line/config/plane_fitter_pcd.ini");
+    // pd.initial("/home/lichao/TCDS/src/pip_line/config/plane_fitter_pcd.ini");
 }
 
 void localPlannerBase::setPlanner(std::shared_ptr<AstarHierarchicalFootstepPlannerBase> a)
@@ -444,6 +444,7 @@ bool localPlannerBase::isStartFeasible(Eigen::Vector3d start, Eigen::Vector3d & 
 
 bool localPlannerBase::plan()
 {
+    // LOG(INFO)<<"IN";
     if (planner_P->initial(start, pre_start, support_flag, goal))
     {
 #ifdef DEBUG

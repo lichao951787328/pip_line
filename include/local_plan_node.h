@@ -1,3 +1,11 @@
+/*
+ * @Author: lichao951787328 951787328@qq.com
+ * @Date: 2025-02-10 22:18:43
+ * @LastEditors: lichao951787328 951787328@qq.com
+ * @LastEditTime: 2025-02-13 19:52:22
+ * @FilePath: /pip_line/include/local_plan_node.h
+ * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+ */
 #pragma once
 #include <ros/ros.h>
 #include <grid_map_msgs/GridMap.h>
@@ -33,11 +41,11 @@ private:
 
     string foosteps_topic;
     diy_msgs::footSteps footsteps;
+    ros::Publisher pub_footsteps_visual;
     ros::Publisher pub_footsteps;
 
     // localPlanner local_planner; 不使用此规划器，使用自己集成在local_plannerBase中的
-    localPlannerBase local_planner;
-
+    
     string global_terrain_map_frame;
     string local_map_frame;
 
@@ -49,8 +57,9 @@ public:
     void robotStateCallback(const diy_msgs::robotState::ConstPtr& msg);
     void globalPathCallback(const nav_msgs::Path::ConstPtr& msg);
     vector<tf2::Transform> transformPose(tf2::Transform transform);
-    bool getLocalGoalFromPath(tf2::Transform transform_localmap_globalmap, grid_map::GridMap & map, Eigen::Vector3d & goal_localmap);
+    // bool getLocalGoalFromPath(tf2::Transform transform_localmap_globalmap, grid_map::GridMap & map, Eigen::Vector3d & goal_localmap);
     bool getRobotState(uint32_t map_id, diy_msgs::robotState & robot_state);
+    void publishFootsteps(diy_msgs::footSteps steps);
     ~localPlanNode();
 };
 

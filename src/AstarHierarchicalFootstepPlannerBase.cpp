@@ -268,7 +268,26 @@ bool AstarHierarchicalFootstepPlannerBase::initial(Eigen::Vector3d start, Eigen:
     }
     else if (support_side == 2) // 双脚支撑 暂时还没想好怎么写 得根据实际情况来写
     {
-        /* code */
+        // 如果是双脚支撑，则默认是左脚支撑
+        Eigen::AngleAxisd ad(start.z(), Eigen::Vector3d::UnitZ());
+        Eigen::Vector2d v1 = (ad.toRotationMatrix() * Eigen::Vector3d::UnitX()).head(2);
+        Eigen::Vector2d v2 = (prestart - start).head(2);
+        CHECK(v1.x() * v2.y() - v2.x() * v1.y() < 0);
+        // CHECK(atan2(v.y(), v.x()) - start.z() < 0);
+        start_p = std::make_shared<FootstepNode>(start, 0);
+        prestart_p = std::make_shared<FootstepNode>(prestart, 1);
+        if (!(startPoint2Node(start, start_p) && startPoint2Node(prestart, prestart_p)))
+        {
+            LOG(ERROR)<<"error initial start state";
+            return false;
+        }
+        start_p->Hcost = 0;
+        start_p->Gcost = 0;
+        start_p->cost = 0;
+        start_p->PreFootstepNode = prestart_p;
+        prestart_p->Hcost = 0.0;
+        prestart_p->Gcost = 0.0;
+        prestart_p->cost = 0.0;
     }
     else // 出现错误
     {
@@ -1702,7 +1721,7 @@ bool AstarHierarchicalFootstepPlannerBase::arriveGoal(FootstepNodePtr node)
         angle_diff = abs(end_right_p->footstep.yaw - node->footstep.yaw);
     }
     // LOG(INFO)<<dis<<" "<<angle_diff;
-    if (dis < 0.05 && angle_diff <= 5/57.3)
+    if (dis < 0.1 && angle_diff <= 5/57.3)
     {
         return true;
     }
@@ -2192,6 +2211,7 @@ void saveImageWithAutoIncrement(const cv::Mat& image, const string& filename) {
 
 bool AstarHierarchicalFootstepPlannerBase::getFootsteps(FootstepNodePtr node)
 {
+    steps.clear();
     auto iter_P = node;
     while (iter_P)
     {
@@ -2270,10 +2290,7 @@ bool AstarHierarchicalFootstepPlannerBase::getFootsteps(FootstepNodePtr node)
         }
         else
         {
-            
             iter_P = iter_P->PreFootstepNode;
-            // LOG(INFO)<<"iter_P: "<<iter_P;
-            // LOG(INFO)<<"start_p: "<<start_p;
 #ifdef DEBUG
             LOG(INFO)<<"iter_P: "<<iter_P;
 #endif
@@ -2334,6 +2351,11 @@ bool AstarHierarchicalFootstepPlannerBase::repairStanceStep(Footstep current_ste
 
 bool AstarHierarchicalFootstepPlannerBase::checkFootstepsResult()
 {
+    for (auto & step : steps)
+    {
+        // cout<<"******************"<<endl;
+        LOG(INFO)<<step.robot_side<<" "<<step.x<<" "<<step.y<<" "<<step.z<<" "<<step.roll<<" "<<step.pitch<<" "<<step.yaw;
+    }
 #ifdef DEBUG
     for (auto & step : steps)
     {

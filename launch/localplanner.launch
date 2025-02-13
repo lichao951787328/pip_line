@@ -1,0 +1,27 @@
+<launch>
+  <param name="foot_param_x_upper" type="double" value="0.16"/>
+  <param name="foot_param_x_button" type="double" value="0.1"/>
+  <param name="foot_param_y_left" type="double" value="0.165"/>
+  <param name="foot_param_y_right" type="double" value="0.165"/>
+  <param name="foot_param_x_fore_button" type="double" value="0.1"/>
+  <param name="foot_param_x_hind_top" type="double" value="0"/>
+
+  <param name="hip_width" type="double" value="0.2"/>
+
+  <param name="global_path_topic" type="string" value="/path"/>
+  <param name="foosteps_topic" type="string" value="/footsteps"/>
+  <param name="map_topic" type="string" value="/localmap"/>
+  <param name="robot_state_topic" type="string" value="/robot_state"/>
+  <param name="global_terrain_map_frame" type="string" value="global_map"/>
+  <param name="local_map_frame" type="string" value="localmap"/>
+
+  <!-- Elevation mapping node -->
+  <node pkg="pip_line" type="localplanner" name="localplanner" output="screen" />
+
+  <!-- Launch visualizations for the resulting elevation map -->
+  <!-- <include file="$(find path_planning)/launch/path_smooth.launch" /> -->
+
+  <!-- Launch RViz with the demo configuration -->
+  <!-- <node name="rviz" pkg="rviz" type="rviz" args="-d $(find path_planning)/rviz/rviz.rviz" /> -->
+
+</launch>

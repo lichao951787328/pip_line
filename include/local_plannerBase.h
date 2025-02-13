@@ -1,3 +1,11 @@
+/*
+ * @Author: lichao951787328 951787328@qq.com
+ * @Date: 2025-02-13 10:10:00
+ * @LastEditors: lichao951787328 951787328@qq.com
+ * @LastEditTime: 2025-02-13 14:50:10
+ * @FilePath: /pip_line/include/local_plannerBase.h
+ * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+ */
 #pragma once
 #include <grid_map_core/GridMap.hpp>
 #include <peac/PEAC_plane_detection.hpp>
@@ -10,7 +18,7 @@ private:
     grid_map::GridMap map;
     plane_detection pd;
     Eigen::Vector3d start, pre_start, goal;
-    int support_flag; // 0 initial, 1, left foot, 2, right foot
+    int support_flag; // 0 左脚支撑, 1, 右脚支撑, 2, 双脚支撑
     FootParam foot_param;
     double hip_width;
     diy_msgs::footSteps footstep_msg;

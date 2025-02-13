@@ -24,6 +24,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf2
   tf2_ros
   tf2_geometry_msgs
+  visualization_msgs
 )
 set(USING_OURMETHOD OFF)
 
@@ -189,6 +190,13 @@ add_executable(CBS_processing_image2
 src/CBS_processing_image2.cpp
 )
 
+add_executable(localplanner 
+src/local_plan_node.cpp
+src/local_plannerBase.cpp
+src/AstarHierarchicalFootstepPlannerBase.cpp
+src/AstarHierarchicalFootstepPlannerPropose.cpp
+)
+
 # add_executable(test_planner 
 # test/test_footstep_planner/test.cpp
 # src/plane_detection/quatree_node_20240618.cpp
@@ -309,6 +317,14 @@ ${catkin_LIBRARIES}
   ${PCL_FILTERS_LIBRARIES}
 )
 
+
+target_link_libraries(localplanner
+  ${catkin_LIBRARIES}
+  ${PCL_COMMON_LIBRARIES}
+  ${PCL_IO_LIBRARIES}
+  glog::glog
+  ${OPENNI_LIBRARIES}
+)
 # target_link_libraries(test_planner
 #   ${catkin_LIBRARIES}
 #   ${PCL_LIBRARIES}
