@@ -352,7 +352,7 @@ void localPlanNode::mapCallback(const grid_map_msgs::GridMap::ConstPtr& msg)
         } else {
             // 超时，取消任务
             LOG(INFO) << "Plan timeout, cancelling...";
-            local_planner_propose.cancel(); // 设置取消标志位
+            local_planner_propose.cancelPlanning(); // 设置取消标志位
             if (future.valid()) 
             {
                 future.wait(); // 确保任务结束
@@ -382,6 +382,7 @@ void localPlanNode::mapCallback(const grid_map_msgs::GridMap::ConstPtr& msg)
         }
         else
         {
+            footsteps.footsteps.clear();
             footsteps.plan_success = false;
             LOG(INFO)<<"can not plan footsteps or time out";
             return;
