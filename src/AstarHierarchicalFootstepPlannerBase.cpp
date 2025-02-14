@@ -2170,11 +2170,23 @@ bool AstarHierarchicalFootstepPlannerBase::plan()
             }
         }
     
+        if (stop_flag.load()) {
+            LOG(INFO) << "Plan cancelled";
+            return false;
+        }
+
         // 插入中断点，用于检查程序是否超时
         boost::this_thread::interruption_point();
     }
     LOG(INFO) << "planning error";
     return false;
+}
+
+// 设置循环的终止的变量
+void AstarHierarchicalFootstepPlannerBase::cancelPlanning() 
+{
+    LOG(INFO) << "Cancelling planner";
+    stop_flag.store(true); // 设置取消标志位
 }
 
 // 检查文件是否存在

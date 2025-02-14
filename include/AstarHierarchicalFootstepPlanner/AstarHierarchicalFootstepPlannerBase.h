@@ -351,6 +351,9 @@ protected:
     std::unordered_set<std::string> close_set;
     vector<Footstep> steps;
     
+    // 原子操作，在取消plan循环时使用
+    std::atomic<bool> stop_flag; // 取消标志位
+
     // 初始化参数 支撑脚为右脚，扩展参数为左脚
     vector<Eigen::Vector3d> transitions;
     vector<Eigen::Vector3d> combine_transitions;
@@ -438,6 +441,7 @@ public:
      */
     bool initial(Eigen::Vector3d start, Eigen::Vector3d prestart, int support_side, Eigen::Vector3d goal);
 
+    void cancelPlanning();
 
     bool traversibilityCheck(ScoreMarkerNodePtr node);
 

@@ -2,7 +2,7 @@
  * @Author: lichao951787328 951787328@qq.com
  * @Date: 2025-02-10 22:18:43
  * @LastEditors: lichao951787328 951787328@qq.com
- * @LastEditTime: 2025-02-13 19:52:22
+ * @LastEditTime: 2025-02-14 19:28:43
  * @FilePath: /pip_line/include/local_plan_node.h
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -17,6 +17,7 @@
 #include <tf2/LinearMath/Transform.h>
 #include <mutex>
 #include <list>
+#include <atomic>
 using namespace std;
 // 如何保证map与state同步
 class localPlanNode
@@ -59,6 +60,9 @@ public:
     vector<tf2::Transform> transformPose(tf2::Transform transform);
     // bool getLocalGoalFromPath(tf2::Transform transform_localmap_globalmap, grid_map::GridMap & map, Eigen::Vector3d & goal_localmap);
     bool getRobotState(uint32_t map_id, diy_msgs::robotState & robot_state);
+
+    void cancelPlanning(); 
+
     void publishFootsteps(diy_msgs::footSteps steps);
     ~localPlanNode();
 };

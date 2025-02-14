@@ -8,6 +8,9 @@
 #include <tf2/exceptions.h>
 #include <AstarHierarchicalFootstepPlanner/AstarHierarchicalFootstepPlannerPropose.h>
 #include <glog/logging.h>
+#include <chrono>
+#include <future>
+#include <thread>
 localPlanNode::localPlanNode(ros::NodeHandle & n):nh(n)
 {
     tf_buffer_ = std::make_unique<tf2_ros::Buffer>();
@@ -162,7 +165,10 @@ void localPlanNode::publishFootsteps(diy_msgs::footSteps steps)
 // 怎么保证map与state同步?通过map与robotstate的id是否一致来判断。这要求在从控制的数据发送出来时，就会有一个id，这个id会在map与state中都有。
 void localPlanNode::mapCallback(const grid_map_msgs::GridMap::ConstPtr& msg)
 {
+    auto start = std::chrono::high_resolution_clock::now();
+        // LOG(INFO)<<"COST: "<<std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
     LOG(INFO)<<"enter map callback";
+
     if (global_path.poses.empty())
     {
         LOG(ERROR)<<"global path is empty";
@@ -330,7 +336,31 @@ void localPlanNode::mapCallback(const grid_map_msgs::GridMap::ConstPtr& msg)
         }
         
         LOG(INFO)<<"planner initial";
-        if (local_planner_propose.plan())
+
+
+        // 为了保证规划的时间不会太长，设置一个超时时间
+        bool running_flag;
+        // 使用 std::async 异步启动 plan()
+        auto future = std::async(std::launch::async, [&local_planner_propose]() {
+            return local_planner_propose.plan();
+        });
+
+        // 等待任务完成或超时
+        if (future.wait_for(std::chrono::milliseconds(700)) == std::future_status::ready) {
+            // 任务在超时时间内完成
+            running_flag = future.get();
+        } else {
+            // 超时，取消任务
+            LOG(INFO) << "Plan timeout, cancelling...";
+            local_planner_propose.cancel(); // 设置取消标志位
+            if (future.valid()) 
+            {
+                future.wait(); // 确保任务结束
+            }
+            running_flag = false;
+        }
+
+        if (running_flag)
         {
             vector<Footstep> steps = local_planner_propose.getFootsteps();
             for(auto & step : steps)
@@ -347,14 +377,18 @@ void localPlanNode::mapCallback(const grid_map_msgs::GridMap::ConstPtr& msg)
             }
             footsteps.header = msg->info.header;
             publishFootsteps(footsteps);
+            footsteps.plan_success = true;
             pub_footsteps.publish(footsteps);
         }
         else
         {
-            LOG(INFO)<<"can not plan footsteps";
+            footsteps.plan_success = false;
+            LOG(INFO)<<"can not plan footsteps or time out";
             return;
         }
     }
+    auto end = std::chrono::high_resolution_clock::now();
+    LOG(INFO)<<"COST: "<<std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 }
 
 void localPlanNode::robotStateCallback(const diy_msgs::robotState::ConstPtr& msg)
