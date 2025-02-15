@@ -15,7 +15,7 @@
 #include <glog/logging.h>
 #include <peac/PEAC_plane_detection.hpp>
 using namespace std;
-
+#define PLANNING_TIMER_CHECK
 // #define DEBUG
 enum RobotSide{LEFT, RIGHT, _NAN_};
 
@@ -352,8 +352,9 @@ protected:
     vector<Footstep> steps;
     
     // 原子操作，在取消plan循环时使用
+#ifdef PLANNING_TIMER_CHECK
     std::atomic<bool> stop_flag; // 取消标志位
-
+#endif
     // 初始化参数 支撑脚为右脚，扩展参数为左脚
     vector<Eigen::Vector3d> transitions;
     vector<Eigen::Vector3d> combine_transitions;
@@ -440,9 +441,9 @@ public:
      * @return false 
      */
     bool initial(Eigen::Vector3d start, Eigen::Vector3d prestart, int support_side, Eigen::Vector3d goal);
-
+#ifdef PLANNING_TIMER_CHECK
     void cancelPlanning();
-
+#endif
     bool traversibilityCheck(ScoreMarkerNodePtr node);
 
     /**

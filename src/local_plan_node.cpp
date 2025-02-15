@@ -11,6 +11,7 @@
 #include <chrono>
 #include <future>
 #include <thread>
+#include <grid_map_cv/InpaintFilter.hpp>
 localPlanNode::localPlanNode(ros::NodeHandle & n):nh(n)
 {
     tf_buffer_ = std::make_unique<tf2_ros::Buffer>();
@@ -113,14 +114,52 @@ bool localPlanNode::getRobotState(uint32_t map_id, diy_msgs::robotState & robot_
 
 
 void localPlanNode::publishFootsteps(diy_msgs::footSteps steps)
-{
+{   
+    LOG(INFO)<<"steps size: "<<steps.footsteps.size();
+    
     visualization_msgs::MarkerArray markerArray;
+
+    // for (int i = 0; i < steps.footsteps.size(); i++)
+    // {
+    //     diy_msgs::footStep step = steps.footsteps.at(i);
+    //     visualization_msgs::Marker marker;
+    //     marker.header = steps.header;
+    //     marker.id = i;
+    //     // marker.header.frame_id = local_map_frame;
+    //     // marker.header.stamp = ros::Time::now();
+    //     marker.header.frame_id = local_map_frame; // 设置参考坐标系
+    //     marker.ns = "points"; // 命名空间
+    //     marker.type = visualization_msgs::Marker::SPHERE; // 类型为球体
+    //     marker.action = visualization_msgs::Marker::ADD;
+    //     LOG(INFO)<<step.x<<" "<<step.y<<" "<<step.z;
+    //     // 设置位置
+    //     marker.pose.position.x = step.x; // 中心点的x坐标
+    //     marker.pose.position.y = step.y; // 中心点的y坐标
+    //     marker.pose.position.z = step.z;
+    //     marker.pose.orientation.w = 1.0;
+
+    //     // 设置尺寸
+    //     marker.scale.x = 0.08; // 球体直径
+    //     marker.scale.y = 0.08;
+    //     marker.scale.z = 0.08;
+
+    //     // 设置颜色
+    //     marker.color.r = 1.0; // 红色
+    //     marker.color.g = 0.0;
+    //     marker.color.b = 0.0;
+    //     marker.color.a = 1.0; // 不透明度
+
+    //     markerArray.markers.push_back(marker);
+    // }
+    
+
     for (int i = 0; i < steps.footsteps.size(); i++)
     {
         diy_msgs::footStep step = steps.footsteps.at(i);
         visualization_msgs::Marker marker;
+        
+        marker.header = steps.header;
         marker.header.frame_id = local_map_frame;
-        marker.header.stamp = ros::Time::now();
         marker.id = i;
         marker.type = visualization_msgs::Marker::CUBE;
         marker.action = visualization_msgs::Marker::ADD;
@@ -142,7 +181,7 @@ void localPlanNode::publishFootsteps(diy_msgs::footSteps steps)
         {
             marker.ns = "left_foot";
             // 设置颜色
-            marker.color.r = 0.0f;
+            marker.color.r = 0.8f;
             marker.color.g = 1.0f;
             marker.color.b = 0.0f;
             marker.color.a = 0.5;
@@ -151,7 +190,7 @@ void localPlanNode::publishFootsteps(diy_msgs::footSteps steps)
         {
             marker.ns = "right_foot";
             marker.color.r = 0.0f;
-            marker.color.g = 0.0f;
+            marker.color.g = 0.8f;
             marker.color.b = 1.0f;
             marker.color.a = 0.5;
         }
@@ -160,6 +199,44 @@ void localPlanNode::publishFootsteps(diy_msgs::footSteps steps)
     LOG(INFO)<<"markerArray.markers.size(): "<<markerArray.markers.size();
     pub_footsteps_visual.publish(markerArray);
     // return markerArray;
+}
+
+
+void localPlanNode::InPaintFilter(grid_map::GridMap & mapIn, grid_map::GridMap & mapOut)
+{
+    string outputLayer_ = "elevation";
+    string inputLayer_ = "elevation";
+    double radius_ = 0.5;
+    mapOut = mapIn;
+    
+    
+    //Convert elevation layer to OpenCV image to fill in holes.
+    //Get the inpaint mask (nonzero pixels indicate where values need to be filled in).
+    mapOut.add("inpaint_mask", 0.0);
+    
+    mapOut.setBasicLayers(std::vector<std::string>());
+    for (grid_map::GridMapIterator iterator(mapOut); !iterator.isPastEnd(); ++iterator) {
+        if (!mapOut.isValid(*iterator, inputLayer_)) {
+        mapOut.at("inpaint_mask", *iterator) = 1.0;
+        }
+    }
+    cv::Mat originalImage;
+    cv::Mat mask;
+    cv::Mat filledImage;
+    const float minValue = mapOut.get(inputLayer_).minCoeffOfFinites();
+    const float maxValue = mapOut.get(inputLayer_).maxCoeffOfFinites();
+    
+    grid_map::GridMapCvConverter::toImage<unsigned char, 3>(mapOut, inputLayer_, CV_8UC3, minValue, maxValue,
+                                                            originalImage);
+    grid_map::GridMapCvConverter::toImage<unsigned char, 1>(mapOut, "inpaint_mask", CV_8UC1, mask);
+    
+    const double radiusInPixels = radius_ / mapIn.getResolution();
+    cv::inpaint(originalImage, mask, filledImage, radiusInPixels, cv::INPAINT_NS);
+    
+    mapOut.erase(outputLayer_);
+    mapOut.add(outputLayer_);
+    grid_map::GridMapCvConverter::addLayerFromImage<unsigned char, 3>(filledImage, outputLayer_, mapOut, minValue, maxValue);
+    mapOut.erase("inpaint_mask");
 }
 
 // 怎么保证map与state同步?通过map与robotstate的id是否一致来判断。这要求在从控制的数据发送出来时，就会有一个id，这个id会在map与state中都有。
@@ -174,8 +251,14 @@ void localPlanNode::mapCallback(const grid_map_msgs::GridMap::ConstPtr& msg)
         LOG(ERROR)<<"global path is empty";
         return;
     }
-    grid_map::GridMap map;
+    grid_map::GridMap map, tmpmap;
+
+    // inpaint 一下
+    
     grid_map::GridMapRosConverter::fromMessage(*msg, map);
+    
+    InPaintFilter(map, tmpmap);
+    map = tmpmap;
 
     // 获取3d到localmap的变换矩阵
     geometry_msgs::TransformStamped transformStamped_T_localmap_globalmap;
@@ -337,16 +420,16 @@ void localPlanNode::mapCallback(const grid_map_msgs::GridMap::ConstPtr& msg)
         
         LOG(INFO)<<"planner initial";
 
-
+#ifdef PLANNING_TIMER_CHECK
         // 为了保证规划的时间不会太长，设置一个超时时间
         bool running_flag;
         // 使用 std::async 异步启动 plan()
         auto future = std::async(std::launch::async, [&local_planner_propose]() {
             return local_planner_propose.plan();
         });
-
+        auto planning_start = std::chrono::high_resolution_clock::now();
         // 等待任务完成或超时
-        if (future.wait_for(std::chrono::milliseconds(700)) == std::future_status::ready) {
+        if (future.wait_for(std::chrono::milliseconds(800)) == std::future_status::ready) {
             // 任务在超时时间内完成
             running_flag = future.get();
         } else {
@@ -359,7 +442,8 @@ void localPlanNode::mapCallback(const grid_map_msgs::GridMap::ConstPtr& msg)
             }
             running_flag = false;
         }
-
+        auto planning_end = std::chrono::high_resolution_clock::now();
+        LOG(INFO)<<"planning COST: "<<std::chrono::duration_cast<std::chrono::milliseconds>(planning_end - planning_start).count();
         if (running_flag)
         {
             vector<Footstep> steps = local_planner_propose.getFootsteps();
@@ -385,8 +469,45 @@ void localPlanNode::mapCallback(const grid_map_msgs::GridMap::ConstPtr& msg)
             footsteps.footsteps.clear();
             footsteps.plan_success = false;
             LOG(INFO)<<"can not plan footsteps or time out";
+            pub_footsteps.publish(footsteps);
             return;
         }
+#else
+        auto planning_start = std::chrono::high_resolution_clock::now();
+        
+        if (local_planner_propose.plan())
+        {
+            auto planning_end = std::chrono::high_resolution_clock::now();
+            LOG(INFO)<<"planning COST: "<<std::chrono::duration_cast<std::chrono::milliseconds>(planning_end - planning_start).count();
+            vector<Footstep> steps = local_planner_propose.getFootsteps();
+            for(auto & step : steps)
+            {
+                diy_msgs::footStep step_msg;
+                step_msg.is_left = (step.robot_side == LEFT);
+                step_msg.x = step.x;
+                step_msg.y = step.y;
+                step_msg.z = step.z;
+                step_msg.roll = step.roll;
+                step_msg.pitch = step.pitch;
+                step_msg.yaw = step.yaw;
+                footsteps.footsteps.emplace_back(step_msg);
+            }
+            footsteps.header = msg->info.header;
+            footsteps.plan_success = true;
+            publishFootsteps(footsteps);
+            pub_footsteps.publish(footsteps);
+        }
+        else
+        {
+            auto planning_end = std::chrono::high_resolution_clock::now();
+            LOG(INFO)<<"planning COST: "<<std::chrono::duration_cast<std::chrono::milliseconds>(planning_end - planning_start).count();
+            LOG(INFO)<<"can not plan footsteps";
+            footsteps.footsteps.clear();
+            footsteps.plan_success = false;
+            pub_footsteps.publish(footsteps);
+            return;
+        }
+#endif
     }
     auto end = std::chrono::high_resolution_clock::now();
     LOG(INFO)<<"COST: "<<std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();

@@ -2169,12 +2169,12 @@ bool AstarHierarchicalFootstepPlannerBase::plan()
 #endif
             }
         }
-    
+#ifdef PLANNING_TIMER_CHECK
         if (stop_flag.load()) {
             LOG(INFO) << "Plan cancelled";
             return false;
         }
-
+#endif
         // 插入中断点，用于检查程序是否超时
         boost::this_thread::interruption_point();
     }
@@ -2183,12 +2183,13 @@ bool AstarHierarchicalFootstepPlannerBase::plan()
 }
 
 // 设置循环的终止的变量
+#ifdef PLANNING_TIMER_CHECK
 void AstarHierarchicalFootstepPlannerBase::cancelPlanning() 
 {
     LOG(INFO) << "Cancelling planner";
     stop_flag.store(true); // 设置取消标志位
 }
-
+#endif
 // 检查文件是否存在
 bool fileExists(const string& filename) {
     ifstream file(filename);

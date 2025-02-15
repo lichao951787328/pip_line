@@ -489,13 +489,13 @@ bool localPlannerBase::plan()
         return false;
     }
 }
-
+#ifdef PLANNING_TIMER_CHECK
 void localPlannerBase::cancelPlanning() 
 {
     planner_P->cancelPlanning();
     // stop_flag.store(true); // 设置取消标志位
 }
-
+#endif
 pcl::PointCloud<pcl::PointXYZ> localPlannerBase::gridMap2PointcloudOrganized()
 {
     pcl::PointCloud<pcl::PointXYZ> pc;

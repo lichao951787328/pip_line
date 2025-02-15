@@ -2,7 +2,7 @@
  * @Author: lichao951787328 951787328@qq.com
  * @Date: 2025-02-13 10:10:00
  * @LastEditors: lichao951787328 951787328@qq.com
- * @LastEditTime: 2025-02-14 23:22:25
+ * @LastEditTime: 2025-02-15 10:41:28
  * @FilePath: /pip_line/include/local_plannerBase.h
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -50,9 +50,9 @@ public:
     void mergePlanes();
     // void constructFeasibleMap();
     bool plan();
-
+#ifdef PLANNING_TIMER_CHECK
     void cancelPlanning();
-
+#endif
     // inline void setTimeConsumption(string s)
     // {
     //     time_consume = s;
