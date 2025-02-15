@@ -16,6 +16,7 @@
 #include <peac/PEAC_plane_detection.hpp>
 using namespace std;
 #define PLANNING_TIMER_CHECK
+// #define COUNT_TIME
 // #define DEBUG
 enum RobotSide{LEFT, RIGHT, _NAN_};
 

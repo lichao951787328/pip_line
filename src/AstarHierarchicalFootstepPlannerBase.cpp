@@ -2071,11 +2071,13 @@ bool AstarHierarchicalFootstepPlannerBase::plan()
             
             if (getFootsteps(current_node))
             {
+#ifdef COUNT_TIME
                 LOG(INFO)<<"times: "<<checktime<<" "<<total_time<<" "<<steps.size();
                 time_consume.clear();  
                 double averge_time =  total_time/checktime;
                 time_consume += (std::to_string(total_time) + " " + std::to_string(checktime) + " " + std::to_string(averge_time) + " " + std::to_string(steps.size()));
                 cout<<time_consume<<endl;
+#endif
                 return true;
             }
             else

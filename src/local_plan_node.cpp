@@ -259,7 +259,18 @@ void localPlanNode::mapCallback(const grid_map_msgs::GridMap::ConstPtr& msg)
     
     InPaintFilter(map, tmpmap);
     map = tmpmap;
-
+    // int nan_num = 0;
+    // for (grid_map::GridMapIterator iterator(map); !iterator.isPastEnd(); ++iterator) {
+    //     if (!map.isValid(*iterator, "elevation")) {
+    //         // map.at("inpaint_mask", *iterator) = 1.0;
+            
+    //         nan_num++;
+    //     }
+    //     grid_map::Position3 p3;
+    //     map.getPosition3("elevation", *iterator, p3);
+    //     std::cout<<p3.z();
+    // }
+    // LOG(INFO)<<"nan_num: "<<nan_num;
     // 获取3d到localmap的变换矩阵
     geometry_msgs::TransformStamped transformStamped_T_localmap_globalmap;
     try
@@ -296,11 +307,12 @@ void localPlanNode::mapCallback(const grid_map_msgs::GridMap::ConstPtr& msg)
     }
     vector<tf2::Transform> path_In_localmap = transformPose(transform_localmap_globalmap);
     std::reverse(path_In_localmap.begin(), path_In_localmap.end());
-    for (auto & point : path_In_localmap)
+
+    for (int i = 0; i < path_In_localmap.size(); i++)
     {
-        if (map.isInside(grid_map::Position(point.getOrigin().x(), point.getOrigin().y())))
+        if (i%5 == 0)
         {
-            // 考虑到高程图总是在x-y平面上的，所以将终点的方向定义为3d方向在x-y投影的yaw角
+            auto point = path_In_localmap.at(i);
             Eigen::Quaterniond qd;
             qd.x() = point.getRotation().x();
             qd.y() = point.getRotation().y();

@@ -154,8 +154,10 @@ bool AstarHierarchicalFootstepPlannerPropose::computeLandInfo(Eigen::Vector3d an
     // 支撑平面
 
     // 论文中这个函数对应的可通行性检测，要记录这个函数被调用的次数及总时间消耗
+#ifdef COUNT_TIME
     checktime++;
     auto start = std::chrono::high_resolution_clock::now();
+#endif
     max_size = 0;
     above_points = 0;
     plane_normal = Eigen::Vector3d::Zero();
@@ -210,8 +212,10 @@ bool AstarHierarchicalFootstepPlannerPropose::computeLandInfo(Eigen::Vector3d an
 #ifdef  DEBUG
             LOG(INFO)<<"can not get fore support plane";
 #endif
+#ifdef COUNT_TIME
             auto end = std::chrono::high_resolution_clock::now();
             total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
+#endif
             return false;
         }
 
@@ -220,8 +224,10 @@ bool AstarHierarchicalFootstepPlannerPropose::computeLandInfo(Eigen::Vector3d an
 #ifdef  DEBUG
             LOG(INFO)<<"can not get fore support plane";
 #endif
+#ifdef COUNT_TIME
             auto end = std::chrono::high_resolution_clock::now();
             total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
+#endif
             return false;
         }
 
@@ -230,8 +236,10 @@ bool AstarHierarchicalFootstepPlannerPropose::computeLandInfo(Eigen::Vector3d an
 #ifdef  DEBUG
             LOG(INFO)<<"can not get fore support plane";
 #endif
+#ifdef COUNT_TIME
             auto end = std::chrono::high_resolution_clock::now();
             total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
+#endif
             return false;
         }
 
@@ -240,15 +248,19 @@ bool AstarHierarchicalFootstepPlannerPropose::computeLandInfo(Eigen::Vector3d an
 #ifdef  DEBUG
             LOG(INFO)<<"can not get fore support plane";
 #endif
+#ifdef COUNT_TIME
             auto end = std::chrono::high_resolution_clock::now();
             total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
+#endif
             return false;
         }
 
         if (fore_left_support_plane == fore_right_support_plane && hind_left_support_plane == hind_right_support_plane  && fore_right_support_plane == hind_left_support_plane)
         {
+#ifdef COUNT_TIME
             auto end = std::chrono::high_resolution_clock::now();
             total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
+#endif
             plane_index = fore_left_support_plane;
             max_size = fore_left_support_size + fore_right_support_size + hind_left_support_size + hind_right_support_size;
             plane_normal = Eigen::Vector3d(planes_info.at(plane_index).normal.x(), planes_info.at(plane_index).normal.y(), planes_info.at(plane_index).normal.z());
@@ -306,8 +318,10 @@ bool AstarHierarchicalFootstepPlannerPropose::computeLandInfo(Eigen::Vector3d an
             LOG(ERROR)<<"can not get area";
     #endif
     // LOG(ERROR)<<"can not get area";
+#ifdef COUNT_TIME
             auto end = std::chrono::high_resolution_clock::now();
             total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
+#endif
             return false;
         }
     }
