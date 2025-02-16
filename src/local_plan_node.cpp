@@ -176,7 +176,7 @@ void localPlanNode::publishFootsteps(diy_msgs::footSteps steps)
         marker.pose.orientation.w = q_new.w();
         marker.scale.x = 0.27; // 矩形的宽度
         marker.scale.y = 0.13; // 矩形的高度
-        marker.scale.z = 0.01; // 矩形的厚度
+        marker.scale.z = 0.05; // 矩形的厚度
         if (step.is_left)
         {
             marker.ns = "left_foot";
@@ -421,13 +421,14 @@ void localPlanNode::mapCallback(const grid_map_msgs::GridMap::ConstPtr& msg)
                 LOG(INFO)<<"right support";
             }
         }
+        // 要注意这个地方，支撑脚是右脚时，规划起始步是左脚，因为摆动周期内支撑脚为支撑脚，总以下一个双脚支撑期为规划起点
         if (support_flag == 1)
         {
-            local_planner_propose.initial(start_right, start_left, support_flag, goal_localmap);
+            local_planner_propose.initial(start_left, start_right, support_flag, goal_localmap);
         }
         else
         {
-            local_planner_propose.initial(start_left, start_right, support_flag, goal_localmap);
+            local_planner_propose.initial(start_right, start_left, support_flag, goal_localmap);
         }
         
         LOG(INFO)<<"planner initial";
