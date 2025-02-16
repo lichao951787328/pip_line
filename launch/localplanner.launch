@@ -8,7 +8,7 @@
 
   <param name="hip_width" type="double" value="0.2"/>
 
-  <param name="global_path_topic" type="string" value="/path"/>
+  <param name="global_path_topic" type="string" value="/smoothed_path"/>
   <param name="foosteps_topic" type="string" value="/footsteps"/>
   <param name="map_topic" type="string" value="/localmap"/>
   <param name="robot_state_topic" type="string" value="/robot_state"/>

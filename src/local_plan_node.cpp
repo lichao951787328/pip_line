@@ -310,7 +310,7 @@ void localPlanNode::mapCallback(const grid_map_msgs::GridMap::ConstPtr& msg)
 
     for (int i = 0; i < path_In_localmap.size(); i++)
     {
-        if (i%5 == 0)
+        if (i%10 == 0)
         {
             auto point = path_In_localmap.at(i);
             Eigen::Quaterniond qd;
@@ -403,32 +403,36 @@ void localPlanNode::mapCallback(const grid_map_msgs::GridMap::ConstPtr& msg)
         // 支撑脚转换
         int support_flag;
         LOG(INFO)<<"foot_state: "<<robot_state.foot_state;
-        if (robot_state.foot_state == 1)
+        // robot_state.foot_state == 1 定是左脚支撑
+        // robot_state.foot_state == 2 双脚支撑或右脚支撑
+
+
+        if (robot_state.foot_state == 2)
         {
-            support_flag = 0;// 左脚支撑
-            LOG(INFO)<<"left support";
-        }
-        else
-        {
-            if (msg->info.header.seq == 0 )
+            if (msg->info.header.seq == 0)
             {
                 support_flag = 2; // 双脚支撑
                 LOG(INFO)<<"double support";
             }
             else
             {
-                support_flag = 1; // 右脚支撑
+                support_flag = 0;// 右脚支撑
                 LOG(INFO)<<"right support";
             }
+        }
+        else
+        {
+            support_flag = 1; // 左脚支撑
+            LOG(INFO)<<"left support";
         }
         // 要注意这个地方，支撑脚是右脚时，规划起始步是左脚，因为摆动周期内支撑脚为支撑脚，总以下一个双脚支撑期为规划起点
         if (support_flag == 1)
         {
-            local_planner_propose.initial(start_left, start_right, support_flag, goal_localmap);
+            local_planner_propose.initial(start_right, start_left, support_flag, goal_localmap);
         }
         else
         {
-            local_planner_propose.initial(start_right, start_left, support_flag, goal_localmap);
+            local_planner_propose.initial(start_left, start_right, support_flag, goal_localmap);
         }
         
         LOG(INFO)<<"planner initial";

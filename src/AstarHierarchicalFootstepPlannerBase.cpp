@@ -215,9 +215,9 @@ void AstarHierarchicalFootstepPlannerBase::initial_transitions()
 // 默认起点和终点位置是对的
 bool AstarHierarchicalFootstepPlannerBase::initial(Eigen::Vector3d start, Eigen::Vector3d prestart, int support_side, Eigen::Vector3d goal)
 {
-    if (support_side == 0) // 左脚支撑
+    if (support_side == 0) // 在动态规划中的摆动周期右脚为支撑脚
     {
-        // 左脚支撑时，证明start是左脚
+        // 证明start是左脚
         // CHECK(start.y() > prestart.y());
         // 脚的连线与支撑脚方向的夹角大小
         Eigen::AngleAxisd ad(start.z(), Eigen::Vector3d::UnitZ());
@@ -240,7 +240,7 @@ bool AstarHierarchicalFootstepPlannerBase::initial(Eigen::Vector3d start, Eigen:
         prestart_p->Gcost = 0.0;
         prestart_p->cost = 0.0;
     }
-    else if (support_side == 1) // 右脚支撑
+    else if (support_side == 1) // 在动态规划中的摆动周期左脚为支撑脚
     {
         // 右脚支撑时，证明右脚是start，左脚是prestart
         // CHECK(start.y() < prestart.y());
@@ -268,7 +268,7 @@ bool AstarHierarchicalFootstepPlannerBase::initial(Eigen::Vector3d start, Eigen:
     }
     else if (support_side == 2) // 双脚支撑 暂时还没想好怎么写 得根据实际情况来写
     {
-        // 如果是双脚支撑，则默认是左脚支撑
+        // 如果是双脚支撑，在动态规划中的摆动周期右脚为支撑脚
         Eigen::AngleAxisd ad(start.z(), Eigen::Vector3d::UnitZ());
         Eigen::Vector2d v1 = (ad.toRotationMatrix() * Eigen::Vector3d::UnitX()).head(2);
         Eigen::Vector2d v2 = (prestart - start).head(2);
