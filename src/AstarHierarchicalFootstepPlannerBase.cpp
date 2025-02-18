@@ -9,7 +9,7 @@
 #include <grid_map_core/iterators/CircleIterator.hpp>
 #include <chrono>
 #include <boost/thread.hpp>
-
+#include <omp.h>
 #define OUR_ROBOT
 // #define ATLAS_ROBOT
 
@@ -105,57 +105,58 @@ void AstarHierarchicalFootstepPlannerBase::initial_transitions()
 {
 #ifdef OUR_ROBOT
 
-    for (int i = -1; i < 4; i++)
+    for (int i = -2; i < 5; i++)
     {
-        for (int j = -2; j < 9; j++)
+        for (int j = -2; j < 6; j++)
         {
-            for (int k = -1; k < 2; k++)
+            for (int k = -3; k < 4; k++)
             {
-                if (j == -1 && (k == -3 || k == -2))// 靠的太近时角度不允许内转太多
+                if (j == -2 && ( k == -2))// 靠的太近时角度不允许内转太多
                 {
                     continue;
                 }
-                if (j == 0 && k ==-3)
+                if (i == 2 && (k == -2 || k == 2))
                 {
                     continue;
                 }
                 
-                Eigen::Vector3d transition = Eigen::Vector3d(i * 0.12,   0.02 * j + 0.23,  k*5/57.3);
+                
+                Eigen::Vector3d transition = Eigen::Vector3d(i * 0.07,   0.02 * j + 0.23,  k*4/57.3);
                 // LOG(INFO)<<transition.transpose();
                 transitions.emplace_back(transition);
             }
         }
     } 
 
-    for (int i = -2; i < 4; i+=2)
-    {
-        for (int j = 0; j < 9; j++)
-        {
-            for (int k = -1; k < 1; k++)
-            {
-                Eigen::Vector3d transition = Eigen::Vector3d(i * 0.02,  0.02 * j + 0.23,  k*5/57.3);
-                transitions.emplace_back(transition);
-            }
-        }
-    }
+    // for (int i = -2; i < 4; i+=2)
+    // {
+    //     for (int j = 0; j < 5; j++)
+    //     {
+    //         for (int k = -1; k < 1; k++)
+    //         {
+    //             Eigen::Vector3d transition = Eigen::Vector3d(i * 0.02,  0.02 * j + 0.23,  k*5/57.3);
+    //             transitions.emplace_back(transition);
+    //         }
+    //     }
+    // }
     
-    for (int i = -1; i < 2; i++)
-    {
-        for (int j = -2; j < 3; j++)
-        {
-            for (int k = -1; k < 2; k++)
-            {
-                if (j == -1 && k == -2)// 靠的太近时角度不允许内转太多
-                {
-                    continue;
-                }
+    // for (int i = -1; i < 2; i++)
+    // {
+    //     for (int j = -2; j < 3; j++)
+    //     {
+    //         for (int k = -1; k < 2; k++)
+    //         {
+    //             if (j == -1 && k == -2)// 靠的太近时角度不允许内转太多
+    //             {
+    //                 continue;
+    //             }
                 
-                Eigen::Vector3d transition = Eigen::Vector3d(i * 0.05,   0.015 * j + 0.23,  k*3/57.3);
-                // LOG(INFO)<<transition.transpose();
-                combine_transitions.emplace_back(transition);
-            }
-        }
-    }
+    //             Eigen::Vector3d transition = Eigen::Vector3d(i * 0.05,   0.015 * j + 0.23,  k*3/57.3);
+    //             // LOG(INFO)<<transition.transpose();
+    //             combine_transitions.emplace_back(transition);
+    //         }
+    //     }
+    // }
 #endif
 
 #ifdef ATLAS_ROBOT
@@ -600,11 +601,14 @@ bool AstarHierarchicalFootstepPlannerBase::computeTransitionScore(std::pair<Eige
     //     dangerous = true;
     // }
     // 不管支撑面积，只管有没有刺脚板
-    if (above_points > 0)
+    if (above_points > 0 && above_points < 8)
     {
         dangerous = true;
     }
-
+    else if (above_points >= 8)
+    {
+        return false;
+    }
     // LOG(INFO)<<"1";
     // double transition_height;
     // if (!computeTransitionHeight(transition.second, transition_height))
@@ -1325,64 +1329,147 @@ bool AstarHierarchicalFootstepPlannerBase::nodeExtension(FootstepNodePtr current
     // 将这些点投影到localmap上，去掉不符合的点，并对每个点进行打分
 
     // 基础节点
-    std::priority_queue<ScoreMarkerNodePtr, std::vector<ScoreMarkerNodePtr>, ScoreMarkerNodeCompare> basicScoreNodes;
+    // std::priority_queue<ScoreMarkerNodePtr, std::vector<ScoreMarkerNodePtr>, ScoreMarkerNodeCompare> basicScoreNodes;
+    std::vector<ScoreMarkerNodePtr> basicScoreNodes;
     // std::priority_queue<ScoreMarkerNodePtr, std::vector<ScoreMarkerNodePtr>, ScoreMarkerNodeCompare> dangerousBasicScoreNodes;
-    for (auto & transition : special_transitions)
-    {
-        double score;
-        bool dangerous = false;
-        double height = 0.;
-        Eigen::Vector3d normal;
-        int plane_index = -1;
-        double pitch, roll;
-        if (computeTransitionScore(transition, current_node, pre_node, dangerous, score, height, normal, plane_index, pitch, roll))
-        {
-            if (dangerous)// 这个节点需要微调
-            {
-                // transition.first 基础偏移量
-                // ScoreMarkerNodePtr node_p = std::make_shared<ScoreMarkerNode>(transition.first, score);
-                // dangerousBasicScoreNodes.push(node_p);
 
-                // 如果是危险节点，那么把这个节点进行微调，如果合理再加入basicScoreNodes中
-                vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> trans = fineTransitions(transition.first, current_node);
-                std::priority_queue<ScoreMarkerNodePtr, std::vector<ScoreMarkerNodePtr>, ScoreMarkerNodeCompare> tmpFineScoreNodes;
-                for (auto & tr : trans)
+    // 尝试使用omp加速
+
+    #pragma omp parallel num_threads(6) // 限制使用 4 个线程
+    {
+        // 每个线程使用局部容器，避免直接操作共享的 basicScoreNodes 和 tmpFineScoreNodes
+        std::priority_queue<ScoreMarkerNodePtr, std::vector<ScoreMarkerNodePtr>, ScoreMarkerNodeCompare> localFineScoreNodes;
+        std::vector<ScoreMarkerNodePtr> localBasicScoreNodes;
+
+        // 使用 OpenMP for 指令并行化外部循环
+        #pragma omp for
+        for (size_t i = 0; i < special_transitions.size(); ++i)
+        {
+            auto &transition = special_transitions[i];
+            double score;
+            bool dangerous = false;
+            double height = 0.;
+            Eigen::Vector3d normal;
+            int plane_index = -1;
+            double pitch, roll;
+
+            // 计算转换得分
+            if (computeTransitionScore(transition, current_node, pre_node, dangerous, score, height, normal, plane_index, pitch, roll))
+            {
+                if (dangerous) // 需要微调
                 {
-                    double tmp_score;
-                    double height = 0;
-                    Eigen::Vector3d fine_normal;
-                    int fine_plane_index = -1;
-                    double pitch, roll;
-                    bool fine_dangerous = false;
-                    if (computeTransitionScore(tr, current_node, pre_node, fine_dangerous, tmp_score, height, fine_normal, fine_plane_index, pitch, roll))
+                    vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> trans = fineTransitions(transition.first, current_node);
+                    std::priority_queue<ScoreMarkerNodePtr, std::vector<ScoreMarkerNodePtr>, ScoreMarkerNodeCompare> tmpFineScoreNodes;
+
+                    // 并行化 fineTransitions 部分
+                    #pragma omp parallel for
+                    for (size_t j = 0; j < trans.size(); ++j)
                     {
-                        if (!fine_dangerous)
+                        auto &tr = trans[j];
+                        double tmp_score;
+                        double height = 0;
+                        Eigen::Vector3d fine_normal;
+                        int fine_plane_index = -1;
+                        double pitch, roll;
+                        bool fine_dangerous = false;
+
+                        if (computeTransitionScore(tr, current_node, pre_node, fine_dangerous, tmp_score, height, fine_normal, fine_plane_index, pitch, roll))
                         {
-                            ScoreMarkerNodePtr node_p = std::make_shared<ScoreMarkerNode>(tr.second, tmp_score, height, fine_normal, fine_plane_index, roll, pitch);
-                            tmpFineScoreNodes.push(node_p);
+                            if (!fine_dangerous)
+                            {
+                                ScoreMarkerNodePtr node_p = std::make_shared<ScoreMarkerNode>(tr.second, tmp_score, height, fine_normal, fine_plane_index, roll, pitch);
+                                tmpFineScoreNodes.push(node_p);
+                            }
                         }
                     }
-                }
 
-                int total = 2;
-                while (total >= 0 && !tmpFineScoreNodes.empty())
+                    int total = 2;
+                    while (total >= 0 && !tmpFineScoreNodes.empty())
+                    {
+                        auto node_tmp = tmpFineScoreNodes.top();
+                        tmpFineScoreNodes.pop();
+                        localFineScoreNodes.push(node_tmp);
+                        total--;
+                    }
+                }
+                else // 不需要微调
                 {
-                    auto node_tmp = tmpFineScoreNodes.top();
-                    tmpFineScoreNodes.pop();
-                    basicScoreNodes.push(node_tmp);
+                    ScoreMarkerNodePtr node_p = std::make_shared<ScoreMarkerNode>(transition.second, score, height, normal, plane_index, roll, pitch);
+                    localBasicScoreNodes.emplace_back(node_p);
                 }
             }
-            else// 不需要微调
+        }
+
+        // 线程间同步：将局部结果合并到全局的 basicScoreNodes 中
+        #pragma omp critical
+        {
+            // 合并线程局部结果
+            while (!localFineScoreNodes.empty())
             {
-                // transition.first 基础偏移量 transition.second 地图中实际的偏移
-                ScoreMarkerNodePtr node_p = std::make_shared<ScoreMarkerNode>(transition.second, score, height, normal, plane_index, roll, pitch);
-                // computeTransitionStrictScore 是不是有点多余
-                basicScoreNodes.push(node_p);
+                basicScoreNodes.emplace_back(localFineScoreNodes.top());
+                localFineScoreNodes.pop();
             }
+            basicScoreNodes.insert(basicScoreNodes.end(), localBasicScoreNodes.begin(), localBasicScoreNodes.end());
         }
     }
 
-     if (basicScoreNodes.empty())
+    // for (auto & transition : special_transitions)
+    // {
+    //     double score;
+    //     bool dangerous = false;
+    //     double height = 0.;
+    //     Eigen::Vector3d normal;
+    //     int plane_index = -1;
+    //     double pitch, roll;
+    //     if (computeTransitionScore(transition, current_node, pre_node, dangerous, score, height, normal, plane_index, pitch, roll))
+    //     {
+    //         if (dangerous)// 这个节点需要微调
+    //         {
+    //             // transition.first 基础偏移量
+    //             // ScoreMarkerNodePtr node_p = std::make_shared<ScoreMarkerNode>(transition.first, score);
+    //             // dangerousBasicScoreNodes.push(node_p);
+    //             // 如果是危险节点，那么把这个节点进行微调，如果合理再加入basicScoreNodes中
+    //             vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> trans = fineTransitions(transition.first, current_node);
+    //             std::priority_queue<ScoreMarkerNodePtr, std::vector<ScoreMarkerNodePtr>, ScoreMarkerNodeCompare> tmpFineScoreNodes;
+    //             // std::vector<ScoreMarkerNodePtr> tmpFineScoreNodes;
+    //             for (auto & tr : trans)
+    //             {
+    //                 double tmp_score;
+    //                 double height = 0;
+    //                 Eigen::Vector3d fine_normal;
+    //                 int fine_plane_index = -1;
+    //                 double pitch, roll;
+    //                 bool fine_dangerous = false;
+    //                 if (computeTransitionScore(tr, current_node, pre_node, fine_dangerous, tmp_score, height, fine_normal, fine_plane_index, pitch, roll))
+    //                 {
+    //                     if (!fine_dangerous)
+    //                     {
+    //                         ScoreMarkerNodePtr node_p = std::make_shared<ScoreMarkerNode>(tr.second, tmp_score, height, fine_normal, fine_plane_index, roll, pitch);
+    //                         tmpFineScoreNodes.push(node_p);
+    //                     }
+    //                 }
+    //             }
+    //             int total = 2;
+    //             while (total >= 0 && !tmpFineScoreNodes.empty())
+    //             {
+    //                 auto node_tmp = tmpFineScoreNodes.top();
+    //                 tmpFineScoreNodes.pop();
+    //                 basicScoreNodes.emplace_back(node_tmp);
+    //                 total--;
+    //             }
+    //         }
+    //         else// 不需要微调
+    //         {
+    //             // transition.first 基础偏移量 transition.second 地图中实际的偏移
+    //             ScoreMarkerNodePtr node_p = std::make_shared<ScoreMarkerNode>(transition.second, score, height, normal, plane_index, roll, pitch);
+    //             // computeTransitionStrictScore 是不是有点多余
+    //             basicScoreNodes.emplace_back(node_p);
+    //         }
+    //     }
+    // }
+
+
+    if (basicScoreNodes.empty())
     {
         return false;
     }
@@ -1407,64 +1494,76 @@ bool AstarHierarchicalFootstepPlannerBase::nodeExtension(FootstepNodePtr current
     cv::waitKey(0);
 #endif
 
-    std::priority_queue<ScoreMarkerNodePtr, std::vector<ScoreMarkerNodePtr>, ScoreMarkerNodeCompare> passableNodes;
-    while (!basicScoreNodes.empty())
+    #pragma omp parallel num_threads(6)
     {
-        auto node = basicScoreNodes.top();
-        basicScoreNodes.pop();
-        if (traversibilityCheck(node))
+        // 每个线程的局部容器
+        std::vector<FootstepNodePtr> local_child_nodes;
+
+        #pragma omp for
+        for (int i = 0; i < basicScoreNodes.size(); i++)
         {
-            passableNodes.push(node);
+            auto node = basicScoreNodes[i];  // 使用 basicScoreNodes[i] 而不是 at(i)
+            if (!traversibilityCheck(node))
+            {
+                continue;
+            }
+
+            FootstepNodePtr stepnode = std::make_shared<FootstepNode>(node->point, node->height, node->roll, node->pitch, current_node->footstep.getInverseRobotSide());
+            stepnode->PreFootstepNode = current_node;
+
+            // 跨平面运动时对规划的落脚点限制
+            if (stepnode->plane_index != stepnode->PreFootstepNode->plane_index)
+            {
+                Eigen::Vector2d dis_v1(stepnode->footstep.x, stepnode->footstep.y);
+                Eigen::Vector2d dis_v2(stepnode->PreFootstepNode->PreFootstepNode->footstep.x, stepnode->PreFootstepNode->PreFootstepNode->footstep.y);
+
+                // 距离超过0.35
+                if (abs((dis_v1 - dis_v2).norm()) > 0.35)
+                {
+                    continue;
+                }
+
+                // 角度相差太大
+                if (abs(stepnode->footstep.yaw - stepnode->PreFootstepNode->footstep.yaw) > 8 / 57.3)
+                {
+                    continue;
+                }
+            }
+
+            // 如果两脚pitch较大，那就不要迈大步长，5关节可能会达到62度
+            if (stepnode->footstep.pitch <= - 5 / 57.3 && stepnode->PreFootstepNode->footstep.pitch <= - 5 / 57.3)
+            {
+                Eigen::Vector2d dis_v1(stepnode->footstep.x, stepnode->footstep.y);
+                Eigen::Vector2d dis_v2(stepnode->PreFootstepNode->PreFootstepNode->footstep.x, stepnode->PreFootstepNode->PreFootstepNode->footstep.y);
+                if (abs((dis_v1 - dis_v2).norm()) > 0.32)
+                {
+                    continue;
+                }
+            }
+
+            if (!computeHcost(stepnode, stepnode->Hcost))
+            {
+                continue;
+            }
+
+            if (!computeGcost(stepnode, stepnode->Gcost))
+            {
+                continue;
+            }
+            stepnode->cost = stepnode->Hcost + stepnode->Gcost;
+
+            // 将节点添加到局部容器
+            local_child_nodes.push_back(stepnode);
+        }
+
+        // 合并局部结果到全局容器
+        #pragma omp critical
+        {
+            child_nodes.insert(child_nodes.end(), local_child_nodes.begin(), local_child_nodes.end());
         }
     }
 
-    while (!passableNodes.empty())
-    {
-        auto node = passableNodes.top();
-        // 由基础偏移量转到实际位置
-        passableNodes.pop();
-        FootstepNodePtr stepnode = std::make_shared<FootstepNode>(node->point, node->height, node->roll, node->pitch, current_node->footstep.getInverseRobotSide());
-        stepnode->PreFootstepNode = current_node;
-        // 跨平面运动时对规划的落脚点限制
-        if (stepnode->plane_index != stepnode->PreFootstepNode->plane_index)
-        {
-            Eigen::Vector2d dis_v1(stepnode->footstep.x, stepnode->footstep.y);
-            Eigen::Vector2d dis_v2(stepnode->PreFootstepNode->PreFootstepNode->footstep.x, stepnode->PreFootstepNode->PreFootstepNode->footstep.y);
-            // 距离超过0.4
-            if (abs((dis_v1 - dis_v2).norm()) > 0.35)
-            {
-                continue;
-            }
-            // 不在同一平面上且角度相差太大，也舍弃
-            if (abs(stepnode->footstep.yaw - stepnode->PreFootstepNode->footstep.yaw) > 3 /57.3)
-            {
-                continue;
-            }
-        }
-        // 如果两脚pitch较大，那就不要迈大步长，5关节可能会达到62度
-        if (stepnode->footstep.pitch <= - 5/57.3 && stepnode->PreFootstepNode->footstep.pitch <= - 5/57.3)
-        {
-            Eigen::Vector2d dis_v1(stepnode->footstep.x, stepnode->footstep.y);
-            Eigen::Vector2d dis_v2(stepnode->PreFootstepNode->PreFootstepNode->footstep.x, stepnode->PreFootstepNode->PreFootstepNode->footstep.y);
-            if (abs((dis_v1 - dis_v2).norm()) > 0.32)
-            {
-                continue;
-            }
-        }
 
-        if (!computeHcost(stepnode, stepnode->Hcost))
-        {
-            continue;
-        }
-
-        if (!computeGcost(stepnode, stepnode->Gcost))
-        {
-            continue;
-        }
-        stepnode->cost = stepnode->Hcost + stepnode->Gcost;
-        child_nodes.emplace_back(stepnode);
-    }
-    
     if (child_nodes.empty())
     {
         return false;
@@ -1659,7 +1758,7 @@ bool AstarHierarchicalFootstepPlannerBase::computeHcost(FootstepNodePtr node, do
             angle_diff = abs(node->footstep.yaw - end_right_p->footstep.yaw);
         }
         // LOG(INFO)<<dis1<<" "<<dis2<<" "<<angle_diff;
-        hcost = ((dis)*10 + dis_z * 2 + angle_diff * 0.2) * 3;
+        hcost = ((dis)*10 + dis_z * 2 + angle_diff * 0.4) * 3;
         return true;
     }
     else
@@ -1721,7 +1820,7 @@ bool AstarHierarchicalFootstepPlannerBase::arriveGoal(FootstepNodePtr node)
         angle_diff = abs(end_right_p->footstep.yaw - node->footstep.yaw);
     }
     // LOG(INFO)<<dis<<" "<<angle_diff;
-    if (dis < 0.1 && angle_diff <= 5/57.3)
+    if (dis < 0.1 && angle_diff <= 12/57.3)
     {
         return true;
     }
@@ -2068,7 +2167,7 @@ bool AstarHierarchicalFootstepPlannerBase::plan()
         if (arriveGoal(current_node))
         {
             LOG(INFO)<<"arr: "<<current_node->footstep.x<<" "<<current_node->footstep.y<<" "<<current_node->footstep.z<<" "<<current_node->footstep.roll<<" "<<current_node->footstep.pitch<<" "<<current_node->footstep.yaw<<" "<<current_node->footstep.robot_side;
-            
+            // LOG(INFO)<<"node expantion time: "<<total_time;
             if (getFootsteps(current_node))
             {
 #ifdef COUNT_TIME
@@ -2092,8 +2191,12 @@ bool AstarHierarchicalFootstepPlannerBase::plan()
         else
         {
             vector<FootstepNodePtr> child_nodes;
+            // auto start = std::chrono::system_clock::now();
             if (nodeExtension(current_node, current_node->PreFootstepNode, child_nodes))
             {
+                // auto end = std::chrono::system_clock::now();
+                // auto time_consume = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+                // total_time += time_consume;
                 // LOG(INFO)<<child_nodes.size();
 #ifdef DEBUG
                 // cv::Mat tmp_image = plane_image.clone();

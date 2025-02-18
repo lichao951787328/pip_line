@@ -16,7 +16,9 @@
   <param name="local_map_frame" type="string" value="localmap"/>
 
   <!-- Elevation mapping node -->
-  <node pkg="pip_line" type="localplanner" name="localplanner" output="screen" />
+  <node pkg="pip_line" type="localplanner" name="localplanner" output="screen">
+    <param name="nice_value" value="-10"/>
+  </node>
 
   <!-- Launch visualizations for the resulting elevation map -->
   <!-- <include file="$(find path_planning)/launch/path_smooth.launch" /> -->
