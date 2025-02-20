@@ -176,7 +176,7 @@ bool AstarHierarchicalFootstepPlannerTraditional::computeLandInfo(Eigen::Vector3
                 //     }
                 // }
 #ifdef DEBUG
-                LOG(INFO)<<"plane index: "<<plane_index;
+                // LOG(INFO)<<"plane index: "<<plane_index;
 #endif
                 // if (plane_index == -1)
                 // {

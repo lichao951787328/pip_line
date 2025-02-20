@@ -64,38 +64,6 @@ vector<tf2::Transform> localPlanNode::transformPose(tf2::Transform transform)
     return global_path_transformed;
 }
 
-// bool localPlanNode::getLocalGoalFromPath(tf2::Transform transform_localmap_globalmap, grid_map::GridMap & map, Eigen::Vector3d & goal_localmap, )
-// {
-//     if (global_path.poses.empty())
-//     {
-//         LOG(ERROR)<<"global path is empty";
-//         return false;
-//     }
-//     vector<tf2::Transform> path_In_localmap = transformPose(transform_localmap_globalmap);
-//     std::reverse(path_In_localmap.begin(), path_In_localmap.end());
-//     for (auto & point : path_In_localmap)
-//     {
-//         if (map.isInside(grid_map::Position(point.getOrigin().x(), point.getOrigin().y())))
-//         {
-//             // 考虑到高程图总是在x-y平面上的，所以将终点的方向定义为3d方向在x-y投影的yaw角
-//             Eigen::Quaterniond qd;
-//             qd.x() = point.getRotation().x();
-//             qd.y() = point.getRotation().y();
-//             qd.z() = point.getRotation().z();
-//             qd.w() = point.getRotation().w();
-//             Eigen::Vector3d v_x = qd.toRotationMatrix() * Eigen::Vector3d::UnitX();
-//             double yaw = std::atan2(v_x.y(), v_x.x());
-
-//             if (local_planner_propose.isGoalFeasible(Eigen::Vector3d(point.getOrigin().x(), point.getOrigin().y(), yaw)))
-//             {
-//                 goal_localmap = Eigen::Vector3d(point.getOrigin().x(), point.getOrigin().y(), yaw);
-//                 return true;
-//             }
-//         }
-//     }
-//     return false;
-// }
-
 bool localPlanNode::getRobotState(uint32_t map_id, diy_msgs::robotState & robot_state)
 {
     auto it = robot_states.begin();
@@ -118,39 +86,6 @@ void localPlanNode::publishFootsteps(diy_msgs::footSteps steps)
     LOG(INFO)<<"steps size: "<<steps.footsteps.size();
     
     visualization_msgs::MarkerArray markerArray;
-
-    // for (int i = 0; i < steps.footsteps.size(); i++)
-    // {
-    //     diy_msgs::footStep step = steps.footsteps.at(i);
-    //     visualization_msgs::Marker marker;
-    //     marker.header = steps.header;
-    //     marker.id = i;
-    //     // marker.header.frame_id = local_map_frame;
-    //     // marker.header.stamp = ros::Time::now();
-    //     marker.header.frame_id = local_map_frame; // 设置参考坐标系
-    //     marker.ns = "points"; // 命名空间
-    //     marker.type = visualization_msgs::Marker::SPHERE; // 类型为球体
-    //     marker.action = visualization_msgs::Marker::ADD;
-    //     LOG(INFO)<<step.x<<" "<<step.y<<" "<<step.z;
-    //     // 设置位置
-    //     marker.pose.position.x = step.x; // 中心点的x坐标
-    //     marker.pose.position.y = step.y; // 中心点的y坐标
-    //     marker.pose.position.z = step.z;
-    //     marker.pose.orientation.w = 1.0;
-
-    //     // 设置尺寸
-    //     marker.scale.x = 0.08; // 球体直径
-    //     marker.scale.y = 0.08;
-    //     marker.scale.z = 0.08;
-
-    //     // 设置颜色
-    //     marker.color.r = 1.0; // 红色
-    //     marker.color.g = 0.0;
-    //     marker.color.b = 0.0;
-    //     marker.color.a = 1.0; // 不透明度
-
-    //     markerArray.markers.push_back(marker);
-    // }
     
 
     for (int i = 0; i < steps.footsteps.size(); i++)
@@ -259,18 +194,7 @@ void localPlanNode::mapCallback(const grid_map_msgs::GridMap::ConstPtr& msg)
     
     InPaintFilter(map, tmpmap);
     map = tmpmap;
-    // int nan_num = 0;
-    // for (grid_map::GridMapIterator iterator(map); !iterator.isPastEnd(); ++iterator) {
-    //     if (!map.isValid(*iterator, "elevation")) {
-    //         // map.at("inpaint_mask", *iterator) = 1.0;
-            
-    //         nan_num++;
-    //     }
-    //     grid_map::Position3 p3;
-    //     map.getPosition3("elevation", *iterator, p3);
-    //     std::cout<<p3.z();
-    // }
-    // LOG(INFO)<<"nan_num: "<<nan_num;
+    
     // 获取3d到localmap的变换矩阵
     geometry_msgs::TransformStamped transformStamped_T_localmap_globalmap;
     try
@@ -291,12 +215,14 @@ void localPlanNode::mapCallback(const grid_map_msgs::GridMap::ConstPtr& msg)
 
     // note：用同一个规划器来进行规划时，如果多次使用同一个规划器，会出现内存溢出的情况，可能时这个规划器没写好，
     localPlannerBase local_planner_propose;
-    
+    // LOG(INFO)<<"set planer";
     // 声明自己想使用的规划器
     std::shared_ptr<AstarHierarchicalFootstepPlannerPropose> propose_planner_ptr = std::make_shared<AstarHierarchicalFootstepPlannerPropose>();
     local_planner_propose.setPlanner(propose_planner_ptr);
+    // LOG(INFO)<<"setFootParam";
     local_planner_propose.setFootParam(foot_param);
     local_planner_propose.setHipWidth(hip_width);
+    // LOG(INFO)<<"mapPrepare";
     local_planner_propose.mapPrepare(map);
     Eigen::Vector3d goal_localmap;
     bool get_goal = false;
@@ -310,23 +236,20 @@ void localPlanNode::mapCallback(const grid_map_msgs::GridMap::ConstPtr& msg)
 
     for (int i = 0; i < path_In_localmap.size(); i++)
     {
-        if (i%10 == 0)
-        {
-            auto point = path_In_localmap.at(i);
-            Eigen::Quaterniond qd;
-            qd.x() = point.getRotation().x();
-            qd.y() = point.getRotation().y();
-            qd.z() = point.getRotation().z();
-            qd.w() = point.getRotation().w();
-            Eigen::Vector3d v_x = qd.toRotationMatrix() * Eigen::Vector3d::UnitX();
-            double yaw = std::atan2(v_x.y(), v_x.x());
+        auto point = path_In_localmap.at(i);
+        Eigen::Quaterniond qd;
+        qd.x() = point.getRotation().x();
+        qd.y() = point.getRotation().y();
+        qd.z() = point.getRotation().z();
+        qd.w() = point.getRotation().w();
+        Eigen::Vector3d v_x = qd.toRotationMatrix() * Eigen::Vector3d::UnitX();
+        double yaw = std::atan2(v_x.y(), v_x.x());
 
-            if (local_planner_propose.isGoalFeasible(Eigen::Vector3d(point.getOrigin().x(), point.getOrigin().y(), yaw)))
-            {
-                goal_localmap = Eigen::Vector3d(point.getOrigin().x(), point.getOrigin().y(), yaw);
-                get_goal = true;
-                break;
-            }
+        if (local_planner_propose.isGoalFeasible(Eigen::Vector3d(point.getOrigin().x(), point.getOrigin().y(), yaw)))
+        {
+            goal_localmap = Eigen::Vector3d(point.getOrigin().x(), point.getOrigin().y(), yaw);
+            get_goal = true;
+            break;
         }
     }
     // LOG(INFO)<<goal_localmap.transpose();
@@ -365,9 +288,6 @@ void localPlanNode::mapCallback(const grid_map_msgs::GridMap::ConstPtr& msg)
                 return;
             }
         }
-        // LOG(INFO)<<"ROBOT STATE: ";
-        // LOG(INFO)<<robot_state.left_foot.position.x<<" "<<robot_state.left_foot.position.y<<" "<<robot_state.left_foot.position.z;
-        // LOG(INFO)<<robot_state.right_foot.position.x<<" "<<robot_state.right_foot.position.y<<" "<<robot_state.right_foot.position.z;
         
         Eigen::Vector3d start_left, start_right;
         if (msg->info.header.seq == 0) // 初始时发来的数是0，0，0
@@ -395,9 +315,6 @@ void localPlanNode::mapCallback(const grid_map_msgs::GridMap::ConstPtr& msg)
             yaw = std::atan2(v_x.y(), v_x.x());
             start_right = Eigen::Vector3d(robot_state.right_foot.position.x, robot_state.right_foot.position.y, yaw);
         }
-        // LOG(INFO)<<"start left: "<<start_left.transpose();
-        // LOG(INFO)<<"start right: "<<start_right.transpose();
-        // LOG(INFO)<<"state: "<<robot_state.foot_state;
 
         
         // 支撑脚转换

@@ -13,35 +13,6 @@
 #define OUR_ROBOT
 // #define ATLAS_ROBOT
 
-// 这个构造函数，有问题，暂时不要使用
-// AstarHierarchicalFootstepPlannerBase::AstarHierarchicalFootstepPlannerBase(grid_map::GridMap & lm, FootParam footparam_, double hip_width_)
-// {
-//     localmap = lm;
-//     // 加一个对localmap提取平面的操作
-//     resolution = localmap.getResolution();
-//     // debug_pub = 
-//     mapsize = localmap.getSize().x() * localmap.getSize().y();
-//     // LOG(INFO)<<localmap.getSize().transpose();
-//     // label_index.resize(localmap.getSize().x(), localmap.getSize().y());
-//     // LOG(INFO)<<localmap.getSize().y()<<" "<<localmap.getSize().x();
-//     // LOG(INFO)<<label_index.rows()<<" "<<label_index.cols();
-//     computePlanarInfor();
-//     footparam = footparam_;
-//     hip_width = hip_width_;
-//     footsize_inmap = (ceil((footparam.x_button + footparam.x_upper)/resolution)) * (ceil((footparam.y_left + footparam.y_right)/resolution));
-// #ifdef DEBUG
-//     LOG(INFO)<<"resolution: "<<resolution;
-//     LOG(INFO)<<"mapsize: "<<mapsize;
-//     LOG(INFO)<<"footparam: "<<footparam.x_upper<<" "<<footparam.x_button<<" "<<footparam.y_left<<" "<<footparam.y_right;
-//     LOG(INFO)<<"hip_width: "<<hip_width;
-//     LOG(INFO)<<"footsize_inmap: "<<footsize_inmap;
-//     // outfile = std::ofstream("/home/lichao/Darwin-op/src/elevation_map_ours/elevation_mapping/AstarHierarchicalFootstepPlanner/data/out.txt");
-//     // outfile = std::ofstream("/home/lichao/TCDS/src/pip_line/data/out.txt");
-// #endif
-//     // 每个transition x y yaw 右脚往左扩展的步态点
-//     initial_transitions();
-//     // LOG(INFO)<<"transitions size: "<<transitions.size();
-// }
 
 // 请确保不会出现某个栅格点的label为nan，而其周围的栅格点label确实一个值，如果按照自己的平面提取算法，应该不会出现这个情况
 AstarHierarchicalFootstepPlannerBase::AstarHierarchicalFootstepPlannerBase(grid_map::GridMap & label_map, cv::Mat & plane_iamage_, vector<cv::Mat> & planes_image_, vector<planeInfo> & planes_info_, FootParam footparam_, double hip_width_):label_localmap(label_map),footparam(footparam_), hip_width(hip_width_), plane_image(plane_iamage_), plane_images(planes_image_),planes_info(planes_info_)
@@ -70,6 +41,7 @@ AstarHierarchicalFootstepPlannerBase::AstarHierarchicalFootstepPlannerBase(grid_
 AstarHierarchicalFootstepPlannerBase::AstarHierarchicalFootstepPlannerBase()
 {
     initial_transitions();
+    // LOG(INFO)<<"construct planner";
 }
 
 // plane_image是调试，显示时所用的平面分割结果图
@@ -103,13 +75,13 @@ void AstarHierarchicalFootstepPlannerBase::setBasicInfor(grid_map::GridMap & lab
 
 void AstarHierarchicalFootstepPlannerBase::initial_transitions()
 {
-
+    // LOG(INFO)<<"construct planner";
 
 #ifdef OUR_ROBOT
 
     // 根据机器人的状态需要设定不同的transion
     // 这是用于判断机器人下一步是否需要跨步的transion
-    for (int i = 0; i < 4; i++)
+    for (int i = -1; i < 4; i++)
     {
         for (int j = 0; j < 3; j++)
         {
@@ -124,7 +96,7 @@ void AstarHierarchicalFootstepPlannerBase::initial_transitions()
     {
         for (int j = 0; j < 3; j++)
         {
-            for (int k = -1; k < 3; i++)
+            for (int k = -1; k < 3; k++)
             {
                 Eigen::Vector3d transition = Eigen::Vector3d(i * 0.03,   0.02 * j + 0.22,  k * 5/57.3);
                 combine_transitions.emplace_back(transition);
@@ -137,9 +109,9 @@ void AstarHierarchicalFootstepPlannerBase::initial_transitions()
     {
         for (int j = -1; j < 3; j++)
         {
-            for (int k = -1; k < 4; i++)
+            for (int k = -1; k < 4; k++)
             {
-                Eigen::Vector3d transition = Eigen::Vector3d(0.2 + i * 0.03,   0.02 * j + 0.22,  k * 5/57.3);
+                Eigen::Vector3d transition = Eigen::Vector3d(0.2 + i * 0.02,   0.02 * j + 0.22,  k * 5/57.3);
                 walk_transitions.emplace_back(transition);
             }
         }
@@ -151,64 +123,13 @@ void AstarHierarchicalFootstepPlannerBase::initial_transitions()
     {
         for (int j = -1; j < 3; j++)
         {
-            for (int k = -1; k < 4; i++)
+            for (int k = -1; k < 4; k++)
             {
                 Eigen::Vector3d transition = Eigen::Vector3d(0.3 + i * 0.015,   0.02 * j + 0.22,  k * 5/57.3);
-                walk_transitions.emplace_back(transition);
+                step_transitions.emplace_back(transition);
             }
         }
     }
-
-    // for (int i = -2; i < 5; i++)
-    // {
-    //     for (int j = -2; j < 6; j++)
-    //     {
-    //         for (int k = -3; k < 4; k++)
-    //         {
-    //             if (j == -2 && ( k == -2))// 靠的太近时角度不允许内转太多
-    //             {
-    //                 continue;
-    //             }
-    //             if (i == 2 && (k == -2 || k == 2))
-    //             {
-    //                 continue;
-    //             }
-    //             Eigen::Vector3d transition = Eigen::Vector3d(i * 0.07,   0.02 * j + 0.23,  k*4/57.3);
-    //             // LOG(INFO)<<transition.transpose();
-    //             transitions.emplace_back(transition);
-    //         }
-    //     }
-    // } 
-
-    // for (int i = -2; i < 4; i+=2)
-    // {
-    //     for (int j = 0; j < 5; j++)
-    //     {
-    //         for (int k = -1; k < 1; k++)
-    //         {
-    //             Eigen::Vector3d transition = Eigen::Vector3d(i * 0.02,  0.02 * j + 0.23,  k*5/57.3);
-    //             transitions.emplace_back(transition);
-    //         }
-    //     }
-    // }
-    
-    // for (int i = -1; i < 2; i++)
-    // {
-    //     for (int j = -2; j < 3; j++)
-    //     {
-    //         for (int k = -1; k < 2; k++)
-    //         {
-    //             if (j == -1 && k == -2)// 靠的太近时角度不允许内转太多
-    //             {
-    //                 continue;
-    //             }
-                
-    //             Eigen::Vector3d transition = Eigen::Vector3d(i * 0.05,   0.015 * j + 0.23,  k*3/57.3);
-    //             // LOG(INFO)<<transition.transpose();
-    //             combine_transitions.emplace_back(transition);
-    //         }
-    //     }
-    // }
 #endif
 
 #ifdef ATLAS_ROBOT
@@ -270,9 +191,11 @@ bool AstarHierarchicalFootstepPlannerBase::checkStartStepsState(FootstepNodePtr 
     Eigen::AngleAxisd ad(prestart_p->footstep.yaw, Eigen::Vector3d::UnitZ());
     Eigen::Vector3d v_world(start->footstep.x - prestart_p->footstep.x, start->footstep.y - prestart_p->footstep.y, 0);
     Eigen::Vector3d v = ad.inverse() * v_world;
-
+    // LOG(INFO)<<"prestart_p->footstep.yaw: "<<prestart_p->footstep.yaw;
+    // LOG(INFO)<<"v_world: "<<v_world.transpose();
+    // LOG(INFO)<<"v: "<<v.transpose();
     // 这个参数需要根据在设置transion时的参数来设置
-    if (abs(v.y()) < 0.08)
+    if (abs(v.x()) < 0.08)
     {
         // 是并步
         prestart_p->footstep.step_state = StepState::Walking;
@@ -282,6 +205,7 @@ bool AstarHierarchicalFootstepPlannerBase::checkStartStepsState(FootstepNodePtr 
     {
         prestart_p->footstep.step_state = StepState::Walking;
         start->footstep.step_state = StepState::Walking;
+        // LOG(INFO)<<"ALL WALKING";
     }
     return true;
 }
@@ -318,6 +242,7 @@ vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> AstarHierarchicalFootstepPla
 
 bool AstarHierarchicalFootstepPlannerBase::needTakeAStepHeight(FootstepNodePtr current_node)
 {
+    
     vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> predictStep = TransitionsAtFoot(current_node, judgeStep_transitions);
     double max_height_diff = 0;
     for (auto & step : predictStep)
@@ -325,13 +250,15 @@ bool AstarHierarchicalFootstepPlannerBase::needTakeAStepHeight(FootstepNodePtr c
         grid_map::Position position(step.second.x(), step.second.y());
         if (localmap.isInside(position))
         {
-            double current_height_diff = abs(current_node->footstep.z - localmap.atPosition("label", position));
+            // 为什么说这种不严谨的高度值能作为落脚点的高度，因为我们judgeStep_transitions在x方向足够长，即使出现落脚点处的高度值不是此处高程图高度，但是由于x方向足够长，judgeStep_transitions内其他点高度值能作为落脚点的高度值。
+            double current_height_diff = abs(current_node->footstep.z - localmap.atPosition("elevation", position));
             if (current_height_diff > max_height_diff)
             {
                 max_height_diff = current_height_diff;
             }
         }
     }
+    // LOG(INFO) << "max_height_diff: " << max_height_diff;    
     if (max_height_diff > 0.05)
     {
         return true;
@@ -427,6 +354,35 @@ bool AstarHierarchicalFootstepPlannerBase::initial(Eigen::Vector3d start, Eigen:
     }
     checkStartStepsState(start_p, prestart_p);
 
+#ifdef DEBUG
+    if (start_p->footstep.step_state == StepState::Combining)
+    {
+        LOG(INFO)<<"start is combining";
+    }
+    else if (start_p->footstep.step_state == StepState::Walking) 
+    {
+        LOG(INFO)<<"start is walking";
+    }
+    else
+    {
+        LOG(ERROR)<<"error about start state";
+    }
+    
+    
+    if (prestart_p->footstep.step_state == StepState::Combining)
+    {
+        LOG(INFO)<<"prestart is combining";
+    }
+    else if (prestart_p->footstep.step_state == StepState::Walking)
+    {
+        LOG(INFO)<<"prestart is walking";
+    }
+    else
+    {
+        LOG(ERROR)<<"error about prestart state";
+    }
+#endif
+    // std::cin.get();  // 等待用户按下 Enter
     LOG(INFO)<<prestart_p->footstep.x<<" "<<prestart_p->footstep.y<<" "<<prestart_p->footstep.z<<" "<<prestart_p->footstep.roll<<" "<<prestart_p->footstep.pitch<<" "<<prestart_p->footstep.yaw<<" "<<prestart_p->footstep.robot_side<<" "<<start_p->Hcost<<" "<<start_p->Gcost<<" "<<start_p->cost;
     LOG(INFO)<<start_p->footstep.x<<" "<<start_p->footstep.y<<" "<<start_p->footstep.z<<" "<<start_p->footstep.roll<<" "<<start_p->footstep.pitch<<" "<<start_p->footstep.yaw<<" "<<start_p->footstep.robot_side<<" "<<start_p->Hcost<<" "<<start_p->Gcost<<" "<<start_p->cost;
     
@@ -525,6 +481,7 @@ bool AstarHierarchicalFootstepPlannerBase::startPoint2Node(Eigen::Vector3d p, Fo
         node->footstep.x = p(0);
         node->footstep.y = p(1);
         node->footstep.z = height;
+        // LOG(INFO)<<"height: "<<height;
         node->footstep.yaw = p(2);
         node->footstep.roll = roll;
         node->footstep.pitch = pitch;
@@ -1342,6 +1299,40 @@ bool AstarHierarchicalFootstepPlannerBase::nodeExtension(FootstepNodePtr current
     // 基础节点，在地图坐标系下的节点
     child_nodes.clear();
     // vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> special_transitions = basicTransitions(current_node);
+
+    // 将这些点投影到localmap上，去掉不符合的点，并对每个点进行打分
+
+    // 基础节点
+    // std::priority_queue<ScoreMarkerNodePtr, std::vector<ScoreMarkerNodePtr>, ScoreMarkerNodeCompare> basicScoreNodes;
+    std::vector<ScoreMarkerNodePtr> basicScoreNodes;
+    // std::priority_queue<ScoreMarkerNodePtr, std::vector<ScoreMarkerNodePtr>, ScoreMarkerNodeCompare> dangerousBasicScoreNodes;
+    vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> special_transitions;
+    bool is_combining = false;
+    // 先根据下一步是否会有需要跨台阶，来判断使用哪个transion
+
+    bool need_step = needTakeAStepHeight(current_node);
+
+    if (need_step && current_node->footstep.step_state == StepState::Combining)
+    {
+        // 需要进行上台阶
+        special_transitions = TransitionsAtFoot(current_node, step_transitions);
+        // LOG(INFO)<<"step transitions size:"<<step_transitions.size();
+    }
+    else if (need_step && current_node->footstep.step_state == StepState::Walking)
+    {
+        // 并步
+        special_transitions = TransitionsAtFoot(current_node, combine_transitions);
+        is_combining = true;
+        // LOG(INFO)<<"combine transitions size:"<<combine_transitions.size();
+    }
+    else if (!need_step)
+    {
+        // 执行walk
+        special_transitions = TransitionsAtFoot(current_node, walk_transitions);
+        // LOG(INFO)<<"walk transitions size:"<<walk_transitions.size();
+    }
+    
+
 #ifdef DEBUG
     LOG(INFO)<<"node size: "<<special_transitions.size();
     for (auto & node : special_transitions)
@@ -1371,33 +1362,6 @@ bool AstarHierarchicalFootstepPlannerBase::nodeExtension(FootstepNodePtr current
     cv::imshow("nodeextension", scaledImg);
     cv::waitKey(0);
 #endif
-    // 将这些点投影到localmap上，去掉不符合的点，并对每个点进行打分
-
-    // 基础节点
-    // std::priority_queue<ScoreMarkerNodePtr, std::vector<ScoreMarkerNodePtr>, ScoreMarkerNodeCompare> basicScoreNodes;
-    std::vector<ScoreMarkerNodePtr> basicScoreNodes;
-    // std::priority_queue<ScoreMarkerNodePtr, std::vector<ScoreMarkerNodePtr>, ScoreMarkerNodeCompare> dangerousBasicScoreNodes;
-    vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> special_transitions;
-    bool is_combining = false;
-    // 先根据下一步是否会有需要跨台阶，来判断使用哪个transion
-    if (needTakeAStepHeight(current_node) && current_node->footstep.step_state == StepState::Combining)
-    {
-        // 需要进行上台阶
-        special_transitions = TransitionsAtFoot(current_node, step_transitions);
-        
-    }
-    else if (needTakeAStepHeight(current_node) && current_node->footstep.step_state == StepState::Walking)
-    {
-        // 并步
-        special_transitions = TransitionsAtFoot(current_node, combine_transitions);
-        is_combining = true;
-    }
-    else if (!needTakeAStepHeight(current_node))
-    {
-        // 执行walk
-        special_transitions = TransitionsAtFoot(current_node, walk_transitions);
-    }
-    
     // 当为执行上台阶时，如果子节点数量为0，则再执行一次并步
     // 尝试使用omp加速
 
@@ -1487,17 +1451,15 @@ bool AstarHierarchicalFootstepPlannerBase::nodeExtension(FootstepNodePtr current
 #ifdef DEBUG
     cv::Mat basicImage = cv::Mat::zeros(plane_image.size(), CV_8UC3);
 
-    auto tmpbasicScoreNodes = basicScoreNodes;
-    while (tmpbasicScoreNodes.empty())
+    for (auto & basicNode : basicScoreNodes)
     {
-        auto basicNode = tmpbasicScoreNodes.top();
-        tmpbasicScoreNodes.pop();
         grid_map::Index index;
         if (localmap.getIndex(basicNode->point.head(2), index))
         {
             plane_image.at<cv::Vec3b>(index.x(), index.y()) = cv::Vec3b(0, 0, 255);
         }
     }
+
     cv::Mat enlarge;
     resize(plane_image, enlarge, cv::Size(scaledWidth, scaledHeight));
     cv::imshow("enlarge", enlarge);
@@ -1937,10 +1899,6 @@ bool AstarHierarchicalFootstepPlannerBase::plan()
             // auto start = std::chrono::system_clock::now();
             if (nodeExtension(current_node, current_node->PreFootstepNode, child_nodes))
             {
-                // auto end = std::chrono::system_clock::now();
-                // auto time_consume = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-                // total_time += time_consume;
-                // LOG(INFO)<<child_nodes.size();
 #ifdef DEBUG
                 // cv::Mat tmp_image = plane_image.clone();
                 cv::Mat tmp_image = cv::Mat::zeros(plane_image.size(), CV_8UC3);
@@ -2223,11 +2181,10 @@ bool AstarHierarchicalFootstepPlannerBase::checkFootstepsResult()
         int max_size = 0;
         Eigen::Vector3d normal = Eigen::Vector3d::Zero();
         double height = -std::numeric_limits<double>::infinity();
-        int plane_index = -1;
         double roll = std::numeric_limits<double>::infinity();
         double pitch = std::numeric_limits<double>::infinity();
         
-        if (computeLandInfo(Eigen::Vector3d(step.x, step.y, step.yaw), max_size, above_points, normal, height, plane_index, pitch, roll))
+        if (computeLandInfo(Eigen::Vector3d(step.x, step.y, step.yaw), max_size, above_points, normal, height, pitch, roll))
         {
             LOG(INFO)<<"above_points: "<<above_points;
             LOG(INFO)<<"max_size: "<<max_size;

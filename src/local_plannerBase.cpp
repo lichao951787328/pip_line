@@ -387,6 +387,7 @@ void localPlannerBase::mergePlanes()
 
 void localPlannerBase::mapPrepare(grid_map::GridMap & map_)
 {
+    // LOG(INFO)<<"mapPrepare";
     map = map_;
     Inpaint(5);
     detectionPlane();
