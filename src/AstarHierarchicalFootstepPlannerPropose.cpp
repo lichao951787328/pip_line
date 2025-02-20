@@ -145,7 +145,7 @@ bool AstarHierarchicalFootstepPlannerPropose::getSupportPlaneIndex(std::unordere
 }
 
 // tested 粗略检查
-bool AstarHierarchicalFootstepPlannerPropose::computeLandInfo(Eigen::Vector3d ankle, int & max_size, int & above_points, Eigen::Vector3d & plane_normal, double & step_height, int & plane_index, double & pitch, double & roll) 
+bool AstarHierarchicalFootstepPlannerPropose::computeLandInfo(Eigen::Vector3d ankle, int & max_size, int & above_points, Eigen::Vector3d & plane_normal, double & step_height, double & pitch, double & roll) 
 {
     // 能否找到支撑平面
     // 前脚直方图
@@ -162,7 +162,6 @@ bool AstarHierarchicalFootstepPlannerPropose::computeLandInfo(Eigen::Vector3d an
     above_points = 0;
     plane_normal = Eigen::Vector3d::Zero();
     step_height = -std::numeric_limits<double>::infinity();
-    plane_index = -1;
     pitch = std::numeric_limits<double>::infinity();
     roll = std::numeric_limits<double>::infinity();
     // HistogramVoting fore_foot_HV, hind_foot_HV;
@@ -261,7 +260,7 @@ bool AstarHierarchicalFootstepPlannerPropose::computeLandInfo(Eigen::Vector3d an
             auto end = std::chrono::high_resolution_clock::now();
             total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
 #endif
-            plane_index = fore_left_support_plane;
+            int plane_index = fore_left_support_plane;
             max_size = fore_left_support_size + fore_right_support_size + hind_left_support_size + hind_right_support_size;
             plane_normal = Eigen::Vector3d(planes_info.at(plane_index).normal.x(), planes_info.at(plane_index).normal.y(), planes_info.at(plane_index).normal.z());
             Eigen::Vector3d center = Eigen::Vector3d(planes_info.at(plane_index).center.x(), planes_info.at(plane_index).center.y(), planes_info.at(plane_index).center.z());

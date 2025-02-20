@@ -19,11 +19,14 @@ using namespace std;
 // #define COUNT_TIME
 // #define DEBUG
 enum RobotSide{LEFT, RIGHT, _NAN_};
-
+// 规划时，根据当前步前方的高度及本身状态来选择合适的transion
+// 
+enum StepState{Combining, Walking};
 struct Footstep
 {
     
     RobotSide robot_side;
+    StepState step_state;
     double x, y, z, roll, pitch, yaw;
     Footstep()
     {
@@ -103,7 +106,7 @@ struct FootstepNode
 {
     Footstep footstep;
     double cost, Hcost, Gcost;
-    int plane_index;//脚属于哪一个平面，后续可以根据平面是否变化及xyz的位移信息进行筛选更适合机器人的步态点
+    // int plane_index;//脚属于哪一个平面，后续可以根据平面是否变化及xyz的位移信息进行筛选更适合机器人的步态点
     std::shared_ptr<FootstepNode> PreFootstepNode = nullptr;
     FootstepNode():footstep()
     {
@@ -196,20 +199,20 @@ struct ScoreMarkerNode
     Eigen::Vector3d normal;
     double score;
     double height;
-    int plane_index;
+    // int plane_index;
     double roll, pitch;
     ScoreMarkerNode(Eigen::Vector3d point_, double score_)
     {
         point = point_;
         score = score_;
     }
-    ScoreMarkerNode(Eigen::Vector3d point_, double score_, double height_, Eigen::Vector3d normal_, int plane_index_, double roll_, double pitch_)
+    ScoreMarkerNode(Eigen::Vector3d point_, double score_, double height_, Eigen::Vector3d normal_, double roll_, double pitch_)
     {
         point = point_;
         score = score_;
         height = height_;
         normal = normal_;
-        plane_index = plane_index_;
+        // plane_index = plane_index_;
         roll = roll_;
         pitch = pitch_;
     }
@@ -225,32 +228,6 @@ struct ScoreMarkerNodeCompare
             std::cout<<"the cost is nan"<<std::endl;
         }
         return n1->score < n2->score;
-    }
-};
-
-// 直方图投票
-struct HistogramVoting
-{
-    std::unordered_map<int, int> counter;
-    int nan_points = 0;
-    int all_points = 0;
-    void add(int index, Eigen::Vector3d & p)
-    {
-        if (std::isnan(index))
-        {
-            nan_points++;
-            return;
-        }
-        else
-        {
-            counter[index]++;
-        }
-        all_points++;
-    }
-
-    void addNANPoints()
-    {
-        nan_points++;
     }
 };
 
@@ -357,9 +334,11 @@ protected:
     std::atomic<bool> stop_flag; // 取消标志位
 #endif
     // 初始化参数 支撑脚为右脚，扩展参数为左脚
-    vector<Eigen::Vector3d> transitions;
+    vector<Eigen::Vector3d> walk_transitions;
     vector<Eigen::Vector3d> combine_transitions;
-    
+    vector<Eigen::Vector3d> judgeStep_transitions;
+    vector<Eigen::Vector3d> step_transitions;
+
     // 后续计算障碍点时会用到
     cv::Mat plane_image;
     unsigned char default_colors[12][3] =
@@ -476,7 +455,7 @@ public:
      * @return true 
      * @return false 
      */
-    bool getPointInfoInPlane(Eigen::Vector3d p, double & height, int & plane_index, double & pitch, double & roll);
+    bool getPointInfoInPlane(Eigen::Vector3d p, double & height, double & pitch, double & roll);
 
     /**
      * @brief 对落脚点进行精修，根据goal得到的左右脚可能有些缺陷，通过精修获得更合适的终点左右脚的姿态。这里只是为了获得候选节点
@@ -547,7 +526,7 @@ public:
     Eigen::Vector3d Quaterniond2EulerAngles(Eigen::Quaterniond q);
     Eigen::Vector3d Matrix3d2EulerAngles(Eigen::Matrix3d m);
 
-    bool computeTransitionScore(std::pair<Eigen::Vector3d, Eigen::Vector3d> transition, FootstepNodePtr current_node, FootstepNodePtr pre_node, bool & dangerous, double & score, double & height, Eigen::Vector3d & plane_normal, int & plane_index, double & pitch, double & roll);
+    bool computeTransitionScore(std::pair<Eigen::Vector3d, Eigen::Vector3d> transition, FootstepNodePtr current_node, FootstepNodePtr pre_node, bool & dangerous, double & score, double & height, Eigen::Vector3d & plane_normal, double & pitch, double & roll);
 
     /**
      * @brief 计算每个落脚点的得分，目的是为了找到终点处最佳的左右脚站立点，在初始化是使用，判断哪个终点位置更适合落脚
@@ -557,7 +536,7 @@ public:
      * @return true 
      * @return false 
     //  */
-    bool computeLandPointScore(std::pair<Eigen::Vector3d, Eigen::Vector3d> land_point, double & score, double & height, int & plane_index, double & pitch, double & roll);
+    bool computeLandPointScore(std::pair<Eigen::Vector3d, Eigen::Vector3d> land_point, double & score, double & height, double & pitch, double & roll);
 
 
     /**
@@ -589,22 +568,11 @@ public:
 
     bool startPoint2Node(Eigen::Vector3d p, FootstepNodePtr node);
 
-    bool getPointsInFootArea(Eigen::Vector3d ankle, HistogramVoting & fore_foot_HV, HistogramVoting & hind_foot_HV);
-
-    // bool getPointsInFootArea(Eigen::Vector3d ankle, IndexPlanePoints & index_plane);
-
-    // bool getPointsInForeFoot(Eigen::Vector3d ankle, HistogramVoting & fore_foot_HV);
-
-    // bool getPointsInHindFoot(Eigen::Vector3d ankle, HistogramVoting & hind_foot_HV);
-
-    // bool SqurePoints(Eigen::Vector2d TL, Eigen::Vector2d TR, Eigen::Vector2d BL, Eigen::Vector2d BR, vector<Eigen::Vector3d> & points);
-
-    // bool SqureHistogramVoting(Eigen::Vector2d TL, Eigen::Vector2d TR, Eigen::Vector2d BL, Eigen::Vector2d BR, HistogramVoting & HV);
-
-    // void getSquareHistogramVoting(Eigen::Vector2d TL, Eigen::Vector2d TR, Eigen::Vector2d BL, Eigen::Vector2d BR, HistogramVoting & HV);
-
     bool getLandAreaPoints(Eigen::Vector3d ankle, vector<Eigen::Vector3d> & points);
 
+    bool checkStartStepsState(FootstepNodePtr start, FootstepNodePtr prestart_p);
+    vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> TransitionsAtFoot(FootstepNodePtr current_node, vector<Eigen::Vector3d> & transitions);
+    bool needTakeAStepHeight(FootstepNodePtr current_node);
 
     bool SqurePoints(Eigen::Vector2d TL, Eigen::Vector2d TR, Eigen::Vector2d BL, Eigen::Vector2d BR, vector<Eigen::Vector3d> & points);
 
@@ -629,7 +597,7 @@ public:
      * @return true 
      * @return false 
      */
-    virtual bool computeLandInfo(Eigen::Vector3d ankle, int & max_size, int & above_points, Eigen::Vector3d & plane_normal, double & step_height, int & plane_index, double & pitch, double & roll) = 0;
+    virtual bool computeLandInfo(Eigen::Vector3d ankle, int & max_size, int & above_points, Eigen::Vector3d & plane_normal, double & step_height, double & pitch, double & roll) = 0;
 
     /**
      * @brief 根据地图坐标系下的normal，计算在经过yaw旋转后，平面的roll和pitch角

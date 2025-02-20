@@ -103,30 +103,82 @@ void AstarHierarchicalFootstepPlannerBase::setBasicInfor(grid_map::GridMap & lab
 
 void AstarHierarchicalFootstepPlannerBase::initial_transitions()
 {
+
+
 #ifdef OUR_ROBOT
 
-    for (int i = -2; i < 5; i++)
+    // 根据机器人的状态需要设定不同的transion
+    // 这是用于判断机器人下一步是否需要跨步的transion
+    for (int i = 0; i < 4; i++)
     {
-        for (int j = -2; j < 6; j++)
+        for (int j = 0; j < 3; j++)
         {
-            for (int k = -3; k < 4; k++)
+            Eigen::Vector3d transition = Eigen::Vector3d(0.2 + i * 0.05,   0.02 * j + 0.2,  0);
+            judgeStep_transitions.emplace_back(transition);
+        }
+        
+    }
+    
+    // 机器人并步的transion
+    for (int i = -2; i < 3; i++)
+    {
+        for (int j = 0; j < 3; j++)
+        {
+            for (int k = -1; k < 3; i++)
             {
-                if (j == -2 && ( k == -2))// 靠的太近时角度不允许内转太多
-                {
-                    continue;
-                }
-                if (i == 2 && (k == -2 || k == 2))
-                {
-                    continue;
-                }
-                
-                
-                Eigen::Vector3d transition = Eigen::Vector3d(i * 0.07,   0.02 * j + 0.23,  k*4/57.3);
-                // LOG(INFO)<<transition.transpose();
-                transitions.emplace_back(transition);
+                Eigen::Vector3d transition = Eigen::Vector3d(i * 0.03,   0.02 * j + 0.22,  k * 5/57.3);
+                combine_transitions.emplace_back(transition);
             }
         }
-    } 
+    }
+    
+    // 机器人walk的transition
+    for (int i = -2; i < 3; i++)
+    {
+        for (int j = -1; j < 3; j++)
+        {
+            for (int k = -1; k < 4; i++)
+            {
+                Eigen::Vector3d transition = Eigen::Vector3d(0.2 + i * 0.03,   0.02 * j + 0.22,  k * 5/57.3);
+                walk_transitions.emplace_back(transition);
+            }
+        }
+    }
+
+    // 在规划时，如果第一次上台阶时没有找到合适的落脚点，则再执行一次并步
+    // 机器人上台阶的transition
+    for (int i = -2; i < 3; i++)
+    {
+        for (int j = -1; j < 3; j++)
+        {
+            for (int k = -1; k < 4; i++)
+            {
+                Eigen::Vector3d transition = Eigen::Vector3d(0.3 + i * 0.015,   0.02 * j + 0.22,  k * 5/57.3);
+                walk_transitions.emplace_back(transition);
+            }
+        }
+    }
+
+    // for (int i = -2; i < 5; i++)
+    // {
+    //     for (int j = -2; j < 6; j++)
+    //     {
+    //         for (int k = -3; k < 4; k++)
+    //         {
+    //             if (j == -2 && ( k == -2))// 靠的太近时角度不允许内转太多
+    //             {
+    //                 continue;
+    //             }
+    //             if (i == 2 && (k == -2 || k == 2))
+    //             {
+    //                 continue;
+    //             }
+    //             Eigen::Vector3d transition = Eigen::Vector3d(i * 0.07,   0.02 * j + 0.23,  k*4/57.3);
+    //             // LOG(INFO)<<transition.transpose();
+    //             transitions.emplace_back(transition);
+    //         }
+    //     }
+    // } 
 
     // for (int i = -2; i < 4; i+=2)
     // {
@@ -210,8 +262,86 @@ void AstarHierarchicalFootstepPlannerBase::initial_transitions()
         }
     }
 #endif
-
 }
+
+bool AstarHierarchicalFootstepPlannerBase::checkStartStepsState(FootstepNodePtr start, FootstepNodePtr prestart_p)
+{
+    // 根据prestart的坐标系来确定start是否为并步，在实时规划过程中，prestart可以设定为Walking状态，
+    Eigen::AngleAxisd ad(prestart_p->footstep.yaw, Eigen::Vector3d::UnitZ());
+    Eigen::Vector3d v_world(start->footstep.x - prestart_p->footstep.x, start->footstep.y - prestart_p->footstep.y, 0);
+    Eigen::Vector3d v = ad.inverse() * v_world;
+
+    // 这个参数需要根据在设置transion时的参数来设置
+    if (abs(v.y()) < 0.08)
+    {
+        // 是并步
+        prestart_p->footstep.step_state = StepState::Walking;
+        start->footstep.step_state = StepState::Combining;
+    }
+    else
+    {
+        prestart_p->footstep.step_state = StepState::Walking;
+        start->footstep.step_state = StepState::Walking;
+    }
+    return true;
+}
+
+vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> AstarHierarchicalFootstepPlannerBase::TransitionsAtFoot(FootstepNodePtr current_node, vector<Eigen::Vector3d> & transitions)
+{
+    // 根据当前两步不属于统一平面，就执行并步
+    if (current_node->footstep.robot_side == 0) // 支撑脚为左脚
+    {
+        vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> left_transitions;
+        for (auto & transition : transitions)
+        {
+            auto left_transition = Eigen::Vector3d(transition.x(), -transition.y(), -transition.z());
+            Eigen::AngleAxisd ad(current_node->footstep.yaw, Eigen::Vector3d::UnitZ());
+            Eigen::Vector3d ts(left_transition.x(), left_transition.y(), 0);
+            Eigen::Vector3d ts_t = ad.toRotationMatrix() * ts + Eigen::Vector3d(current_node->footstep.x, current_node->footstep.y, 0);
+            left_transitions.emplace_back(std::make_pair(transition, Eigen::Vector3d(ts_t.x(), ts_t.y(), current_node->footstep.yaw + left_transition.z())));
+        }
+        return left_transitions;
+    }
+    else // 支撑脚为右脚
+    {
+        vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> right_transitions;
+        for (auto & tansition : transitions)
+        {
+            Eigen::AngleAxisd ad(current_node->footstep.yaw, Eigen::Vector3d::UnitZ());
+            Eigen::Vector3d ts(tansition.x(), tansition.y(), 0);
+            Eigen::Vector3d ts_t = ad.toRotationMatrix() * ts + Eigen::Vector3d(current_node->footstep.x, current_node->footstep.y, 0);
+            right_transitions.emplace_back(std::make_pair(tansition, Eigen::Vector3d(ts_t.x(), ts_t.y(), current_node->footstep.yaw + tansition.z())));
+        }
+        return right_transitions;
+    }
+}
+
+bool AstarHierarchicalFootstepPlannerBase::needTakeAStepHeight(FootstepNodePtr current_node)
+{
+    vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> predictStep = TransitionsAtFoot(current_node, judgeStep_transitions);
+    double max_height_diff = 0;
+    for (auto & step : predictStep)
+    {
+        grid_map::Position position(step.second.x(), step.second.y());
+        if (localmap.isInside(position))
+        {
+            double current_height_diff = abs(current_node->footstep.z - localmap.atPosition("label", position));
+            if (current_height_diff > max_height_diff)
+            {
+                max_height_diff = current_height_diff;
+            }
+        }
+    }
+    if (max_height_diff > 0.05)
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
 
 // 默认起点和终点位置是对的
 bool AstarHierarchicalFootstepPlannerBase::initial(Eigen::Vector3d start, Eigen::Vector3d prestart, int support_side, Eigen::Vector3d goal)
@@ -289,11 +419,14 @@ bool AstarHierarchicalFootstepPlannerBase::initial(Eigen::Vector3d start, Eigen:
         prestart_p->Hcost = 0.0;
         prestart_p->Gcost = 0.0;
         prestart_p->cost = 0.0;
+        
     }
     else // 出现错误
     {
         LOG(ERROR)<<"error about support_side";
     }
+    checkStartStepsState(start_p, prestart_p);
+
     LOG(INFO)<<prestart_p->footstep.x<<" "<<prestart_p->footstep.y<<" "<<prestart_p->footstep.z<<" "<<prestart_p->footstep.roll<<" "<<prestart_p->footstep.pitch<<" "<<prestart_p->footstep.yaw<<" "<<prestart_p->footstep.robot_side<<" "<<start_p->Hcost<<" "<<start_p->Gcost<<" "<<start_p->cost;
     LOG(INFO)<<start_p->footstep.x<<" "<<start_p->footstep.y<<" "<<start_p->footstep.z<<" "<<start_p->footstep.roll<<" "<<start_p->footstep.pitch<<" "<<start_p->footstep.yaw<<" "<<start_p->footstep.robot_side<<" "<<start_p->Hcost<<" "<<start_p->Gcost<<" "<<start_p->cost;
     
@@ -329,15 +462,14 @@ bool AstarHierarchicalFootstepPlannerBase::initial(Eigen::Vector3d start, Eigen:
     return true;
 }
 
-bool AstarHierarchicalFootstepPlannerBase::getPointInfoInPlane(Eigen::Vector3d p, double & height, int & plane_index, double & pitch, double & roll)
+bool AstarHierarchicalFootstepPlannerBase::getPointInfoInPlane(Eigen::Vector3d p, double & height, double & pitch, double & roll)
 {
     int max_size = 0, above_points = 0;
     Eigen::Vector3d plane_normal = Eigen::Vector3d::Zero();
     height = -std::numeric_limits<double>::infinity();
-    plane_index = -1;
     pitch = std::numeric_limits<double>::infinity();
     roll = std::numeric_limits<double>::infinity();
-    if (computeLandInfo(p, max_size, above_points, plane_normal, height, plane_index, pitch, roll))
+    if (computeLandInfo(p, max_size, above_points, plane_normal, height, pitch, roll))
     {
 #ifdef DEBUG
         LOG(INFO)<<"plane_normal = "<<plane_normal.transpose();
@@ -388,8 +520,7 @@ bool AstarHierarchicalFootstepPlannerBase::getPointInfoInPlane(Eigen::Vector3d p
 bool AstarHierarchicalFootstepPlannerBase::startPoint2Node(Eigen::Vector3d p, FootstepNodePtr node)
 {
     double height = 0.0, pitch = 0, roll = 0;
-    int plane_index;
-    if (getPointInfoInPlane(p, height, plane_index, pitch, roll))
+    if (getPointInfoInPlane(p, height, pitch, roll))
     {
         node->footstep.x = p(0);
         node->footstep.y = p(1);
@@ -397,7 +528,6 @@ bool AstarHierarchicalFootstepPlannerBase::startPoint2Node(Eigen::Vector3d p, Fo
         node->footstep.yaw = p(2);
         node->footstep.roll = roll;
         node->footstep.pitch = pitch;
-        node->plane_index = plane_index;
         return true;
     }
     else
@@ -436,90 +566,12 @@ bool AstarHierarchicalFootstepPlannerBase::isStartFeasible(Eigen::Vector3d start
             left_foot_tmp.z() = start.z();
             Eigen::Vector3d right_foot_tmp = ad.toRotationMatrix() * -half_hip_width + mid;
             right_foot_tmp.z() = start.z();
-
-    //         vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> left_cands = fineLandPoint(left_foot_tmp);
-    //         vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> right_cands = fineLandPoint(right_foot_tmp);
-    //         double score = - std::numeric_limits<double>::infinity();
-    //         double opt_height = -std::numeric_limits<double>::infinity();
-    //         double opt_pitch = -std::numeric_limits<double>::infinity();
-    //         double opt_roll = -std::numeric_limits<double>::infinity();
-    //         int opt_plane_index = -1;
-    //         Eigen::Vector3d left_opt;
-    //         computeLandInfo()
-    //         for (auto & cand : left_cands)
-    //         {
-    //             double tmpscore  = -std::numeric_limits<double>::infinity();
-    //             int plane_index = -1;
-    //             double height = -std::numeric_limits<double>::infinity();
-    //             double pitch = std::numeric_limits<double>::infinity();
-    //             double roll = std::numeric_limits<double>::infinity();
-    //             if (computeLandPointScore(cand, tmpscore, height, plane_index, pitch, roll))
-    //             {
-    //                 // LOG(INFO)<<"tmpscore: "<<tmpscore;
-    //                 if (tmpscore > score)
-    //                 {
-    //                     left_opt = cand.second;
-    //                     // LOG(INFO)<<left_opt.transpose();
-    //                     score = tmpscore;
-    //                     opt_height = height;
-    //                     opt_pitch = pitch;
-    //                     opt_roll = roll; 
-    //                     opt_plane_index = plane_index;
-    //                 }
-    //             }
-    //         }
-    //         if (opt_plane_index == -1)
-    //         {
-    // #ifdef DEBUG
-    //             LOG(INFO)<<"No Feasible Left Foot";
-    // #endif
-    //             return false;
-    //         }
-    //         opt_plane_index = -1;
-    //         score = - std::numeric_limits<double>::infinity();
-    //         opt_height = -std::numeric_limits<double>::infinity();
-    //         opt_pitch = -std::numeric_limits<double>::infinity();
-    //         opt_roll = -std::numeric_limits<double>::infinity();
-    //         Eigen::Vector3d right_opt;
-    //         for (auto & cand : right_cands)
-    //         {
-    //             double tmpscore;
-    //             int plane_index = -1;
-    //             double height = -std::numeric_limits<double>::infinity();
-    //             double pitch = std::numeric_limits<double>::infinity();
-    //             double roll = std::numeric_limits<double>::infinity();
-    //             if (computeLandPointScore(cand, tmpscore, height, plane_index, pitch, roll))
-    //             {
-    //                 // LOG(INFO)<<"tmpscore: "<<tmpscore;
-    //                 if (tmpscore > score)
-    //                 {
-    //                     right_opt = cand.second;
-    //                     // LOG(INFO)<<left_opt.transpose();
-    //                     score = tmpscore;
-    //                     opt_height = height;
-    //                     opt_pitch = pitch;
-    //                     opt_roll = roll; 
-    //                     opt_plane_index = plane_index;
-    //                 }
-    //             }
-    //         }
-    //         if (opt_plane_index == -1)
-    //         {
-    // #ifdef DEBUG
-    //             LOG(INFO)<<"No Feasible Transition";
-    // #endif
-    //             return false;
-    //         }
-    //         left_foot = left_opt;
-    //         right_foot = right_opt;
-    //         return true;
             int max_size_left, max_size_right;
             int above_points_left, above_points_right;
             Eigen::Vector3d left_plane_normal, right_plane_normal;
-            int left_plane_index, right_plane_index;
             double left_step_height, right_step_height;
             double left_roll, right_roll, left_pitch, right_pitch;
-            if (computeLandInfo(left_foot_tmp, max_size_left, above_points_left, left_plane_normal, left_step_height, left_plane_index, left_pitch, left_roll) && computeLandInfo(right_foot_tmp, max_size_right, above_points_right, right_plane_normal, right_step_height, right_plane_index, right_pitch, right_roll))
+            if (computeLandInfo(left_foot_tmp, max_size_left, above_points_left, left_plane_normal, left_step_height, left_pitch, left_roll) && computeLandInfo(right_foot_tmp, max_size_right, above_points_right, right_plane_normal, right_step_height, right_pitch, right_roll))
             {
                 if (max_size_left < 0.4 * footsize_inmap || max_size_right < 0.4* footsize_inmap)
                 {
@@ -566,11 +618,10 @@ bool AstarHierarchicalFootstepPlannerBase::isStartFeasible(Eigen::Vector3d start
 }
 
 
-
 // tested
 // 是否是危险的，是分数为0，并需要微调
 // 不是危险的，计算得分，得分过低的不再作为扩展节点
-bool AstarHierarchicalFootstepPlannerBase::computeTransitionScore(std::pair<Eigen::Vector3d, Eigen::Vector3d> transition, FootstepNodePtr current_node, FootstepNodePtr pre_node, bool & dangerous, double & score, double & height, Eigen::Vector3d & plane_normal, int & plane_index, double & pitch, double & roll)
+bool AstarHierarchicalFootstepPlannerBase::computeTransitionScore(std::pair<Eigen::Vector3d, Eigen::Vector3d> transition, FootstepNodePtr current_node, FootstepNodePtr pre_node, bool & dangerous, double & score, double & height, Eigen::Vector3d & plane_normal, double & pitch, double & roll)
 {
     dangerous = false;
     score = 0;
@@ -580,10 +631,9 @@ bool AstarHierarchicalFootstepPlannerBase::computeTransitionScore(std::pair<Eige
     int above_points = 0; // 超出限制部分的点数
     plane_normal = Eigen::Vector3d::Zero();
     height = -std::numeric_limits<double>::infinity();
-    plane_index = -1;
     pitch = std::numeric_limits<double>::infinity();
     roll = std::numeric_limits<double>::infinity();
-    if (!computeLandInfo(transition.second, max_size, above_points, plane_normal, height, plane_index, pitch, roll))
+    if (!computeLandInfo(transition.second, max_size, above_points, plane_normal, height, pitch, roll))
     {
 #ifdef DEBUG
         LOG(INFO)<<"CANNOT computeLandInfo";
@@ -687,16 +737,15 @@ bool AstarHierarchicalFootstepPlannerBase::computeTransitionScore(std::pair<Eige
 }
 
 // tested 计算落脚点的得分
-bool AstarHierarchicalFootstepPlannerBase::computeLandPointScore(std::pair<Eigen::Vector3d, Eigen::Vector3d> land_point, double & score, double & height, int & plane_index, double & pitch, double & roll)
+bool AstarHierarchicalFootstepPlannerBase::computeLandPointScore(std::pair<Eigen::Vector3d, Eigen::Vector3d> land_point, double & score, double & height, double & pitch, double & roll)
 {
     int max_size = 0; // 属于同一最大平面的点数
     int above_points = 0; // 超出限制部分的点数
     Eigen::Vector3d plane_normal = Eigen::Vector3d::Zero();
     height = -std::numeric_limits<double>::infinity();
-    plane_index = -1;
     pitch = std::numeric_limits<double>::infinity();
     roll = std::numeric_limits<double>::infinity();
-    if (!computeLandInfo(land_point.second, max_size, above_points, plane_normal, height, plane_index, pitch, roll))
+    if (!computeLandInfo(land_point.second, max_size, above_points, plane_normal, height, pitch, roll))
     {
 #ifdef DEBUG
         LOG(INFO)<<"can not get land info";
@@ -735,27 +784,22 @@ bool AstarHierarchicalFootstepPlannerBase::traversibilityCheck(ScoreMarkerNodePt
         return false;
     }
 
+    double landing_height = node->point.z();
+
     // grid_map::Position start_position, end_position;
     // label_localmap.getPosition(grid_map::Index(0, 0), start_position);
     // label_localmap.getPosition(grid_map::Index(label_localmap.getSize().x() - 1, label_localmap.getSize().y() - 1), end_position);
     double knee_radius = 0.2;
     double upperbody_radius = 0.5;
-    // if (position.x() - upperbody_radius < end_position.x() || position.x() + upperbody_radius > start_position.x())
-    // {
-    //     return false;
-    // }
-    // if (position.y() - upperbody_radius < end_position.y() || position.y() - upperbody_radius > start_position.y())
-    // {
-    //     return false;
-    // }
-    Eigen::Vector3d normal(planes_info.at(node->plane_index).normal.x(), planes_info.at(node->plane_index).normal.y(), planes_info.at(node->plane_index).normal.z());
-    Eigen::Vector3d center(planes_info.at(node->plane_index).center.x(), planes_info.at(node->plane_index).center.y(), planes_info.at(node->plane_index).center.z());
+    
+    // Eigen::Vector3d normal(planes_info.at(node->plane_index).normal.x(), planes_info.at(node->plane_index).normal.y(), planes_info.at(node->plane_index).normal.z());
+    // Eigen::Vector3d center(planes_info.at(node->plane_index).center.x(), planes_info.at(node->plane_index).center.y(), planes_info.at(node->plane_index).center.z());
     for (grid_map::CircleIterator iterator(label_localmap, position, knee_radius); !iterator.isPastEnd(); ++iterator)
     {
         grid_map::Position3 p3;
         if (label_localmap.getPosition3("elevation",*iterator, p3))
         {
-            double dis = (p3 - center).dot(normal);
+            double dis = p3.z() - landing_height;
 #ifdef OUR_ROBOT
             if (dis > 0.3)
             {
@@ -776,7 +820,7 @@ bool AstarHierarchicalFootstepPlannerBase::traversibilityCheck(ScoreMarkerNodePt
         grid_map::Position3 p3;
         if (label_localmap.getPosition3("elevation",*iterator, p3))
         {
-            double dis = (p3 - center).dot(normal);
+            double dis = p3.z() - landing_height;
 #ifdef OUR_ROBOT
             if (dis > 0.6)
             {
@@ -1118,65 +1162,66 @@ vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> AstarHierarchicalFootstepPla
 }
 
 // tested
-vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> AstarHierarchicalFootstepPlannerBase::basicTransitions(FootstepNodePtr current_node)
-{
-    // 根据当前两步不属于统一平面，就执行并步
-    if (current_node->footstep.robot_side == 0) // 支撑脚为左脚
-    {
-        vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> left_transitions;
-        if (current_node->plane_index == current_node->PreFootstepNode->plane_index)
-        {
-            for (auto & transition : transitions)
-            {
-                auto left_transition = Eigen::Vector3d(transition.x(), -transition.y(), -transition.z());
-                Eigen::AngleAxisd ad(current_node->footstep.yaw, Eigen::Vector3d::UnitZ());
-                Eigen::Vector3d ts(left_transition.x(), left_transition.y(), 0);
-                Eigen::Vector3d ts_t = ad.toRotationMatrix() * ts + Eigen::Vector3d(current_node->footstep.x, current_node->footstep.y, 0);
-                left_transitions.emplace_back(std::make_pair(transition, Eigen::Vector3d(ts_t.x(), ts_t.y(), current_node->footstep.yaw + left_transition.z())));
-            }
-        }
-        else
-        {
-            // 当前步和当前步的前一步不在同一平面，就执行并步
-            // cout<<"using combine_transitions"<<endl;
-            for (auto & transition : combine_transitions)
-            {
-                auto left_transition = Eigen::Vector3d(transition.x(), -transition.y(), -transition.z());
-                Eigen::AngleAxisd ad(current_node->footstep.yaw, Eigen::Vector3d::UnitZ());
-                Eigen::Vector3d ts(left_transition.x(), left_transition.y(), 0);
-                Eigen::Vector3d ts_t = ad.toRotationMatrix() * ts + Eigen::Vector3d(current_node->footstep.x, current_node->footstep.y, 0);
-                left_transitions.emplace_back(std::make_pair(transition, Eigen::Vector3d(ts_t.x(), ts_t.y(), current_node->footstep.yaw + left_transition.z())));
-            }
-        }
-        return left_transitions;
-    }
-    else // 支撑脚为右脚
-    {
-        vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> right_transitions;
-        if (current_node->plane_index == current_node->PreFootstepNode->plane_index)
-        {
-            for (auto & tansition : transitions)
-            {
-                Eigen::AngleAxisd ad(current_node->footstep.yaw, Eigen::Vector3d::UnitZ());
-                Eigen::Vector3d ts(tansition.x(), tansition.y(), 0);
-                Eigen::Vector3d ts_t = ad.toRotationMatrix() * ts + Eigen::Vector3d(current_node->footstep.x, current_node->footstep.y, 0);
-                right_transitions.emplace_back(std::make_pair(tansition, Eigen::Vector3d(ts_t.x(), ts_t.y(), current_node->footstep.yaw + tansition.z())));
-            }
-        }
-        else
-        {
-            // cout<<"using combine_transitions"<<endl;
-            for (auto & tansition : combine_transitions)
-            {
-                Eigen::AngleAxisd ad(current_node->footstep.yaw, Eigen::Vector3d::UnitZ());
-                Eigen::Vector3d ts(tansition.x(), tansition.y(), 0);
-                Eigen::Vector3d ts_t = ad.toRotationMatrix() * ts + Eigen::Vector3d(current_node->footstep.x, current_node->footstep.y, 0);
-                right_transitions.emplace_back(std::make_pair(tansition, Eigen::Vector3d(ts_t.x(), ts_t.y(), current_node->footstep.yaw + tansition.z())));
-            }
-        }
-        return right_transitions;
-    }
-}
+// vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> AstarHierarchicalFootstepPlannerBase::basicTransitions(FootstepNodePtr current_node)
+// {
+//     // 根据当前两步不属于统一平面，就执行并步
+//     if (current_node->footstep.robot_side == 0) // 支撑脚为左脚
+//     {
+//         vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> left_transitions;
+//         if (current_node->plane_index == current_node->PreFootstepNode->plane_index)
+//         {
+//             for (auto & transition : transitions)
+//             {
+//                 auto left_transition = Eigen::Vector3d(transition.x(), -transition.y(), -transition.z());
+//                 Eigen::AngleAxisd ad(current_node->footstep.yaw, Eigen::Vector3d::UnitZ());
+//                 Eigen::Vector3d ts(left_transition.x(), left_transition.y(), 0);
+//                 Eigen::Vector3d ts_t = ad.toRotationMatrix() * ts + Eigen::Vector3d(current_node->footstep.x, current_node->footstep.y, 0);
+//                 left_transitions.emplace_back(std::make_pair(transition, Eigen::Vector3d(ts_t.x(), ts_t.y(), current_node->footstep.yaw + left_transition.z())));
+//             }
+//         }
+//         else
+//         {
+//             // 当前步和当前步的前一步不在同一平面，就执行并步
+//             // cout<<"using combine_transitions"<<endl;
+//             for (auto & transition : combine_transitions)
+//             {
+//                 auto left_transition = Eigen::Vector3d(transition.x(), -transition.y(), -transition.z());
+//                 Eigen::AngleAxisd ad(current_node->footstep.yaw, Eigen::Vector3d::UnitZ());
+//                 Eigen::Vector3d ts(left_transition.x(), left_transition.y(), 0);
+//                 Eigen::Vector3d ts_t = ad.toRotationMatrix() * ts + Eigen::Vector3d(current_node->footstep.x, current_node->footstep.y, 0);
+//                 left_transitions.emplace_back(std::make_pair(transition, Eigen::Vector3d(ts_t.x(), ts_t.y(), current_node->footstep.yaw + left_transition.z())));
+//             }
+//         }
+//         return left_transitions;
+//     }
+//     else // 支撑脚为右脚
+//     {
+//         vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> right_transitions;
+//         if (current_node->plane_index == current_node->PreFootstepNode->plane_index)
+//         {
+//             for (auto & tansition : transitions)
+//             {
+//                 Eigen::AngleAxisd ad(current_node->footstep.yaw, Eigen::Vector3d::UnitZ());
+//                 Eigen::Vector3d ts(tansition.x(), tansition.y(), 0);
+//                 Eigen::Vector3d ts_t = ad.toRotationMatrix() * ts + Eigen::Vector3d(current_node->footstep.x, current_node->footstep.y, 0);
+//                 right_transitions.emplace_back(std::make_pair(tansition, Eigen::Vector3d(ts_t.x(), ts_t.y(), current_node->footstep.yaw + tansition.z())));
+//             }
+//         }
+//         else
+//         {
+//             // cout<<"using combine_transitions"<<endl;
+//             for (auto & tansition : combine_transitions)
+//             {
+//                 Eigen::AngleAxisd ad(current_node->footstep.yaw, Eigen::Vector3d::UnitZ());
+//                 Eigen::Vector3d ts(tansition.x(), tansition.y(), 0);
+//                 Eigen::Vector3d ts_t = ad.toRotationMatrix() * ts + Eigen::Vector3d(current_node->footstep.x, current_node->footstep.y, 0);
+//                 right_transitions.emplace_back(std::make_pair(tansition, Eigen::Vector3d(ts_t.x(), ts_t.y(), current_node->footstep.yaw + tansition.z())));
+//             }
+//         }
+//         return right_transitions;
+//     }
+
+// }
 
 // tested 构造函数时
 void AstarHierarchicalFootstepPlannerBase::computePlanarInfor()
@@ -1296,7 +1341,7 @@ bool AstarHierarchicalFootstepPlannerBase::nodeExtension(FootstepNodePtr current
 {
     // 基础节点，在地图坐标系下的节点
     child_nodes.clear();
-    vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> special_transitions = basicTransitions(current_node);
+    // vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> special_transitions = basicTransitions(current_node);
 #ifdef DEBUG
     LOG(INFO)<<"node size: "<<special_transitions.size();
     for (auto & node : special_transitions)
@@ -1332,7 +1377,28 @@ bool AstarHierarchicalFootstepPlannerBase::nodeExtension(FootstepNodePtr current
     // std::priority_queue<ScoreMarkerNodePtr, std::vector<ScoreMarkerNodePtr>, ScoreMarkerNodeCompare> basicScoreNodes;
     std::vector<ScoreMarkerNodePtr> basicScoreNodes;
     // std::priority_queue<ScoreMarkerNodePtr, std::vector<ScoreMarkerNodePtr>, ScoreMarkerNodeCompare> dangerousBasicScoreNodes;
-
+    vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> special_transitions;
+    bool is_combining = false;
+    // 先根据下一步是否会有需要跨台阶，来判断使用哪个transion
+    if (needTakeAStepHeight(current_node) && current_node->footstep.step_state == StepState::Combining)
+    {
+        // 需要进行上台阶
+        special_transitions = TransitionsAtFoot(current_node, step_transitions);
+        
+    }
+    else if (needTakeAStepHeight(current_node) && current_node->footstep.step_state == StepState::Walking)
+    {
+        // 并步
+        special_transitions = TransitionsAtFoot(current_node, combine_transitions);
+        is_combining = true;
+    }
+    else if (!needTakeAStepHeight(current_node))
+    {
+        // 执行walk
+        special_transitions = TransitionsAtFoot(current_node, walk_transitions);
+    }
+    
+    // 当为执行上台阶时，如果子节点数量为0，则再执行一次并步
     // 尝试使用omp加速
 
     #pragma omp parallel num_threads(6) // 限制使用 4 个线程
@@ -1350,11 +1416,11 @@ bool AstarHierarchicalFootstepPlannerBase::nodeExtension(FootstepNodePtr current
             bool dangerous = false;
             double height = 0.;
             Eigen::Vector3d normal;
-            int plane_index = -1;
+            // int plane_index = -1;
             double pitch, roll;
 
             // 计算转换得分
-            if (computeTransitionScore(transition, current_node, pre_node, dangerous, score, height, normal, plane_index, pitch, roll))
+            if (computeTransitionScore(transition, current_node, pre_node, dangerous, score, height, normal, pitch, roll))
             {
                 if (dangerous) // 需要微调
                 {
@@ -1369,15 +1435,14 @@ bool AstarHierarchicalFootstepPlannerBase::nodeExtension(FootstepNodePtr current
                         double tmp_score;
                         double height = 0;
                         Eigen::Vector3d fine_normal;
-                        int fine_plane_index = -1;
                         double pitch, roll;
                         bool fine_dangerous = false;
 
-                        if (computeTransitionScore(tr, current_node, pre_node, fine_dangerous, tmp_score, height, fine_normal, fine_plane_index, pitch, roll))
+                        if (computeTransitionScore(tr, current_node, pre_node, fine_dangerous, tmp_score, height, fine_normal, pitch, roll))
                         {
                             if (!fine_dangerous)
                             {
-                                ScoreMarkerNodePtr node_p = std::make_shared<ScoreMarkerNode>(tr.second, tmp_score, height, fine_normal, fine_plane_index, roll, pitch);
+                                ScoreMarkerNodePtr node_p = std::make_shared<ScoreMarkerNode>(tr.second, tmp_score, height, fine_normal, roll, pitch);
                                 tmpFineScoreNodes.push(node_p);
                             }
                         }
@@ -1394,7 +1459,7 @@ bool AstarHierarchicalFootstepPlannerBase::nodeExtension(FootstepNodePtr current
                 }
                 else // 不需要微调
                 {
-                    ScoreMarkerNodePtr node_p = std::make_shared<ScoreMarkerNode>(transition.second, score, height, normal, plane_index, roll, pitch);
+                    ScoreMarkerNodePtr node_p = std::make_shared<ScoreMarkerNode>(transition.second, score, height, normal, roll, pitch);
                     localBasicScoreNodes.emplace_back(node_p);
                 }
             }
@@ -1412,61 +1477,6 @@ bool AstarHierarchicalFootstepPlannerBase::nodeExtension(FootstepNodePtr current
             basicScoreNodes.insert(basicScoreNodes.end(), localBasicScoreNodes.begin(), localBasicScoreNodes.end());
         }
     }
-
-    // for (auto & transition : special_transitions)
-    // {
-    //     double score;
-    //     bool dangerous = false;
-    //     double height = 0.;
-    //     Eigen::Vector3d normal;
-    //     int plane_index = -1;
-    //     double pitch, roll;
-    //     if (computeTransitionScore(transition, current_node, pre_node, dangerous, score, height, normal, plane_index, pitch, roll))
-    //     {
-    //         if (dangerous)// 这个节点需要微调
-    //         {
-    //             // transition.first 基础偏移量
-    //             // ScoreMarkerNodePtr node_p = std::make_shared<ScoreMarkerNode>(transition.first, score);
-    //             // dangerousBasicScoreNodes.push(node_p);
-    //             // 如果是危险节点，那么把这个节点进行微调，如果合理再加入basicScoreNodes中
-    //             vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> trans = fineTransitions(transition.first, current_node);
-    //             std::priority_queue<ScoreMarkerNodePtr, std::vector<ScoreMarkerNodePtr>, ScoreMarkerNodeCompare> tmpFineScoreNodes;
-    //             // std::vector<ScoreMarkerNodePtr> tmpFineScoreNodes;
-    //             for (auto & tr : trans)
-    //             {
-    //                 double tmp_score;
-    //                 double height = 0;
-    //                 Eigen::Vector3d fine_normal;
-    //                 int fine_plane_index = -1;
-    //                 double pitch, roll;
-    //                 bool fine_dangerous = false;
-    //                 if (computeTransitionScore(tr, current_node, pre_node, fine_dangerous, tmp_score, height, fine_normal, fine_plane_index, pitch, roll))
-    //                 {
-    //                     if (!fine_dangerous)
-    //                     {
-    //                         ScoreMarkerNodePtr node_p = std::make_shared<ScoreMarkerNode>(tr.second, tmp_score, height, fine_normal, fine_plane_index, roll, pitch);
-    //                         tmpFineScoreNodes.push(node_p);
-    //                     }
-    //                 }
-    //             }
-    //             int total = 2;
-    //             while (total >= 0 && !tmpFineScoreNodes.empty())
-    //             {
-    //                 auto node_tmp = tmpFineScoreNodes.top();
-    //                 tmpFineScoreNodes.pop();
-    //                 basicScoreNodes.emplace_back(node_tmp);
-    //                 total--;
-    //             }
-    //         }
-    //         else// 不需要微调
-    //         {
-    //             // transition.first 基础偏移量 transition.second 地图中实际的偏移
-    //             ScoreMarkerNodePtr node_p = std::make_shared<ScoreMarkerNode>(transition.second, score, height, normal, plane_index, roll, pitch);
-    //             // computeTransitionStrictScore 是不是有点多余
-    //             basicScoreNodes.emplace_back(node_p);
-    //         }
-    //     }
-    // }
 
 
     if (basicScoreNodes.empty())
@@ -1510,36 +1520,25 @@ bool AstarHierarchicalFootstepPlannerBase::nodeExtension(FootstepNodePtr current
 
             FootstepNodePtr stepnode = std::make_shared<FootstepNode>(node->point, node->height, node->roll, node->pitch, current_node->footstep.getInverseRobotSide());
             stepnode->PreFootstepNode = current_node;
-
-            // 跨平面运动时对规划的落脚点限制
-            if (stepnode->plane_index != stepnode->PreFootstepNode->plane_index)
+            if (is_combining)
             {
-                Eigen::Vector2d dis_v1(stepnode->footstep.x, stepnode->footstep.y);
-                Eigen::Vector2d dis_v2(stepnode->PreFootstepNode->PreFootstepNode->footstep.x, stepnode->PreFootstepNode->PreFootstepNode->footstep.y);
-
-                // 距离超过0.35
-                if (abs((dis_v1 - dis_v2).norm()) > 0.35)
-                {
-                    continue;
-                }
-
-                // 角度相差太大
-                if (abs(stepnode->footstep.yaw - stepnode->PreFootstepNode->footstep.yaw) > 8 / 57.3)
-                {
-                    continue;
-                }
+                stepnode->footstep.step_state = StepState::Combining;
+            }
+            else
+            {
+                stepnode->footstep.step_state = StepState::Walking;
             }
 
             // 如果两脚pitch较大，那就不要迈大步长，5关节可能会达到62度
-            if (stepnode->footstep.pitch <= - 5 / 57.3 && stepnode->PreFootstepNode->footstep.pitch <= - 5 / 57.3)
-            {
-                Eigen::Vector2d dis_v1(stepnode->footstep.x, stepnode->footstep.y);
-                Eigen::Vector2d dis_v2(stepnode->PreFootstepNode->PreFootstepNode->footstep.x, stepnode->PreFootstepNode->PreFootstepNode->footstep.y);
-                if (abs((dis_v1 - dis_v2).norm()) > 0.32)
-                {
-                    continue;
-                }
-            }
+            // if (stepnode->footstep.pitch <= - 5 / 57.3 && stepnode->PreFootstepNode->footstep.pitch <= - 5 / 57.3)
+            // {
+            //     Eigen::Vector2d dis_v1(stepnode->footstep.x, stepnode->footstep.y);
+            //     Eigen::Vector2d dis_v2(stepnode->PreFootstepNode->PreFootstepNode->footstep.x, stepnode->PreFootstepNode->PreFootstepNode->footstep.y);
+            //     if (abs((dis_v1 - dis_v2).norm()) > 0.32)
+            //     {
+            //         continue;
+            //     }
+            // }
 
             if (!computeHcost(stepnode, stepnode->Hcost))
             {
@@ -1562,8 +1561,6 @@ bool AstarHierarchicalFootstepPlannerBase::nodeExtension(FootstepNodePtr current
             child_nodes.insert(child_nodes.end(), local_child_nodes.begin(), local_child_nodes.end());
         }
     }
-
-
     if (child_nodes.empty())
     {
         return false;
@@ -1573,149 +1570,6 @@ bool AstarHierarchicalFootstepPlannerBase::nodeExtension(FootstepNodePtr current
         return true;
     }
 }
-
-
-
-// bool AstarHierarchicalFootstepPlannerBase::computerLeftRightGoal(Eigen::Vector3d goal)
-// {
-//     // LOG(INFO)<<"function: computerLeftRightGoal";
-//     Eigen::Vector3d left_offset(0, hip_width/2.0, 0);
-//     Eigen::Vector3d right_offset(0, -hip_width/2.0, 0);
-//     Eigen::AngleAxisd ad(goal.z(), Eigen::Vector3d::UnitZ());
-//     Eigen::Vector3d left_goal, right_goal;
-//     left_goal.head(2) = (ad.toRotationMatrix() * left_offset + Eigen::Vector3d(goal.x(), goal.y(), 0)).head(2);
-//     left_goal.z() = goal.z();
-//     right_goal.head(2) = (ad.toRotationMatrix() * right_offset + Eigen::Vector3d(goal.x(), goal.y(), 0)).head(2);
-//     right_goal.z() = goal.z();
-//     LOG(INFO)<<"left_goal: "<<left_goal.transpose();
-//     LOG(INFO)<<"right_goal: "<<right_goal.transpose();
-// #ifdef DEBUG
-//     LOG(INFO)<<"left_goal: "<<left_goal.transpose();
-//     LOG(INFO)<<"right_goal: "<<right_goal.transpose();
-// #endif
-//     if (localmap.isInside(left_goal.head(2)) && localmap.isInside(right_goal.head(2)))
-//     {
-//         // 还需要判断此状态下机器人能不能落脚
-//         vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> left_cands = fineLandPoint(left_goal);
-//         vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> right_cands = fineLandPoint(right_goal);
-//         double score = - std::numeric_limits<double>::infinity();
-//         double opt_height = -std::numeric_limits<double>::infinity();
-//         double opt_pitch = -std::numeric_limits<double>::infinity();
-//         double opt_roll = -std::numeric_limits<double>::infinity();
-//         int opt_plane_index = -1;
-//         Eigen::Vector3d left_opt;
-//         for (auto & cand : left_cands)
-//         {
-//             double tmpscore = -std::numeric_limits<double>::infinity();
-//             double height = -std::numeric_limits<double>::infinity();
-//             int plane_index = -1;
-//             double pitch = std::numeric_limits<double>::infinity();
-//             double roll = std::numeric_limits<double>::infinity();
-//             if (computeLandPointScore(cand, tmpscore, height, plane_index, pitch, roll))
-//             {
-//                 // LOG(INFO)<<"tmpscore: "<<tmpscore;
-//                 if (tmpscore > score)
-//                 {
-//                     left_opt = cand.second;
-//                     // LOG(INFO)<<left_opt.transpose();
-//                     score = tmpscore;
-//                     opt_height = height;
-//                     opt_pitch = pitch;
-//                     opt_roll = roll; 
-//                     opt_plane_index = plane_index;
-//                 }
-//             }
-//         }
-//         if (opt_plane_index != -1)
-//         {
-//             end_left_p = std::make_shared<FootstepNode>(left_opt, opt_height, opt_roll, opt_pitch, 0);
-//         }
-//         else
-//         {
-//             return false;
-//         }
-//         opt_plane_index = -1;
-//         score = - std::numeric_limits<double>::infinity();
-//         opt_height = -std::numeric_limits<double>::infinity();
-//         opt_pitch = -std::numeric_limits<double>::infinity();
-//         opt_roll = -std::numeric_limits<double>::infinity();
-//         Eigen::Vector3d right_opt;
-//         for (auto & cand : right_cands)
-//         {
-//             double tmpscore = -std::numeric_limits<double>::infinity();
-//             double height = -std::numeric_limits<double>::infinity();
-//             int plane_index = -1;
-//             double pitch = std::numeric_limits<double>::infinity();
-//             double roll = std::numeric_limits<double>::infinity();
-//             if (computeLandPointScore(cand, tmpscore, height, plane_index, pitch, roll))
-//             {
-//                 // LOG(INFO)<<"tmpscore: "<<tmpscore;
-//                 if (tmpscore > score)
-//                 {
-//                     right_opt = cand.second;
-//                     // LOG(INFO)<<left_opt.transpose();
-//                     score = tmpscore;
-//                     opt_height = height;
-//                     opt_pitch = pitch;
-//                     opt_roll = roll; 
-//                     opt_plane_index = plane_index;
-//                 }
-//             }
-//         }
-//         if (opt_plane_index != -1)
-//         {
-//             end_right_p = std::make_shared<FootstepNode>(right_opt, opt_height, opt_roll, opt_pitch, 1);
-//         }
-//         else
-//         {
-//             return false;
-//         }
-
-// #ifdef DEBUG
-//         LOG(INFO)<<"left_opt: "<<left_opt.transpose();
-//         LOG(INFO)<<"right_opt: "<<right_opt.transpose();
-// #endif
-//         return true;
-//         // LOG(INFO)<<"left_opt: "<<left_opt.transpose();
-//         // LOG(INFO)<<"right_opt: "<<right_opt.transpose();
-//         // end_left_p = std::make_shared<FootstepNode>(left_opt, 0);
-//         // end_right_p = std::make_shared<FootstepNode>(right_opt, 1);
-//         // double z_left, z_right;
-//         // Eigen::Vector3d eular_left, eular_right;
-//         // int left_index, right_index;
-//         // if (computeZRollPitch(left_opt, z_left, eular_left, left_index) && computeZRollPitch(right_opt, z_right, eular_right, right_index))
-//         // {
-//         //     end_left_p->footstep.z = z_left;
-//         //     end_left_p->footstep.roll = eular_left(2);
-//         //     end_left_p->footstep.pitch = eular_left(1);
-//         //     end_left_p->footstep.yaw = eular_left(0);
-//         //     end_left_p->plane_index = left_index;
-//         //     end_right_p->footstep.z = z_right;
-//         //     end_right_p->footstep.roll = eular_right(2);
-//         //     end_right_p->footstep.pitch = eular_right(1);
-//         //     end_right_p->footstep.yaw = eular_right(0);
-//         //     end_right_p->plane_index = right_index;
-//         //     cout<<"goal: left foot "<<end_left_p->footstep.x<<" "<<end_left_p->footstep.y<<" "<<end_left_p->footstep.z<<" "<<end_left_p->footstep.roll<<" "<<end_left_p->footstep.pitch<<" "<<end_left_p->footstep.yaw<<endl;
-//         //     cout<<"goal: right foot "<<end_right_p->footstep.x<<" "<<end_right_p->footstep.y<<" "<<end_right_p->footstep.z<<" "<<end_right_p->footstep.roll<<" "<<end_right_p->footstep.pitch<<" "<<end_right_p->footstep.yaw<<endl;
-//         //     return true;
-//         // }
-//         // else
-//         // {
-//         //     LOG(INFO)<<"foot param is not suitable";
-//         //     end_left_p = nullptr;
-//         //     end_right_p = nullptr;
-//         //     return false;
-//         // }
-//     }
-//     else
-//     {
-//         LOG(INFO)<<"left foot or right foot not in map";
-//         end_left_p = nullptr;
-//         end_right_p = nullptr;
-//         return false;
-//     }
-// }
-
 
 // 权重应该较大
 // tested
@@ -1866,16 +1720,14 @@ bool AstarHierarchicalFootstepPlannerBase::computerLeftRightGoal(Eigen::Vector3d
         double opt_height = -std::numeric_limits<double>::infinity();
         double opt_pitch = -std::numeric_limits<double>::infinity();
         double opt_roll = -std::numeric_limits<double>::infinity();
-        int opt_plane_index = -1;
-        Eigen::Vector3d left_opt;
+        Eigen::Vector3d left_opt = Eigen::Vector3d::Zero();
         for (auto & cand : left_cands)
         {
             double tmpscore = -std::numeric_limits<double>::infinity();
             double height = -std::numeric_limits<double>::infinity();
-            int plane_index = -1;
             double pitch = std::numeric_limits<double>::infinity();
             double roll = std::numeric_limits<double>::infinity();
-            if (computeLandPointScore(cand, tmpscore, height, plane_index, pitch, roll))
+            if (computeLandPointScore(cand, tmpscore, height, pitch, roll))
             {
                 // LOG(INFO)<<"tmpscore: "<<tmpscore;
                 if (tmpscore > score)
@@ -1886,11 +1738,10 @@ bool AstarHierarchicalFootstepPlannerBase::computerLeftRightGoal(Eigen::Vector3d
                     opt_height = height;
                     opt_pitch = pitch;
                     opt_roll = roll; 
-                    opt_plane_index = plane_index;
                 }
             }
         }
-        if (opt_plane_index != -1)
+        if (!left_opt.isZero())
         {
             end_left_p = std::make_shared<FootstepNode>(left_opt, opt_height, opt_roll, opt_pitch, 0);
         }
@@ -1898,20 +1749,18 @@ bool AstarHierarchicalFootstepPlannerBase::computerLeftRightGoal(Eigen::Vector3d
         {
             return false;
         }
-        opt_plane_index = -1;
         score = - std::numeric_limits<double>::infinity();
         opt_height = -std::numeric_limits<double>::infinity();
         opt_pitch = -std::numeric_limits<double>::infinity();
         opt_roll = -std::numeric_limits<double>::infinity();
-        Eigen::Vector3d right_opt;
+        Eigen::Vector3d right_opt = Eigen::Vector3d::Zero();
         for (auto & cand : right_cands)
         {
             double tmpscore = -std::numeric_limits<double>::infinity();
             double height = -std::numeric_limits<double>::infinity();
-            int plane_index = -1;
             double pitch = std::numeric_limits<double>::infinity();
             double roll = std::numeric_limits<double>::infinity();
-            if (computeLandPointScore(cand, tmpscore, height, plane_index, pitch, roll))
+            if (computeLandPointScore(cand, tmpscore, height, pitch, roll))
             {
                 // LOG(INFO)<<"tmpscore: "<<tmpscore;
                 if (tmpscore > score)
@@ -1922,11 +1771,10 @@ bool AstarHierarchicalFootstepPlannerBase::computerLeftRightGoal(Eigen::Vector3d
                     opt_height = height;
                     opt_pitch = pitch;
                     opt_roll = roll; 
-                    opt_plane_index = plane_index;
                 }
             }
         }
-        if (opt_plane_index != -1)
+        if (!right_opt.isZero())
         {
             end_right_p = std::make_shared<FootstepNode>(right_opt, opt_height, opt_roll, opt_pitch, 1);
         }
@@ -1940,36 +1788,6 @@ bool AstarHierarchicalFootstepPlannerBase::computerLeftRightGoal(Eigen::Vector3d
         LOG(INFO)<<"right_opt: "<<right_opt.transpose();
 #endif
         return true;
-        // LOG(INFO)<<"left_opt: "<<left_opt.transpose();
-        // LOG(INFO)<<"right_opt: "<<right_opt.transpose();
-        // end_left_p = std::make_shared<FootstepNode>(left_opt, 0);
-        // end_right_p = std::make_shared<FootstepNode>(right_opt, 1);
-        // double z_left, z_right;
-        // Eigen::Vector3d eular_left, eular_right;
-        // int left_index, right_index;
-        // if (computeZRollPitch(left_opt, z_left, eular_left, left_index) && computeZRollPitch(right_opt, z_right, eular_right, right_index))
-        // {
-        //     end_left_p->footstep.z = z_left;
-        //     end_left_p->footstep.roll = eular_left(2);
-        //     end_left_p->footstep.pitch = eular_left(1);
-        //     end_left_p->footstep.yaw = eular_left(0);
-        //     end_left_p->plane_index = left_index;
-        //     end_right_p->footstep.z = z_right;
-        //     end_right_p->footstep.roll = eular_right(2);
-        //     end_right_p->footstep.pitch = eular_right(1);
-        //     end_right_p->footstep.yaw = eular_right(0);
-        //     end_right_p->plane_index = right_index;
-        //     cout<<"goal: left foot "<<end_left_p->footstep.x<<" "<<end_left_p->footstep.y<<" "<<end_left_p->footstep.z<<" "<<end_left_p->footstep.roll<<" "<<end_left_p->footstep.pitch<<" "<<end_left_p->footstep.yaw<<endl;
-        //     cout<<"goal: right foot "<<end_right_p->footstep.x<<" "<<end_right_p->footstep.y<<" "<<end_right_p->footstep.z<<" "<<end_right_p->footstep.roll<<" "<<end_right_p->footstep.pitch<<" "<<end_right_p->footstep.yaw<<endl;
-        //     return true;
-        // }
-        // else
-        // {
-        //     LOG(INFO)<<"foot param is not suitable";
-        //     end_left_p = nullptr;
-        //     end_right_p = nullptr;
-        //     return false;
-        // }
     }
     else
     {
@@ -2004,10 +1822,9 @@ bool AstarHierarchicalFootstepPlannerBase::checkFeasibleGoal(Eigen::Vector3d goa
         int max_size_left, max_size_right;
         int above_points_left, above_points_right;
         Eigen::Vector3d left_plane_normal, right_plane_normal;
-        int left_plane_index, right_plane_index;
         double left_step_height, right_step_height;
         double left_roll, right_roll, left_pitch, right_pitch;
-        if (computeLandInfo(left_goal, max_size_left, above_points_left, left_plane_normal, left_step_height, left_plane_index, left_pitch, left_roll) && computeLandInfo(right_goal, max_size_right, above_points_right, right_plane_normal, right_step_height, right_plane_index, right_pitch, right_roll))
+        if (computeLandInfo(left_goal, max_size_left, above_points_left, left_plane_normal, left_step_height, left_pitch, left_roll) && computeLandInfo(right_goal, max_size_right, above_points_right, right_plane_normal, right_step_height, right_pitch, right_roll))
         {
             if (max_size_left < 0.4 * footsize_inmap || max_size_right < 0.4 * footsize_inmap)
             {
@@ -2032,80 +1849,6 @@ bool AstarHierarchicalFootstepPlannerBase::checkFeasibleGoal(Eigen::Vector3d goa
         {
             return false;
         }
-        
-//         vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> left_cands = fineLandPoint(left_goal);
-//         vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> right_cands = fineLandPoint(right_goal);
-//         double score = - std::numeric_limits<double>::infinity();
-//         double opt_height = -std::numeric_limits<double>::infinity();
-//         double opt_pitch = -std::numeric_limits<double>::infinity();
-//         double opt_roll = -std::numeric_limits<double>::infinity();
-//         int opt_plane_index = -1;
-//         Eigen::Vector3d left_opt;
-//         for (auto & cand : left_cands)
-//         {
-//             double tmpscore  = -std::numeric_limits<double>::infinity();
-//             int plane_index = -1;
-//             double height = -std::numeric_limits<double>::infinity();
-//             double pitch = std::numeric_limits<double>::infinity();
-//             double roll = std::numeric_limits<double>::infinity();
-//             if (computeLandPointScore(cand, tmpscore, height, plane_index, pitch, roll))
-//             {
-//                 // LOG(INFO)<<"tmpscore: "<<tmpscore;
-//                 if (tmpscore > score)
-//                 {
-//                     left_opt = cand.second;
-//                     // LOG(INFO)<<left_opt.transpose();
-//                     score = tmpscore;
-//                     opt_height = height;
-//                     opt_pitch = pitch;
-//                     opt_roll = roll; 
-//                     opt_plane_index = plane_index;
-//                 }
-//             }
-//         }
-//         if (opt_plane_index == -1)
-//         {
-// #ifdef DEBUG
-//             LOG(INFO)<<"No Feasible Left Foot";
-// #endif
-//             return false;
-//         }
-        
-//         opt_plane_index = -1;
-//         score = - std::numeric_limits<double>::infinity();
-//         opt_height = -std::numeric_limits<double>::infinity();
-//         opt_pitch = -std::numeric_limits<double>::infinity();
-//         opt_roll = -std::numeric_limits<double>::infinity();
-//         Eigen::Vector3d right_opt;
-//         for (auto & cand : right_cands)
-//         {
-//             double tmpscore;
-//             int plane_index = -1;
-//             double height = -std::numeric_limits<double>::infinity();
-//             double pitch = std::numeric_limits<double>::infinity();
-//             double roll = std::numeric_limits<double>::infinity();
-//             if (computeLandPointScore(cand, tmpscore, height, plane_index, pitch, roll))
-//             {
-//                 // LOG(INFO)<<"tmpscore: "<<tmpscore;
-//                 if (tmpscore > score)
-//                 {
-//                     right_opt = cand.second;
-//                     // LOG(INFO)<<left_opt.transpose();
-//                     score = tmpscore;
-//                     opt_height = height;
-//                     opt_pitch = pitch;
-//                     opt_roll = roll; 
-//                     opt_plane_index = plane_index;
-//                 }
-//             }
-//         }
-//         if (opt_plane_index == -1)
-//         {
-// #ifdef DEBUG
-//             LOG(INFO)<<"No Feasible Transition";
-// #endif
-//             return false;
-//         }
 #ifdef DEBUG
         // LOG(INFO)<<"left_opt: "<<left_opt.transpose();
         // LOG(INFO)<<"right_opt: "<<right_opt.transpose();
@@ -2429,16 +2172,14 @@ bool AstarHierarchicalFootstepPlannerBase::repairStanceStep(Footstep current_ste
 
     double score = - std::numeric_limits<double>::infinity();
     double opt_height, opt_pitch, opt_roll;
-    int opt_plane_index = -1;
-    Eigen::Vector3d left_opt;
+    Eigen::Vector3d left_opt = Eigen::Vector3d::Zero();
     for (auto & cand : candidates)
     {
         double tmpscore;
-        int plane_index = -1;
         double height = -std::numeric_limits<double>::infinity();
         double pitch = std::numeric_limits<double>::infinity();
         double roll = std::numeric_limits<double>::infinity();
-        if (computeLandPointScore(cand, tmpscore, height, plane_index, pitch, roll))
+        if (computeLandPointScore(cand, tmpscore, height, pitch, roll))
         {
             // LOG(INFO)<<"tmpscore: "<<tmpscore;
             if (tmpscore > score)
@@ -2449,11 +2190,10 @@ bool AstarHierarchicalFootstepPlannerBase::repairStanceStep(Footstep current_ste
                 opt_height = height;
                 opt_pitch = pitch;
                 opt_roll = roll; 
-                opt_plane_index = plane_index;
             }
         }
     }
-    if (opt_plane_index != -1)
+    if (!left_opt.isZero())
     {
         // end_left_p = std::make_shared<FootstepNode>(left_opt, opt_height, opt_roll, opt_pitch, 0);
         // end_left_p->plane_index = opt_plane_index;
@@ -2595,7 +2335,10 @@ AstarHierarchicalFootstepPlannerBase::~AstarHierarchicalFootstepPlannerBase()
     localmap.clearAll();
     label_localmap.clearAll();
     close_set.clear();
-    transitions.clear();
+    walk_transitions.clear();
+    combine_transitions.clear();
+    judgeStep_transitions.clear();
+    step_transitions.clear();
     steps.clear();
 #ifdef DEBUG
     // outfile.close();
