@@ -237,29 +237,40 @@ void localPlanNode::mapCallback(const grid_map_msgs::GridMap::ConstPtr& msg)
     for (int i = 0; i < path_In_localmap.size(); i++)
     {
         auto point = path_In_localmap.at(i);
-        Eigen::Quaterniond qd;
-        qd.x() = point.getRotation().x();
-        qd.y() = point.getRotation().y();
-        qd.z() = point.getRotation().z();
-        qd.w() = point.getRotation().w();
-        Eigen::Vector3d v_x = qd.toRotationMatrix() * Eigen::Vector3d::UnitX();
-        double yaw = std::atan2(v_x.y(), v_x.x());
-
-        if (local_planner_propose.isGoalFeasible(Eigen::Vector3d(point.getOrigin().x(), point.getOrigin().y(), yaw)))
+        // 还需要保证局部终点位于机器人的前方区域
+        // 由于base坐标系与localmap坐标系重合，只需保证
+        if (point.getOrigin().x() > 0)
         {
-            goal_localmap = Eigen::Vector3d(point.getOrigin().x(), point.getOrigin().y(), yaw);
-            get_goal = true;
-            break;
+            
+            Eigen::Quaterniond qd;
+            qd.x() = point.getRotation().x();
+            qd.y() = point.getRotation().y();
+            qd.z() = point.getRotation().z();
+            qd.w() = point.getRotation().w();
+            Eigen::Vector3d v_x = qd.toRotationMatrix() * Eigen::Vector3d::UnitX();
+            double yaw = std::atan2(v_x.y(), v_x.x());
+
+            if (local_planner_propose.isGoalFeasible(Eigen::Vector3d(point.getOrigin().x(), point.getOrigin().y(), yaw)))
+            {
+                goal_localmap = Eigen::Vector3d(point.getOrigin().x(), point.getOrigin().y(), yaw);
+                get_goal = true;
+                break;
+            }
         }
-    }
-    // LOG(INFO)<<goal_localmap.transpose();
-    if (!get_goal)
-    {
-        LOG(INFO)<<"no feasible goal";
-        return;
     }
     diy_msgs::footSteps footsteps;
     footsteps.header.frame_id = "localmap";
+    // LOG(INFO)<<goal_localmap.transpose();
+    // 如果没有找到终点，则发布空落脚点
+    if (!get_goal)
+    {
+        LOG(INFO)<<"no feasible goal";
+        footsteps.plan_success = false;
+            // LOG(INFO)<<"can not plan footsteps or time out";
+        pub_footsteps.publish(footsteps);
+        return;
+    }
+    
     // 如果终点的norm比较小，就是已经到达终点了，如果左右角不是并脚，就返回并脚。这些操作可以在planner里面写
     LOG(INFO)<<"goal: "<<goal_localmap.transpose();
     if (goal_localmap.head(2).norm() < 0.1)
@@ -387,7 +398,8 @@ void localPlanNode::mapCallback(const grid_map_msgs::GridMap::ConstPtr& msg)
                 step_msg.is_left = (step.robot_side == LEFT);
                 step_msg.x = step.x;
                 step_msg.y = step.y;
-                step_msg.z = step.z;
+                // 这是一个规划的偏置
+                step_msg.z = step.z - 0.01;
                 step_msg.roll = step.roll;
                 step_msg.pitch = step.pitch;
                 step_msg.yaw = step.yaw;
