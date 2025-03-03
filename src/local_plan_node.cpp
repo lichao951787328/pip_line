@@ -233,15 +233,16 @@ void localPlanNode::mapCallback(const grid_map_msgs::GridMap::ConstPtr& msg)
     }
     vector<tf2::Transform> path_In_localmap = transformPose(transform_localmap_globalmap);
     std::reverse(path_In_localmap.begin(), path_In_localmap.end());
-
-    for (int i = 0; i < path_In_localmap.size(); i++)
+    
+    // 由于收到的是稠密的path，所以只按照5cm一次进行检查。
+    int resolution_search = (0.05/map.getResolution());
+    for (int i = 0; i < path_In_localmap.size(); i=i+resolution_search)
     {
         auto point = path_In_localmap.at(i);
         // 还需要保证局部终点位于机器人的前方区域
         // 由于base坐标系与localmap坐标系重合，只需保证
         if (point.getOrigin().x() > 0)
         {
-            
             Eigen::Quaterniond qd;
             qd.x() = point.getRotation().x();
             qd.y() = point.getRotation().y();
@@ -399,7 +400,7 @@ void localPlanNode::mapCallback(const grid_map_msgs::GridMap::ConstPtr& msg)
                 step_msg.x = step.x;
                 step_msg.y = step.y;
                 // 这是一个规划的偏置
-                step_msg.z = step.z - 0.01;
+                step_msg.z = step.z;
                 step_msg.roll = step.roll;
                 step_msg.pitch = step.pitch;
                 step_msg.yaw = step.yaw;

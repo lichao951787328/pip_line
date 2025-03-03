@@ -85,7 +85,7 @@ void AstarHierarchicalFootstepPlannerBase::initial_transitions()
     {
         for (int j = 0; j < 3; j++)
         {
-            Eigen::Vector3d transition = Eigen::Vector3d(0.2 + i * 0.05,   0.02 * j + 0.2,  0);
+            Eigen::Vector3d transition = Eigen::Vector3d(0.1 + i * 0.03,   0.02 * j + 0.2,  0);
             judgeStep_transitions.emplace_back(transition);
         }
         

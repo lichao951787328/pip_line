@@ -15,9 +15,9 @@
 #include <glog/logging.h>
 #include <peac/PEAC_plane_detection.hpp>
 using namespace std;
-#define PLANNING_TIMER_CHECK
+// #define PLANNING_TIMER_CHECK
 // #define COUNT_TIME
-// #define DEBUG
+#define DEBUG
 
 enum RobotSide{LEFT, RIGHT, _NAN_};
 // 规划时，根据当前步前方的高度及本身状态来选择合适的transion
