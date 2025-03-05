@@ -3,9 +3,9 @@ project(pip_line)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
-# set(CMAKE_BUILD_TYPE Debug)
-set(CMAKE_BUILD_TYPE Release)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
+set(CMAKE_BUILD_TYPE Debug)
+# set(CMAKE_BUILD_TYPE Release)
+# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
 set(PYTHON_EXECUTABLE /usr/bin/python3.8)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -199,6 +199,13 @@ src/AstarHierarchicalFootstepPlannerBase.cpp
 src/AstarHierarchicalFootstepPlannerPropose.cpp
 )
 
+add_executable(real_step_map
+  src/real_step_map.cpp
+  src/AstarHierarchicalFootstepPlannerBase.cpp
+  src/AstarHierarchicalFootstepPlannerPropose.cpp
+  src/local_plannerBase.cpp
+)
+
 # add_executable(test_planner 
 # test/test_footstep_planner/test.cpp
 # src/plane_detection/quatree_node_20240618.cpp
@@ -266,6 +273,16 @@ src/AstarHierarchicalFootstepPlannerPropose.cpp
 # )
 
 target_link_libraries(various_terrain_planner
+  ${catkin_LIBRARIES}
+  ${PCL_COMMON_LIBRARIES}
+  ${PCL_IO_LIBRARIES}
+  ${PCL_FILTERS_LIBRARIES}
+  ${Boost_LIBRARIES}
+  glog::glog
+  ${OPENNI_LIBRARIES}
+)
+
+target_link_libraries(real_step_map
   ${catkin_LIBRARIES}
   ${PCL_COMMON_LIBRARIES}
   ${PCL_IO_LIBRARIES}

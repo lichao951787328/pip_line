@@ -235,7 +235,7 @@ void localPlanNode::mapCallback(const grid_map_msgs::GridMap::ConstPtr& msg)
     std::reverse(path_In_localmap.begin(), path_In_localmap.end());
     
     // 由于收到的是稠密的path，所以只按照5cm一次进行检查。
-    int resolution_search = (0.05/map.getResolution());
+    int resolution_search = (0.06/map.getResolution());
     for (int i = 0; i < path_In_localmap.size(); i=i+resolution_search)
     {
         auto point = path_In_localmap.at(i);
@@ -250,12 +250,15 @@ void localPlanNode::mapCallback(const grid_map_msgs::GridMap::ConstPtr& msg)
             qd.w() = point.getRotation().w();
             Eigen::Vector3d v_x = qd.toRotationMatrix() * Eigen::Vector3d::UnitX();
             double yaw = std::atan2(v_x.y(), v_x.x());
-
-            if (local_planner_propose.isGoalFeasible(Eigen::Vector3d(point.getOrigin().x(), point.getOrigin().y(), yaw)))
+            double eular_dis = Eigen::Vector2d(point.getOrigin().x(), point.getOrigin().y()).norm();
+            if(eular_dis < 0.8) // 找一个距离较近的终点，这样规划的更快
             {
-                goal_localmap = Eigen::Vector3d(point.getOrigin().x(), point.getOrigin().y(), yaw);
-                get_goal = true;
-                break;
+                if (local_planner_propose.isGoalFeasible(Eigen::Vector3d(point.getOrigin().x(), point.getOrigin().y(), yaw)))
+                {
+                    goal_localmap = Eigen::Vector3d(point.getOrigin().x(), point.getOrigin().y(), yaw);
+                    get_goal = true;
+                    break;
+                }
             }
         }
     }

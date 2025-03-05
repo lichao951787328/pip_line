@@ -10,7 +10,7 @@ void AstarHierarchicalFootstepPlannerTraditional::setCheckParam(double checkXupp
 }
 
 // tested 粗略检查
-bool AstarHierarchicalFootstepPlannerTraditional::computeLandInfo(Eigen::Vector3d ankle, int & max_size, int & above_points, Eigen::Vector3d & plane_normal, double & step_height, double & pitch, double & roll)
+bool AstarHierarchicalFootstepPlannerTraditional::computeLandInfo(Eigen::Vector3d ankle, int & max_size, int & above_points, Eigen::Vector3d & plane_normal, double & step_height, double & pitch, double & roll, int & plane_indx)
 {
     checktime++;
     auto start = std::chrono::high_resolution_clock::now();

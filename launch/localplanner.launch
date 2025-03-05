@@ -1,10 +1,10 @@
 <launch>
   <param name="foot_param_x_upper" type="double" value="0.16"/>
   <param name="foot_param_x_button" type="double" value="0.1"/>
-  <param name="foot_param_y_left" type="double" value="0.165"/>
-  <param name="foot_param_y_right" type="double" value="0.165"/>
-  <param name="foot_param_x_fore_button" type="double" value="0.1"/>
-  <param name="foot_param_x_hind_top" type="double" value="0"/>
+  <param name="foot_param_y_left" type="double" value="0.08"/>
+  <param name="foot_param_y_right" type="double" value="0.08"/>
+  <param name="foot_param_x_fore_button" type="double" value="0.11"/>
+  <param name="foot_param_x_hind_top" type="double" value="0.02"/>
 
   <param name="hip_width" type="double" value="0.2"/>
 

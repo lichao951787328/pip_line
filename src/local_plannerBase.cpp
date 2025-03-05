@@ -89,6 +89,8 @@ void localPlannerBase::detectionPlane()
     pcl::PointCloud<pcl::PointXYZ> org_pc = gridMap2PointcloudOrganized();
     pd.detect(org_pc);
     // cv::imwrite("/home/lichao/TCDS/src/pip_line/data/result.png", pd.result);
+    // cv::imshow("result", pd.result);
+    // cv::waitKey(0);
     
     LOG(INFO)<<"PLANE SIZE: "<< pd.planes.size();
     vector<ahc::PlaneSeg::Stats> statses(pd.planes.size());

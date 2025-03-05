@@ -49,7 +49,7 @@ public:
      * @return true 
      * @return false 
      */
-    bool computeLandInfo(Eigen::Vector3d ankle, int & max_size, int & above_points, Eigen::Vector3d & plane_normal, double & step_height, double & pitch, double & roll) override;
+    bool computeLandInfo(Eigen::Vector3d ankle, int & max_size, int & above_points, Eigen::Vector3d & plane_normal, double & step_height, double & pitch, double & roll, int & plane_indx) override;
 
     
     // 根据终点解算机器人在终点时左右脚的位置

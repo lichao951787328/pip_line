@@ -12,21 +12,29 @@ bool AstarHierarchicalFootstepPlannerPropose::getPointsInFootArea(Eigen::Vector3
     // auto start = std::chrono::high_resolution_clock::now();
     Eigen::AngleAxisd ax(ankle.z(), Eigen::Vector3d::UnitZ());
     Eigen::Vector3d mid(ankle.x(), ankle.y(), 0);
-
+    // 前顶点
     Eigen::Vector3d fore_top = ax.toRotationMatrix() * Eigen::Vector3d(footparam.x_upper, 0, 0) + mid;
+    // 前底点
     Eigen::Vector3d fore_button = ax.toRotationMatrix() * Eigen::Vector3d(footparam.x_fore_button, 0, 0) + mid;
-
+    // 后顶点
     Eigen::Vector3d hind_top = ax.toRotationMatrix() * Eigen::Vector3d(- footparam.x_hind_top, 0, 0) + mid;
+    // 后底点
     Eigen::Vector3d hind_button = ax.toRotationMatrix() * Eigen::Vector3d(- footparam.x_button, 0, 0) + mid;
-
+    // 左前顶点
     Eigen::Vector3d fore_top_left = ax.toRotationMatrix() * Eigen::Vector3d(0, footparam.y_left, 0) + fore_top;
+    // 右前顶点
     Eigen::Vector3d fore_top_right = ax.toRotationMatrix() * Eigen::Vector3d(0, - footparam.y_right, 0) + fore_top;
+    // 左前底点
     Eigen::Vector3d fore_button_left = ax.toRotationMatrix() * Eigen::Vector3d(0, footparam.y_left, 0) + fore_button;
+    // 右前底点
     Eigen::Vector3d fore_button_right = ax.toRotationMatrix() * Eigen::Vector3d(0, - footparam.y_right, 0) + fore_button;
-
+    // 左后顶点
     Eigen::Vector3d hind_top_left = ax.toRotationMatrix() * Eigen::Vector3d(0, footparam.y_left, 0) + hind_top;
+    // 右后顶点
     Eigen::Vector3d hind_top_right = ax.toRotationMatrix() * Eigen::Vector3d(0, - footparam.y_right, 0) + hind_top;
+    // 左后底点
     Eigen::Vector3d hind_button_left = ax.toRotationMatrix() * Eigen::Vector3d(0, footparam.y_left, 0) + hind_button;
+    // 右后底点
     Eigen::Vector3d hind_button_right = ax.toRotationMatrix() * Eigen::Vector3d(0, - footparam.y_right, 0) + hind_button;
 
     grid_map::Position top_left_l(fore_top_left.x(), fore_top_left.y());
@@ -88,11 +96,20 @@ bool AstarHierarchicalFootstepPlannerPropose::getSquareCounter(Eigen::Vector2d T
         rectPoints.emplace_back(cv::Point(top_right_index.y(), top_right_index.x()));
         rectPoints.emplace_back(cv::Point(down_right_index.y(), down_right_index.x()));
         rectPoints.emplace_back(cv::Point(down_left_index.y(), down_left_index.x()));
+        // for (auto & cv_point : rectPoints)
+        // {
+        //     cout<<cv_point<<" ";
+        // }
+        // cout<<endl;
         cv::Mat simage = cv::Mat::zeros(label_localmap.getSize().x(), label_localmap.getSize().y(), CV_8UC1);
         const cv::Point* pts = rectPoints.data(); // 获取顶点数组指针
         int numPoints = rectPoints.size();
         cv::polylines(simage, &pts, &numPoints, 1, true, 255, 2);
         cv::fillPoly(simage, std::vector<std::vector<cv::Point>>{rectPoints}, 255);
+// #ifdef DEBUG
+//         cv::imshow("simage", simage);
+//         cv::waitKey(0);
+// #endif
         std::vector<cv::Point> whitePixels;
         cv::findNonZero(simage, whitePixels);
         for (auto & p : whitePixels)
@@ -145,7 +162,7 @@ bool AstarHierarchicalFootstepPlannerPropose::getSupportPlaneIndex(std::unordere
 }
 
 // tested 粗略检查
-bool AstarHierarchicalFootstepPlannerPropose::computeLandInfo(Eigen::Vector3d ankle, int & max_size, int & above_points, Eigen::Vector3d & plane_normal, double & step_height, double & pitch, double & roll) 
+bool AstarHierarchicalFootstepPlannerPropose::computeLandInfo(Eigen::Vector3d ankle, int & max_size, int & above_points, Eigen::Vector3d & plane_normal, double & step_height, double & pitch, double & roll, int & plane_index) 
 {
     // 能否找到支撑平面
     // 前脚直方图
@@ -203,9 +220,9 @@ bool AstarHierarchicalFootstepPlannerPropose::computeLandInfo(Eigen::Vector3d an
         int fore_right_support_size = 0;
         int hind_left_support_size = 0;
         int hind_right_support_size = 0;
-        double x_num = (std::min(footparam.y_left, footparam.y_right)/2.0);
-        int thred = (std::floor(x_num/resolution)) * (std::ceil(0.02/resolution));
-
+        double x_num = (std::min(footparam.y_left, footparam.y_right)/2);
+        int thred = (std::floor(x_num/resolution)) * (std::ceil(0.06/resolution));
+        // cout<<thred<<endl;
         if (!getSupportPlaneIndex(fore_left_foot_counter, fore_left_mid, thred, fore_left_support_plane, fore_left_support_size))
         {
 #ifdef  DEBUG
@@ -260,7 +277,7 @@ bool AstarHierarchicalFootstepPlannerPropose::computeLandInfo(Eigen::Vector3d an
             auto end = std::chrono::high_resolution_clock::now();
             total_time += (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count())/1000.0;
 #endif
-            int plane_index = fore_left_support_plane;
+            plane_index = fore_left_support_plane;
             max_size = fore_left_support_size + fore_right_support_size + hind_left_support_size + hind_right_support_size;
             plane_normal = Eigen::Vector3d(planes_info.at(plane_index).normal.x(), planes_info.at(plane_index).normal.y(), planes_info.at(plane_index).normal.z());
             Eigen::Vector3d center = Eigen::Vector3d(planes_info.at(plane_index).center.x(), planes_info.at(plane_index).center.y(), planes_info.at(plane_index).center.z());
