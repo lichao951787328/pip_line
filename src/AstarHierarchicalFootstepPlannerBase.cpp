@@ -79,13 +79,13 @@ void AstarHierarchicalFootstepPlannerBase::initial_transitions()
 
 #ifdef OUR_ROBOT
 
-    for (int i = -3; i < 5; i++)
+    for (int i = -5; i < 6; i++)
     {
         for (int j = -1; j < 3; j++)
         {
             for (int k = -1; k < 3; k++)
             {
-                Eigen::Vector3d transition = Eigen::Vector3d(0.15 + i * 0.05,   0.02 * j + 0.22,  (k*5.0)/57.3);
+                Eigen::Vector3d transition = Eigen::Vector3d(0.15 + i * 0.04,   0.02 * j + 0.22,  (k*5.0)/57.3);
                 transitions.emplace_back(transition);
             }
         }
@@ -115,7 +115,7 @@ void AstarHierarchicalFootstepPlannerBase::initial_transitions()
 
     
     // 机器人并步的transion
-    for (int i = -2; i < 3; i++)
+    for (int i = -3; i < 4; i++)
     {
         for (int j = 0; j < 3; j++)
         {
