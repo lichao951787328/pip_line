@@ -40,8 +40,56 @@ int main(int argc, char** argv)
 
     vector<grid_map::GridMap> maps;
     vector<grid_map_msgs::GridMap> msgs;
+    vector<diy_msgs::robotState> states;
 
-    for (rosbag::MessageInstance const m : rosbag::View(bag))
+    // for (rosbag::MessageInstance const m : rosbag::View(bag))
+    // {
+    //     if (m.getTopic() == "/localmap")
+    //     {
+    //         grid_map_msgs::GridMap::ConstPtr grid_map_msg = m.instantiate<grid_map_msgs::GridMap>();
+    //         if (grid_map_msg != nullptr)
+    //         {
+    //             cout << "Received a grid map message" << endl;
+    //             grid_map::GridMap map;
+    //             grid_map::GridMapRosConverter::fromMessage(*grid_map_msg, map);
+    //             maps.emplace_back(map);
+    //             msgs.emplace_back(*grid_map_msg);
+    //         }
+    //     }
+    // }
+    // bag.close();
+
+    // cout<<"maps.size():"<<maps.size()<<endl;
+    // cout<<"msgs.size():"<<msgs.size()<<endl;
+
+    // rosbag::Bag state_bag;
+    // state_bag.open("/home/lichao/TCDS/src/pip_line/data/2025-03-04-11-07-07.bag", rosbag::bagmode::Read);
+
+    // std::vector<std::string> state_topics;
+    // state_topics.push_back(std::string("/robot_state"));
+
+    
+    
+    // for (rosbag::MessageInstance const m : rosbag::View(state_bag))
+    // {
+    //     if (m.getTopic() == "/robot_state")
+    //     {
+    //         // Assuming the message type is std_msgs::String for demonstration purposes
+    //         diy_msgs::robotState::ConstPtr state_msg = m.instantiate<diy_msgs::robotState>();
+    //         if (state_msg != nullptr)
+    //         {
+    //             cout << "Received a robot state message: "<< endl;
+    //             states.emplace_back(*state_msg);
+    //         }
+    //     }
+    // }
+    // state_bag.close();
+    // LOG(INFO)<<"states: "<<states.size();
+
+    rosbag::Bag new_bag;
+    new_bag.open("/home/lichao/TCDS/src/pip_line/data/2025-03-06-11-40-08.bag", rosbag::bagmode::Read);
+
+    for (rosbag::MessageInstance const m : rosbag::View(new_bag))
     {
         if (m.getTopic() == "/localmap")
         {
@@ -55,35 +103,23 @@ int main(int argc, char** argv)
                 msgs.emplace_back(*grid_map_msg);
             }
         }
-    }
-    bag.close();
-
-    cout<<"maps.size():"<<maps.size()<<endl;
-    cout<<"msgs.size():"<<msgs.size()<<endl;
-
-    rosbag::Bag state_bag;
-    state_bag.open("/home/lichao/TCDS/src/pip_line/data/2025-03-04-11-07-07.bag", rosbag::bagmode::Read);
-
-    std::vector<std::string> state_topics;
-    state_topics.push_back(std::string("/robot_state"));
-
-    vector<diy_msgs::robotState> states;
-    
-    for (rosbag::MessageInstance const m : rosbag::View(state_bag))
-    {
-        if (m.getTopic() == "/robot_state")
+        else if (m.getTopic() == "/robot_state")
         {
-            // Assuming the message type is std_msgs::String for demonstration purposes
             diy_msgs::robotState::ConstPtr state_msg = m.instantiate<diy_msgs::robotState>();
             if (state_msg != nullptr)
             {
-                cout << "Received a robot state message: "<< endl;
+                cout << "Received a robot state message" << endl;
                 states.emplace_back(*state_msg);
             }
         }
     }
-    state_bag.close();
-    LOG(INFO)<<"states: "<<states.size();
+    new_bag.close();
+
+    cout << "maps.size(): " << maps.size() << endl;
+    cout << "msgs.size(): " << msgs.size() << endl;
+    cout << "states.size(): " << states.size() << endl;
+
+
     FootParam foot_param;
     foot_param.x_upper = 0.156;
     foot_param.x_button = 0.1;
@@ -93,7 +129,7 @@ int main(int argc, char** argv)
     foot_param.x_hind_top = 0.01;
     double hip_width = 0.2;
 
-    for (int i = 9; i < msgs.size(); i++)
+    for (int i = 1; i < msgs.size(); i++)
     {
         grid_map::GridMap map = maps.at(i);
         grid_map_msgs::GridMap msg = msgs.at(i);
