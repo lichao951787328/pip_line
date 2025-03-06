@@ -85,7 +85,7 @@ int main(int argc, char** argv)
     state_bag.close();
     LOG(INFO)<<"states: "<<states.size();
     FootParam foot_param;
-    foot_param.x_upper = 0.16;
+    foot_param.x_upper = 0.156;
     foot_param.x_button = 0.1;
     foot_param.y_left = 0.08;
     foot_param.y_right = 0.08;
@@ -93,12 +93,25 @@ int main(int argc, char** argv)
     foot_param.x_hind_top = 0.01;
     double hip_width = 0.2;
 
-    for (int i = 0; i < msgs.size(); i++)
+    for (int i = 9; i < msgs.size(); i++)
     {
         grid_map::GridMap map = maps.at(i);
         grid_map_msgs::GridMap msg = msgs.at(i);
         diy_msgs::robotState robot_state = states.at(i);
 
+        int nan_num = 0;
+        for (int i = 0; i < map.getSize().x(); i++)
+        {
+            for (int j = 0; j < map.getSize().y(); j++)
+            {
+                grid_map::Index index(i, j);
+                if (!map.isValid(index, "elevation"))
+                {
+                    nan_num++;
+                }
+            }
+        }
+        cout<<"nan_num: "<<nan_num<<endl;
         localPlannerBase local_planner_propose;
         // LOG(INFO)<<"set planer";
         // 声明自己想使用的规划器
@@ -272,7 +285,7 @@ int main(int argc, char** argv)
         }
         auto end_time = ros::Time::now();
         cout<<"time_consume: "<<(end_time - start_time).toSec()<<endl;
-        // 
+        cout<<"i = "<<i<<endl;
         // Wait for a key press to proceed to the next iteration
         cout << "Press Enter to proceed to the next iteration..." << endl;
         cin.ignore();
