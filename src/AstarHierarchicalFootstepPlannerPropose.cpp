@@ -122,6 +122,7 @@ bool AstarHierarchicalFootstepPlannerPropose::getSquareCounter(Eigen::Vector2d T
                 // HV.add(label_index, position);
                 counter[label_index]++;
             }
+            
         }
         return true;
     }
@@ -138,7 +139,7 @@ bool AstarHierarchicalFootstepPlannerPropose::getSupportPlaneIndex(std::unordere
     int max_size = 0;
     for (auto & bin : counter)
     {
-        if (bin.second > thred)
+        if (bin.second >= thred)
         {
             double temp_height = planes_info.at(bin.first).getZ(mid.head(2));
             if (max_height < temp_height)

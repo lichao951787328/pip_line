@@ -527,27 +527,128 @@ bool AstarHierarchicalFootstepPlannerBase::getPointInfoInPlane(Eigen::Vector3d p
 // 是不是可以换成平面的形式
 bool AstarHierarchicalFootstepPlannerBase::startPoint2Node(Eigen::Vector3d p, FootstepNodePtr node)
 {
-    double height = 0.0, pitch = 0, roll = 0;
-    int plane_index = -1;
-    if (getPointInfoInPlane(p, height, pitch, roll, plane_index))
+    // 由于建图噪声和运动中的误差，导致有机器人base解算出来的位置的起点很有可能是无效的，因此需要对起点进行微调，选择合适的点作为规划的起点，尽管它并不是实际起点。
+
+    // 微调办法是，在将机器人x方向进行微调，微调幅度为2个分辨率，这样就会得到5个候选点，并选取得分最高的作为支撑平面，变换最小的作为规划起点
+    vector<Eigen::Vector3d> points;
+    for (int i = -2; i <= 3; i++)
     {
-        node->footstep.x = p(0);
-        node->footstep.y = p(1);
-        node->footstep.z = height;
-        // LOG(INFO)<<"height: "<<height;
-        node->footstep.yaw = p(2);
-        node->footstep.roll = roll;
-        node->footstep.pitch = pitch;
-        node->plane_index = plane_index;
-        return true;
+        Eigen::Vector3d temp = p;
+        temp.x() += i * label_localmap.getResolution();
+        points.emplace_back(temp);
+    }
+    vector<double> heights, pitchs, rolls;
+    vector<int> plane_indexs;
+    heights.resize(points.size());
+    pitchs.resize(points.size());
+    rolls.resize(points.size());
+    plane_indexs.resize(points.size());
+    
+    for (int i = 0; i < points.size(); i++)
+    {
+        double tem_height = 0.0, tmp_pitch = 0.0, tmp_roll = 0.0;
+        int tmp_plane_index = -1;
+        getPointInfoInPlane(points[i], tem_height, tmp_pitch, tmp_roll, tmp_plane_index);
+        heights[i] = tem_height;
+        pitchs[i] = tmp_pitch;
+        rolls[i] = tmp_roll;
+        plane_indexs[i] = tmp_plane_index;
+    }
+
+    std::unordered_map<int, int> plane_scores;
+    for (auto & index : plane_indexs)
+    {
+        if (index != -1)
+        {
+            plane_scores[index]++;
+        }
+    }
+    if (plane_scores.empty())
+    {
+        return false;
     }
     else
     {
-#ifdef DEBUG
-        LOG(ERROR)<<"get info error";
-#endif
-        return false;
+        // 找到出现频次最多的 index
+        int max_index = -1;
+        int max_count = 0;
+
+        for (const auto &[index, count] : plane_scores) {
+            if (count > max_count) {
+                max_count = count;
+                max_index = index;
+            }
+        }
+
+        int plane_index = max_index;
+        for (int i = 0; i <= 2; i++)
+        {
+            if (plane_indexs.at(i + 2) == plane_index)
+            {
+                node->footstep.x = points.at(i + 2)(0);
+                node->footstep.y = points.at(i + 2)(1);
+                node->footstep.z = heights.at(i + 2);
+                // LOG(INFO)<<"height: "<<height;
+                node->footstep.yaw = points.at(i + 2)(2);
+                node->footstep.roll = rolls.at(i + 2);
+                node->footstep.pitch = pitchs.at(i + 2);
+                node->plane_index = plane_index;
+                return true;
+            }
+            if (plane_indexs.at(-i + 2) == plane_index)
+            {
+                node->footstep.x = points.at(-i + 2)(0);
+                node->footstep.y = points.at(-i + 2)(1);
+                node->footstep.z = heights.at(-i + 2);
+                // LOG(INFO)<<"height: "<<height;
+                node->footstep.yaw = points.at(-i + 2)(2);
+                node->footstep.roll = rolls.at(-i + 2);
+                node->footstep.pitch = pitchs.at(-i + 2);
+                node->plane_index = plane_index;
+                return true;
+            }
+        }
+
+        if (plane_indexs.at(plane_indexs.size() - 1) = plane_index)
+        {
+            node->footstep.x = points.at(points.size() - 1)(0);
+            node->footstep.y = points.at(points.size() - 1)(1);
+            node->footstep.z = heights.at(points.size() - 1);
+            // LOG(INFO)<<"height: "<<height;
+            node->footstep.yaw = points.at(points.size() - 1)(2);
+            node->footstep.roll = rolls.at(points.size() - 1);
+            node->footstep.pitch = pitchs.at(points.size() - 1);
+            node->plane_index = plane_index;
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+        
     }
+
+//     double height = 0.0, pitch = 0, roll = 0;
+//     int plane_index = -1;
+//     if (getPointInfoInPlane(p, height, pitch, roll, plane_index))
+//     {
+//         node->footstep.x = p(0);
+//         node->footstep.y = p(1);
+//         node->footstep.z = height;
+//         // LOG(INFO)<<"height: "<<height;
+//         node->footstep.yaw = p(2);
+//         node->footstep.roll = roll;
+//         node->footstep.pitch = pitch;
+//         node->plane_index = plane_index;
+//         return true;
+//     }
+//     else
+//     {
+// #ifdef DEBUG
+//         LOG(ERROR)<<"get info error";
+// #endif
+//         return false;
+//     }
 }
 
 
