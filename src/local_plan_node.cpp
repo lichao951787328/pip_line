@@ -251,7 +251,7 @@ void localPlanNode::mapCallback(const grid_map_msgs::GridMap::ConstPtr& msg)
             Eigen::Vector3d v_x = qd.toRotationMatrix() * Eigen::Vector3d::UnitX();
             double yaw = std::atan2(v_x.y(), v_x.x());
             double eular_dis = Eigen::Vector2d(point.getOrigin().x(), point.getOrigin().y()).norm();
-            if(eular_dis < 0.8) // 找一个距离较近的终点，这样规划的更快
+            if(eular_dis < 1) // 找一个距离较近的终点，这样规划的更快
             {
                 if (local_planner_propose.isGoalFeasible(Eigen::Vector3d(point.getOrigin().x(), point.getOrigin().y(), yaw)))
                 {
@@ -378,7 +378,7 @@ void localPlanNode::mapCallback(const grid_map_msgs::GridMap::ConstPtr& msg)
         });
         auto planning_start = std::chrono::high_resolution_clock::now();
         // 等待任务完成或超时
-        if (future.wait_for(std::chrono::milliseconds(800)) == std::future_status::ready) {
+        if (future.wait_for(std::chrono::milliseconds(900)) == std::future_status::ready) {
             // 任务在超时时间内完成
             running_flag = future.get();
         } else {
